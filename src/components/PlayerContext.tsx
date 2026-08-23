@@ -275,6 +275,36 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     });
   };
 
+
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentTrack) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist || 'Desconocido',
+        album: currentTrack.albumTitle || 'Qobuz Audio',
+        artwork: currentTrack.image ? [
+          { src: currentTrack.image, sizes: '512x512', type: 'image/jpeg' },
+          { src: currentTrack.image, sizes: '1024x1024', type: 'image/jpeg' } // High-res
+        ] : []
+      });
+    }
+  }, [currentTrack]);
+
+
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.setActionHandler('play', () => togglePlay());
+      navigator.mediaSession.setActionHandler('pause', () => togglePlay());
+      navigator.mediaSession.setActionHandler('previoustrack', () => prevTrack());
+      navigator.mediaSession.setActionHandler('nexttrack', () => nextTrack());
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime !== undefined && details.seekTime !== null) {
+           seekTo(details.seekTime);
+        }
+      });
+    }
+  }); // Run every render to capture fresh closures for nextTrack/prevTrack
+
   return (
     <PlayerContext.Provider value={{ 
       currentTrack, isPlaying, isLoading, playTrack, togglePlay, 

@@ -391,9 +391,7 @@ export default function ExpandedPlayer() {
 
       {/* Queue Modal */}
       
-        {showQueue && (
-          <div className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom-full duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-          >
+        <div className={`absolute inset-0 z-[70] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${showQueue ? 'translate-y-0' : 'translate-y-full'}`}>
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">A Continuación</h3>
               <button
@@ -438,10 +436,7 @@ export default function ExpandedPlayer() {
               )}
             </div>
           </div>
-        )}
-        {showCredits && (
-          <div className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom-full duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
-          >
+        <div className={`absolute inset-0 z-[70] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${showCredits ? 'translate-y-0' : 'translate-y-full'}`}>
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">Créditos de la pista</h3>
               <button
@@ -494,8 +489,6 @@ export default function ExpandedPlayer() {
               )}
             </div>
           </div>
-        )}
-      
-    </div>
+                  </div>
   );
 }
