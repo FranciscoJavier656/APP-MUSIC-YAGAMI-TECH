@@ -1,0 +1,58 @@
+name: Build iOS IPA for TrollStore
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: Build iOS App (TrollStore)
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Web App
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - name: Build iOS App (No Code Signing)
+        run: |
+          cd ios/App
+          # Usamos xcodebuild para construir el Workspace.
+          # CODE_SIGNING_ALLOWED=NO se salta los certificados de Apple Developer.
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build
+
+      - name: Package into IPA
+        run: |
+          # Creamos la carpeta Payload (requerida por iOS para hacer un .ipa válido)
+          mkdir -p Payload
+          # Copiamos la app compilada a Payload
+          cp -r ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
+          # Comprimimos todo en un archivo .ipa
+          zip -r AudiophilePlayer-TrollStore.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudiophilePlayer-TrollStore
+          path: AudiophilePlayer-TrollStore.ipa
