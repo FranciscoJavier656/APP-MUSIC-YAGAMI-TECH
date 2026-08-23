@@ -28,7 +28,7 @@ export default function MiniPlayer() {
             setIsExpanded(true);
           }}
         >
-          <div className="bg-[#F9F9F9]/95 dark:bg-[#2C2C2E]/95 backdrop-blur-xl border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-2 flex items-center gap-3 relative">
+          <div className="bg-[#F9F9F9]/95 dark:bg-[#2C2C2E]/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-2 flex items-center gap-3 relative">
             <div className="absolute bottom-0 left-0 h-[2px] bg-gray-200 dark:bg-gray-700 w-full">
               <div 
                 className="h-full bg-[#007AFF] transition-all duration-300"

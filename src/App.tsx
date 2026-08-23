@@ -47,7 +47,7 @@ export default function App() {
         <MiniPlayer />
 
         {/* iOS Style Bottom Tab Bar */}
-        <nav className="absolute bottom-0 w-full h-[88px] bg-[#F9F9F9]/95 dark:bg-[#1C1C1E]/95 backdrop-blur-xl border-t border-gray-300 dark:border-gray-800 flex justify-around items-start pt-3 z-50 transition-colors duration-300">
+        <nav className="absolute bottom-0 w-full h-[88px] bg-[#F9F9F9]/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md border-t border-gray-300 dark:border-gray-800 flex justify-around items-start pt-3 z-50 transition-colors duration-300">
           <div className="flex justify-around items-start w-full max-w-md mx-auto px-4">
             <button
               onClick={() => setActiveTab('search')}

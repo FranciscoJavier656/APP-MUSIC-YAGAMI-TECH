@@ -115,7 +115,7 @@ export default function ExpandedPlayer() {
       animate={{ y: 0, opacity: 1 }}
       exit={{ y: '100%', opacity: 0 }}
       transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-[60] bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-3xl flex flex-col pt-12 pb-8 px-6 sm:px-12"
+      className="fixed inset-0 z-[60] bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-md flex flex-col pt-12 pb-8 px-6 sm:px-12"
     >
       {/* Animated Breathing Background */}
       <motion.div 
@@ -337,7 +337,7 @@ export default function ExpandedPlayer() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl flex flex-col"
+            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col"
           >
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">A Continuación</h3>
@@ -391,7 +391,7 @@ export default function ExpandedPlayer() {
             animate={{ y: 0 }}
             exit={{ y: '100%' }}
             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-2xl flex flex-col"
+            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col"
           >
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">Créditos de la pista</h3>

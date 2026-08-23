@@ -100,7 +100,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
-    audio.crossOrigin = "anonymous";
+    // audio.crossOrigin = "anonymous"; // Disabled for iOS WebView compatibility
     
     const updateTime = () => {
       setCurrentTime(audio.currentTime);
@@ -185,13 +185,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(track.duration || 0); // initial guess from metadata
     
     try {
-      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/stream`, { params: { track_id: track.id } });
+      const streamUrl = await getQobuzTrackUrl(track.id.toString(), '5');
       
-      // If a new track was requested while we were waiting, abort this playback
       if (requestId !== playRequestRef.current) return;
       
-      if (res.data && res.data.url && audioRef.current) {
-        audioRef.current.src = res.data.url;
+      if (streamUrl && audioRef.current) {
+        audioRef.current.src = streamUrl;
         const playPromise = audioRef.current.play();
         if (playPromise !== undefined) {
           playPromise.catch(error => {
