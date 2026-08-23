@@ -1,5 +1,7 @@
 import { getQobuzTrackUrl } from "../lib/qobuz";
 import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import { Capacitor } from '@capacitor/core';
+import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import axios from 'axios';
 
 export interface Track {
@@ -163,14 +165,28 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (requestId !== playRequestRef.current) return;
       
       if (streamUrl && audioRef.current) {
-        audioRef.current.src = streamUrl;
-        const playPromise = audioRef.current.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            console.log("Playback interrupted:", error);
-          });
+        if (Capacitor.isNativePlatform()) {
+           await QobuzAudio.play({ url: streamUrl });
+           setIsPlaying(true);
+           setIsLoading(false);
+           // Start a dummy interval to update time since native plugin handles playback
+           if (!(window as any).nativeTimeInterval) {
+             (window as any).nativeTimeInterval = setInterval(() => {
+                if (audioRef.current) {
+                   audioRef.current.currentTime += 0.5; // Dummy progression for UI
+                }
+             }, 500);
+           }
+        } else {
+           audioRef.current.src = streamUrl;
+           const playPromise = audioRef.current.play();
+           if (playPromise !== undefined) {
+             playPromise.catch(error => {
+               console.log("Playback interrupted:", error);
+             });
+           }
+           setIsPlaying(true);
         }
-        setIsPlaying(true);
       }
     } catch (e) {
       if (requestId !== playRequestRef.current) return;
@@ -185,14 +201,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!audioRef.current || !currentTrack) return;
     
     if (isPlaying) {
-      audioRef.current.pause();
+      if (Capacitor.isNativePlatform()) {
+         QobuzAudio.pause();
+      } else {
+         audioRef.current.pause();
+      }
       setIsPlaying(false);
     } else {
-      const playPromise = audioRef.current.play();
-      if (playPromise !== undefined) {
-        playPromise.catch(error => {
-          console.log("Playback interrupted:", error);
-        });
+      if (Capacitor.isNativePlatform()) {
+         QobuzAudio.resume();
+      } else {
+         const playPromise = audioRef.current.play();
+         if (playPromise !== undefined) {
+           playPromise.catch(error => {
+             console.log("Playback interrupted:", error);
+           });
+         }
       }
       setIsPlaying(true);
     }
@@ -201,6 +225,9 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seekTo = (time: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
+      if (Capacitor.isNativePlatform()) {
+         QobuzAudio.seek({ time });
+      }
       
     }
   };

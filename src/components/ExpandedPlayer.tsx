@@ -1,4 +1,5 @@
 import { usePlayer } from './PlayerContext';
+import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { ChevronDown, Play, Pause, Loader2, SkipBack, SkipForward, Repeat, Shuffle, Volume2, ListMusic, X } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 
@@ -11,54 +12,40 @@ const Visualizer = ({ isPlaying }: { isPlaying: boolean }) => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     
-    let animationFrameId: number;
-    const bufferLength = 64; // arbitrary number of bars
-    const dataArray = new Uint8Array(bufferLength);
-    
-    // Simulate frequency data
-    const simulateData = () => {
-      for (let i = 0; i < bufferLength; i++) {
-        if (isPlaying) {
-           // Create a realistic looking EQ curve with random bouncing
-           const base = Math.sin((i / bufferLength) * Math.PI) * 150;
-           const random = Math.random() * 100;
-           dataArray[i] = Math.max(0, Math.min(255, base + random - 50));
-        } else {
-           // Decay to 0
-           dataArray[i] = Math.max(0, dataArray[i] - 10);
-        }
-      }
-    };
+    let listener: any;
+    const bufferLength = 64;
 
-    const draw = () => {
-      animationFrameId = requestAnimationFrame(draw);
-      
-      simulateData();
-      
-      const width = canvas.width;
-      const height = canvas.height;
-      ctx.clearRect(0, 0, width, height);
-      
-      const barWidth = (width / bufferLength) * 2.5;
-      let barHeight;
-      let x = 0;
-      
-      for (let i = 0; i < bufferLength; i++) {
-        barHeight = dataArray[i] / 255 * height;
-        const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-        ctx.fillStyle = isDarkMode ? `rgba(255, 255, 255, ${dataArray[i]/255 * 0.5})` : `rgba(0, 0, 0, ${dataArray[i]/255 * 0.5})`;
+    const setupListener = async () => {
+      listener = await QobuzAudio.addListener('onFftData', (info) => {
+        if (!isPlaying) return;
+        const dataArray = info.data;
+        const width = canvas.width;
+        const height = canvas.height;
+        ctx.clearRect(0, 0, width, height);
         
-        ctx.beginPath();
-        ctx.roundRect(x, height - barHeight, barWidth - 1, barHeight, 4);
-        ctx.fill();
-        x += barWidth + 1;
-      }
+        const barWidth = (width / bufferLength) * 2.5;
+        let barHeight;
+        let x = 0;
+        
+        for (let i = 0; i < Math.min(bufferLength, dataArray.length); i++) {
+          barHeight = (dataArray[i] / 255) * height;
+          const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          ctx.fillStyle = isDarkMode ? `rgba(255, 255, 255, ${dataArray[i]/255 * 0.5})` : `rgba(0, 0, 0, ${dataArray[i]/255 * 0.5})`;
+          
+          ctx.beginPath();
+          ctx.roundRect(x, height - barHeight, barWidth - 1, barHeight, 4);
+          ctx.fill();
+          x += barWidth + 1;
+        }
+      });
     };
     
-    draw();
+    setupListener();
     
     return () => {
-      cancelAnimationFrame(animationFrameId);
+      if (listener) {
+        listener.remove();
+      }
     };
   }, [isPlaying]);
 
@@ -108,20 +95,10 @@ export default function ExpandedPlayer() {
         if (remainingTimeRef.current) remainingTimeRef.current.textContent = "-" + formatTime(dur - current);
       }
 
-      // 2. Draw Analyser (Simulated to bypass iOS background WebAudio mute)
-      if (ctx && canvas) {
-        const bufferLength = 64;
-        if (!(canvas as any).simulatedDataArray) (canvas as any).simulatedDataArray = new Uint8Array(bufferLength);
-        
-        for (let i = 0; i < bufferLength; i++) {
-          if (!audioRef.current?.paused) {
-             const base = Math.sin((i / bufferLength) * Math.PI) * 150;
-             const random = Math.random() * 100;
-             (canvas as any).simulatedDataArray[i] = Math.max(0, Math.min(255, base + random - 50));
-          } else {
-             (canvas as any).simulatedDataArray[i] = Math.max(0, (canvas as any).simulatedDataArray[i] - 10);
-          }
-        }
+      // 2. Draw Analyser (Native iOS vDSP)
+      if (ctx && canvas && (canvas as any).nativeFftData) {
+        const dataArray = (canvas as any).nativeFftData;
+        const bufferLength = dataArray.length;
         
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         
@@ -129,9 +106,9 @@ export default function ExpandedPlayer() {
         let x = 0;
         
         for (let i = 0; i < bufferLength; i++) {
-          const barHeight = ((canvas as any).simulatedDataArray[i] / 255) * canvas.height;
+          const barHeight = (dataArray[i] / 255) * canvas.height;
           // Soft iOS Blue
-          ctx.fillStyle = `rgba(0, 122, 255, ${0.3 + ((canvas as any).simulatedDataArray[i]/255)*0.7})`; 
+          ctx.fillStyle = `rgba(0, 122, 255, ${0.3 + (dataArray[i]/255)*0.7})`; 
           ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
           x += barWidth + 1;
         }
@@ -155,6 +132,18 @@ export default function ExpandedPlayer() {
   const [showQueue, setShowQueue] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
   const [dominantColor, setDominantColor] = useState<string | null>(null);
+  useEffect(() => {
+    let listener: any;
+    const setup = async () => {
+      listener = await QobuzAudio.addListener('onFftData', (info) => {
+         if (canvasRef.current) {
+            (canvasRef.current as any).nativeFftData = info.data;
+         }
+      });
+    };
+    setup();
+    return () => { if (listener) listener.remove(); };
+  }, []);
 
   useEffect(() => {
     if (currentTrack?.image) {
