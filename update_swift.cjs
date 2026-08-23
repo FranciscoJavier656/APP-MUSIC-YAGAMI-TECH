@@ -1,4 +1,6 @@
-import Foundation
+const fs = require('fs');
+
+let swiftCode = `import Foundation
 import Capacitor
 import AVFoundation
 import Accelerate
@@ -28,7 +30,7 @@ public class QobuzAudioPlugin: CAPPlugin {
             try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
             try AVAudioSession.sharedInstance().setActive(true)
         } catch {
-            print("Error configurando AVAudioSession: \(error)")
+            print("Error configurando AVAudioSession: \\(error)")
         }
         
         let asset = AVURLAsset(url: url)
@@ -176,3 +178,7 @@ public class QobuzAudioPlugin: CAPPlugin {
         call.resolve()
     }
 }
+`
+
+fs.writeFileSync('ios/App/App/QobuzAudioPlugin.swift', swiftCode);
+console.log('Updated QobuzAudioPlugin.swift');
