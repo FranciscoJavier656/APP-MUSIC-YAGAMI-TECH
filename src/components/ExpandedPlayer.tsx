@@ -63,12 +63,66 @@ const Visualizer = ({ analyser, isPlaying }: { analyser: AnalyserNode | null, is
 
 export default function ExpandedPlayer() {
   const { 
-    currentTrack, isPlaying, isLoading, togglePlay, progress, currentTime, duration, 
+    currentTrack, isPlaying, isLoading, togglePlay, duration,
+    audioRef, 
     setIsExpanded, seekTo, volume, setVolume,
     queue, nextTrack, prevTrack, isShuffle, toggleShuffle, repeatMode, toggleRepeat, playTrack,
     analyser
   } = usePlayer();
   const [isScrubbing, setIsScrubbing] = useState(false);
+  const progressRef = useRef<HTMLDivElement>(null);
+  const seekInputRef = useRef<HTMLInputElement>(null);
+  const currentTimeRef = useRef<HTMLSpanElement>(null);
+  const remainingTimeRef = useRef<HTMLSpanElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    let animationId: number;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+    
+    // We create a dummy data array to keep variables simple if no analyser
+    const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
+
+    const draw = () => {
+      // 1. Update Progress UI
+      if (audioRef.current && audioRef.current.duration) {
+        const current = audioRef.current.currentTime;
+        const dur = audioRef.current.duration;
+        const percent = (current / dur) * 100;
+        
+        if (progressRef.current && !isScrubbing) {
+          progressRef.current.style.width = `${percent}%`;
+        }
+        if (currentTimeRef.current) currentTimeRef.current.textContent = formatTime(current);
+        if (remainingTimeRef.current) remainingTimeRef.current.textContent = "-" + formatTime(dur - current);
+      }
+
+      // 2. Draw Analyser
+      if (ctx && canvas && analyser && dataArray) {
+        analyser.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        const bufferLength = analyser.frequencyBinCount;
+        const barWidth = (canvas.width / bufferLength) * 2.5;
+        let x = 0;
+        
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = (dataArray[i] / 255) * canvas.height;
+          // Soft iOS Blue
+          ctx.fillStyle = `rgba(0, 122, 255, ${0.3 + (dataArray[i]/255)*0.7})`; 
+          ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+          x += barWidth + 1;
+        }
+      }
+
+      animationId = requestAnimationFrame(draw);
+    };
+    
+    draw();
+    return () => cancelAnimationFrame(animationId);
+  }, [audioRef, analyser, isScrubbing]);
+
   const [showQueue, setShowQueue] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
   const [dominantColor, setDominantColor] = useState<string | null>(null);
@@ -232,7 +286,8 @@ export default function ExpandedPlayer() {
             min="0"
             max="100"
             step="0.01"
-            value={progress || 0}
+            defaultValue="0"
+            ref={seekInputRef}
             onChange={handleSeek}
             onMouseDown={() => setIsScrubbing(true)}
             onMouseUp={() => setIsScrubbing(false)}
@@ -243,8 +298,9 @@ export default function ExpandedPlayer() {
           <div className="w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden transition-all duration-200"
                style={{ height: isScrubbing ? '8px' : '4px' }}>
             <div 
-              className="h-full transition-all duration-75 relative"
-              style={{ width: `${progress}%`, backgroundColor: dominantColor || 'currentColor' }}
+              ref={progressRef}
+              className="h-full relative"
+              style={{ width: '0%', backgroundColor: dominantColor || 'currentColor' }}
             >
               {/* Thumb */}
               <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md transition-opacity duration-200 ${isScrubbing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
@@ -252,8 +308,8 @@ export default function ExpandedPlayer() {
           </div>
         </div>
         <div className="flex justify-between mt-2 text-[12px] font-semibold text-black/50 dark:text-white/50 tabular-nums">
-          <span>{formatTime(currentTime)}</span>
-          <span>-{formatTime(duration - currentTime)}</span>
+          <span ref={currentTimeRef}>0:00</span>
+          <span ref={remainingTimeRef}>-0:00</span>
         </div>
       </div>
 

@@ -1,12 +1,28 @@
 import { usePlayer } from './PlayerContext';
+import { useEffect, useRef } from 'react';
 import { Play, Pause, Loader2, SkipForward, SkipBack } from 'lucide-react';
 import ExpandedPlayer from './ExpandedPlayer';
 import { AnimatePresence, motion } from 'motion/react';
 
 export default function MiniPlayer() {
-  const { currentTrack, isPlaying, isLoading, togglePlay, progress, isExpanded, setIsExpanded, nextTrack, prevTrack } = usePlayer();
+  const { currentTrack, isPlaying, isLoading, togglePlay, audioRef, isExpanded, setIsExpanded, nextTrack, prevTrack } = usePlayer();
 
   if (!currentTrack) return null;
+  const progressRef = useRef<HTMLDivElement>(null);
+  
+  useEffect(() => {
+    let animationId: number;
+    const updateProgress = () => {
+      if (audioRef.current && progressRef.current && audioRef.current.duration) {
+        const percent = (audioRef.current.currentTime / audioRef.current.duration) * 100;
+        progressRef.current.style.width = `${percent}%`;
+      }
+      animationId = requestAnimationFrame(updateProgress);
+    };
+    updateProgress();
+    return () => cancelAnimationFrame(animationId);
+  }, [audioRef]);
+
 
   return (
     <>
@@ -31,8 +47,9 @@ export default function MiniPlayer() {
           <div className="bg-[#F9F9F9]/95 dark:bg-[#2C2C2E]/95 backdrop-blur-md border border-gray-200 dark:border-gray-700 rounded-2xl shadow-xl p-2 flex items-center gap-3 relative">
             <div className="absolute bottom-0 left-0 h-[2px] bg-gray-200 dark:bg-gray-700 w-full">
               <div 
-                className="h-full bg-[#007AFF] transition-all duration-300"
-                style={{ width: `${progress}%` }}
+                ref={progressRef}
+                className="h-full bg-[#007AFF]"
+                style={{ width: '0%' }}
               />
             </div>
 

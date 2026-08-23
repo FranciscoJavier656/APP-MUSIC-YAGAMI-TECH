@@ -1,5 +1,5 @@
 import { getQobuzTrackUrl } from "../lib/qobuz";
-import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
 export interface Track {
@@ -22,8 +22,7 @@ interface PlayerContextType {
   currentTrack: Track | null;
   isPlaying: boolean;
   isLoading: boolean;
-  progress: number;
-  currentTime: number;
+  
   duration: number;
   isExpanded: boolean;
   setIsExpanded: (expanded: boolean) => void;
@@ -40,6 +39,7 @@ interface PlayerContextType {
   repeatMode: 'off' | 'all' | 'one';
   toggleRepeat: () => void;
   analyser: AnalyserNode | null;
+  audioRef: React.MutableRefObject<HTMLAudioElement | null>;
 }
 
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
@@ -49,8 +49,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<Track[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [currentTime, setCurrentTime] = useState(0);
+  
+  
   const [duration, setDuration] = useState(0);
   const [isExpanded, setIsExpanded] = useState(false);
   const [volume, setVolumeState] = useState(1);
@@ -100,11 +100,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     audioRef.current = new Audio();
     const audio = audioRef.current;
-    // audio.crossOrigin = "anonymous"; // Disabled for iOS WebView compatibility
+    audio.crossOrigin = "anonymous";
     
     const updateTime = () => {
-      setCurrentTime(audio.currentTime);
-      setProgress((audio.currentTime / audio.duration) * 100 || 0);
+      
     };
 
     const updateDuration = () => setDuration(audio.duration || 0);
@@ -127,8 +126,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       const current = currentTrackRef.current;
       if (!q.length || !current) {
         setIsPlaying(false);
-        setProgress(0);
-        setCurrentTime(0);
+        
+        
         return;
       }
       
@@ -144,8 +143,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           nextIndex = 0;
         } else {
           setIsPlaying(false);
-          setProgress(0);
-          setCurrentTime(0);
+          
+          
           return;
         }
       }
@@ -180,8 +179,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     
     setIsLoading(true);
     setIsPlaying(false);
-    setProgress(0);
-    setCurrentTime(0);
+    
     setDuration(track.duration || 0); // initial guess from metadata
     
     try {
@@ -228,8 +226,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const seekTo = (time: number) => {
     if (audioRef.current) {
       audioRef.current.currentTime = time;
-      setCurrentTime(time);
-      setProgress((time / duration) * 100 || 0);
+      
     }
   };
 
@@ -256,7 +253,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!queue.length || !currentTrack) return;
     
     // If we are more than 3 seconds in, just restart the track
-    if (currentTime > 3) {
+    if (audioRef.current && audioRef.current.currentTime > 3) {
       seekTo(0);
       return;
     }
@@ -280,10 +277,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   return (
     <PlayerContext.Provider value={{ 
-      currentTrack, isPlaying, isLoading, playTrack, togglePlay, progress, 
-      currentTime, duration, isExpanded, setIsExpanded, seekTo, volume, setVolume,
+      currentTrack, isPlaying, isLoading, playTrack, togglePlay, 
+      duration, isExpanded, setIsExpanded, seekTo, volume, setVolume,
       queue, nextTrack, prevTrack, isShuffle, toggleShuffle, repeatMode, toggleRepeat,
-      analyser
+      analyser,
+        audioRef
     }}>
       {children}
     </PlayerContext.Provider>
