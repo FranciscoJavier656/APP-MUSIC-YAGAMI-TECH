@@ -1,3 +1,4 @@
+import { getQobuzAlbum, getQobuzTrackUrl } from "../lib/qobuz";
 import { useState } from 'react';
 import { X, Download, Loader2, Music, CheckCircle, Disc } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -14,13 +15,28 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
   const [status, setStatus] = useState<'idle' | 'fetching' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
+    const downloadFileAsBlob = async (url: string, filename: string) => {
+    const res = await axios.get(url, { responseType: 'blob' });
+    const blobUrl = URL.createObjectURL(res.data);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(blobUrl);
+  };
+
   const handleDownload = async () => {
     setStatus('fetching');
     try {
-      let tracksToDownload = [];
+      let tracksToDownload: any[] = [];
+      let albumTitle = 'Album';
+
       if (type === 'album') {
-        const res = await axios.get('/api/album', { params: { album_id: item.id } });
-        tracksToDownload = res.data.tracks?.items || [];
+        const albumData = await getQobuzAlbum(item.id.toString());
+        tracksToDownload = albumData.tracks?.items || [];
+        albumTitle = albumData.title || 'Album';
       } else {
         tracksToDownload = [item];
       }
@@ -28,26 +44,24 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
       setProgress({ current: 0, total: tracksToDownload.length });
       setStatus('downloading');
 
+      const ext = format === '5' ? 'mp3' : 'flac';
+
       for (let i = 0; i < tracksToDownload.length; i++) {
         const track = tracksToDownload[i];
         try {
-          const url = `/api/downloadWithMetadata?track_id=${track.id}&format_id=${format}`;
-          
-          // Trigger download via the server-side metadata tagging endpoint
-          const a = document.createElement('a');
-          a.href = url;
-          a.target = '_blank';
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          
-          // Delay to prevent overwhelming browser on full album downloads
-          await new Promise(r => setTimeout(r, 2000));
+          const url = await getQobuzTrackUrl(track.id.toString(), format);
+          if (url) {
+            const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?%*:|"<>]/g, '-')}.${ext}`;
+            await downloadFileAsBlob(url, filename);
+          }
+          // Delay slightly between tracks
+          await new Promise(r => setTimeout(r, 1000));
         } catch (e) {
-          console.error("Failed to trigger download for track", track.id);
+          console.error("Failed to trigger download for track", track.id, e);
         }
         setProgress(p => ({ ...p, current: i + 1 }));
       }
+      
       setStatus('done');
     } catch (error) {
       console.error(error);

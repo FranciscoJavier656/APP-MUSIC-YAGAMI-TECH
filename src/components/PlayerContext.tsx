@@ -1,3 +1,4 @@
+import { getQobuzTrackUrl } from "../lib/qobuz";
 import { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import axios from 'axios';
 
@@ -184,7 +185,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(track.duration || 0); // initial guess from metadata
     
     try {
-      const res = await axios.get('/api/stream', { params: { track_id: track.id } });
+      const res = await axios.get(`${import.meta.env.VITE_API_BASE_URL || ''}/api/stream`, { params: { track_id: track.id } });
       
       // If a new track was requested while we were waiting, abort this playback
       if (requestId !== playRequestRef.current) return;

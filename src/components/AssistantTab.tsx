@@ -1,3 +1,4 @@
+import { chatWithGemini } from "../lib/gemini";
 import { useState, useRef, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
@@ -46,7 +47,7 @@ export default function AssistantTab() {
       const chatHistory = messages.map(m => `${m.role === 'assistant' ? 'Assistant' : 'User'}: ${m.content}`).join('\\n');
       const fullPrompt = `${chatHistory}\\nUser: ${userMessage.content}\\nAssistant:`;
 
-      const res = await axios.post('/api/chat', { message: fullPrompt });
+      const res = await axios.post(`${import.meta.env.VITE_API_BASE_URL || ''}/api/chat`, { message: fullPrompt });
       
       const aiMessage: Message = {
         id: (Date.now() + 1).toString(),

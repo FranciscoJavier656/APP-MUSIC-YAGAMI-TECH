@@ -17,10 +17,12 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm install
+        run: |
+          rm -f package-lock.json
+          npm install
 
       - name: Build Web App
         run: npm run build
@@ -28,27 +30,32 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
-      - name: Build iOS App (No Code Signing)
+      - name: Fix Corrupted Assets (AI Studio Workaround)
+        run: |
+          # Borramos la carpeta de imágenes corrupta generada por la IA
+          rm -rf ios/App/App/Assets.xcassets
+          # Creamos un contenedor limpio para que Xcode no arroje error de "archivo no encontrado"
+          mkdir -p ios/App/App/Assets.xcassets
+          echo '{"info":{"author":"xcode","version":1}}' > ios/App/App/Assets.xcassets/Contents.json
+
+      - name: Build iOS App (No Code Signing & No Icon)
         run: |
           cd ios/App
-          # Usamos xcodebuild para construir el Workspace.
-          # CODE_SIGNING_ALLOWED=NO se salta los certificados de Apple Developer.
-          xcodebuild -workspace App.xcworkspace \
+          # ASSETCATALOG_COMPILER_APPICON_NAME="" le dice a Xcode que ignore la validación estricta del ícono
+          xcodebuild -project App.xcodeproj \
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
+            ASSETCATALOG_COMPILER_APPICON_NAME="" \
             clean build
 
       - name: Package into IPA
         run: |
-          # Creamos la carpeta Payload (requerida por iOS para hacer un .ipa válido)
           mkdir -p Payload
-          # Copiamos la app compilada a Payload
           cp -r ios/App/build/Build/Products/Release-iphoneos/App.app Payload/
-          # Comprimimos todo en un archivo .ipa
           zip -r AudiophilePlayer-TrollStore.ipa Payload
 
       - name: Upload IPA Artifact

@@ -1,9 +1,11 @@
+import { searchQobuz } from "../lib/qobuz";
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
 import { Search as SearchIcon, Download, Disc, Music, Loader2, Play } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
 import DownloadModal from './DownloadModal';
+import AlbumView from './AlbumView';
 import { AnimatePresence } from 'motion/react';
 
 interface QobuzItem {
@@ -45,6 +47,8 @@ export default function SearchTab() {
   const [results, setResults] = useState<SearchResults | null>(null);
   const [error, setError] = useState('');
   const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'} | null>(null);
+  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  
   const { playTrack, currentTrack, isPlaying, togglePlay } = usePlayer();
 
   const handleSearch = async (e: FormEvent) => {
@@ -55,12 +59,8 @@ export default function SearchTab() {
     setError('');
     
     try {
-      const res = await axios.get('/api/search', { params: { q: query } });
-      if (res.data.error) {
-        setError(res.data.error);
-      } else {
-        setResults(res.data);
-      }
+      const data = await searchQobuz(query);
+      setResults(data);
     } catch (err: any) {
       setError(err.message || 'An error occurred while searching.');
     } finally {
@@ -106,6 +106,10 @@ export default function SearchTab() {
     }
   };
 
+  if (selectedAlbumId) {
+    return <AlbumView albumId={selectedAlbumId} onBack={() => setSelectedAlbumId(null)} />;
+  }
+
   return (
     <div className="flex flex-col min-h-full">
       {/* iOS style sticky header with blur */}
@@ -147,7 +151,7 @@ export default function SearchTab() {
                 <h2 className="text-xl font-bold mb-4 flex items-center text-black dark:text-white"><Disc className="w-5 h-5 mr-2 text-[#007AFF]" /> Albums</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-4">
                   {results.albums.items.slice(0, 4).map((album) => (
-                    <div key={album.id} className="flex flex-col gap-2 group cursor-pointer">
+                    <div key={album.id} onClick={() => setSelectedAlbumId(album.id.toString())} className="flex flex-col gap-2 group cursor-pointer">
                       <div className="aspect-square rounded-2xl bg-white dark:bg-[#1C1C1E] shadow-sm overflow-hidden border border-gray-100 dark:border-gray-800 relative">
                         {album.image?.large ? (
                           <img src={album.image.large} alt={album.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
