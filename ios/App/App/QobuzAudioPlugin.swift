@@ -4,6 +4,27 @@ import AVFoundation
 import Accelerate
 import MediaToolbox
 
+// 1. FUNCIONES GLOBALES (La cura contra el Crash del compilador SILGen)
+fileprivate func tapInit(tap: MTAudioProcessingTap, clientInfo: UnsafeMutableRawPointer?, tapStorageOut: UnsafeMutablePointer<UnsafeMutableRawPointer?>) {
+    tapStorageOut.pointee = clientInfo
+}
+
+fileprivate func tapFinalize(tap: MTAudioProcessingTap) {}
+
+fileprivate func tapPrepare(tap: MTAudioProcessingTap, maxFrames: CMItemCount, processingFormat: UnsafePointer<AudioStreamBasicDescription>) {}
+
+fileprivate func tapUnprepare(tap: MTAudioProcessingTap) {}
+
+fileprivate func tapProcess(tap: MTAudioProcessingTap, numberFrames: CMItemCount, flags: MTAudioProcessingTapFlags, bufferListInOut: UnsafeMutablePointer<AudioBufferList>, numberFramesOut: UnsafeMutablePointer<CMItemCount>, flagsOut: UnsafeMutablePointer<MTAudioProcessingTapFlags>) {
+    let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
+    if status == noErr {
+        if let storage = MTAudioProcessingTapGetStorage(tap) {
+            let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
+            plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
+        }
+    }
+}
+
 @objc(QobuzAudioPlugin)
 public class QobuzAudioPlugin: CAPPlugin {
     
@@ -31,48 +52,40 @@ public class QobuzAudioPlugin: CAPPlugin {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
         
+        // 2. ASIGNACIÓN LIMPIA: Ahora sí pasamos las funciones globales, sin closures.
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
-            `init`: { tap, clientInfo, tapStorageOut in
-                tapStorageOut.pointee = clientInfo
-            },
-            finalize: { tap in },
-            prepare: { tap, maxFrames, processingFormat in },
-            unprepare: { tap in },
-            process: { tap, numberFrames, flags, bufferListInOut, numberFramesOut, flagsOut in
-                let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
-                if status == noErr {
-                    if let storage = MTAudioProcessingTapGetStorage(tap) {
-                        let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
-                        plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
-                    }
-                }
-            }
+            `init`: tapInit,
+            finalize: tapFinalize,
+            prepare: tapPrepare,
+            unprepare: tapUnprepare,
+            process: tapProcess
         )
         
-        // CORRECCIÓN FINAL: Xcode 15+ eliminó Unmanaged para MTAudioProcessingTap.
-        // Debe ser declarado directamente así:
+        // 3. TIPO MODERNO: Sin Unmanaged, justo lo que pide el SDK actual.
         var tap: MTAudioProcessingTap?
         
+        // Blindaje extra contra errores de enum usando la macro original inicializada
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
-            MTAudioProcessingTapCreationFlags.postEffects,
+            MTAudioProcessingTapCreationFlags(rawValue: kMTAudioProcessingTapCreationFlag_PostEffects) ?? .postEffects,
             &tap
         )
+        
+        let tapProcessor = tap
+        let finalStatus = status
         
         asset.loadValuesAsynchronously(forKeys: ["tracks"]) {
             var error: NSError? = nil
             let trackStatus = asset.statusOfValue(forKey: "tracks", error: &error)
             
             if trackStatus == .loaded {
-                if status == noErr, let tapProcessor = tap {
+                if finalStatus == noErr, let processor = tapProcessor {
                     if let audioTrack = asset.tracks(withMediaType: .audio).first {
                         let inputParams = AVMutableAudioMixInputParameters(track: audioTrack)
-                        
-                        // Pasado directamente
-                        inputParams.audioTapProcessor = tapProcessor
+                        inputParams.audioTapProcessor = processor
                         
                         let audioMix = AVMutableAudioMix()
                         audioMix.inputParameters = [inputParams]
@@ -113,6 +126,7 @@ public class QobuzAudioPlugin: CAPPlugin {
                 vDSP_hann_window(&window, vDSP_Length(frames), Int32(vDSP_HANN_NORM))
                 vDSP_vmul(floatArray, 1, window, 1, &floatArray, 1, vDSP_Length(frames))
                 
+                // 4. MEMORIA SEGURA: withMemoryRebound en acción.
                 floatArray.withUnsafeBufferPointer { floatBuffer in
                     if let baseAddr = floatBuffer.baseAddress {
                         baseAddr.withMemoryRebound(to: DSPComplex.self, capacity: halfSize) { complexPtr in
