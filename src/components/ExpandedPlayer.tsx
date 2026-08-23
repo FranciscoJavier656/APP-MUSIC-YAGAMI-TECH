@@ -1,5 +1,4 @@
 import { usePlayer } from './PlayerContext';
-import { motion, AnimatePresence } from 'motion/react';
 import { ChevronDown, Play, Pause, Loader2, SkipBack, SkipForward, Repeat, Shuffle, Volume2, ListMusic, X } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 
@@ -64,12 +63,17 @@ const Visualizer = ({ analyser, isPlaying }: { analyser: AnalyserNode | null, is
 export default function ExpandedPlayer() {
   const { 
     currentTrack, isPlaying, isLoading, togglePlay, duration,
-    audioRef, 
+    audioRef, isExpanded, 
     setIsExpanded, seekTo, volume, setVolume,
     queue, nextTrack, prevTrack, isShuffle, toggleShuffle, repeatMode, toggleRepeat, playTrack,
     analyser
   } = usePlayer();
-  const [isScrubbing, setIsScrubbing] = useState(false);
+  const [isScrubbing, _setIsScrubbing] = useState(false);
+  const isScrubbingRef = useRef(false);
+  const setIsScrubbing = (val: boolean) => {
+    isScrubbingRef.current = val;
+    _setIsScrubbing(val);
+  };
   const progressRef = useRef<HTMLDivElement>(null);
   const seekInputRef = useRef<HTMLInputElement>(null);
   const currentTimeRef = useRef<HTMLSpanElement>(null);
@@ -78,20 +82,21 @@ export default function ExpandedPlayer() {
 
   useEffect(() => {
     let animationId: number;
+    let timeoutId: number;
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     
-    // We create a dummy data array to keep variables simple if no analyser
     const dataArray = analyser ? new Uint8Array(analyser.frequencyBinCount) : null;
 
-    const draw = () => {
+    const startDrawing = () => {
+      const draw = () => {
       // 1. Update Progress UI
       if (audioRef.current && audioRef.current.duration) {
         const current = audioRef.current.currentTime;
         const dur = audioRef.current.duration;
         const percent = (current / dur) * 100;
         
-        if (progressRef.current && !isScrubbing) {
+        if (progressRef.current && !isScrubbingRef.current) {
           progressRef.current.style.width = `${percent}%`;
         }
         if (currentTimeRef.current) currentTimeRef.current.textContent = formatTime(current);
@@ -117,11 +122,19 @@ export default function ExpandedPlayer() {
       }
 
       animationId = requestAnimationFrame(draw);
+      };
+      draw();
     };
-    
-    draw();
-    return () => cancelAnimationFrame(animationId);
-  }, [audioRef, analyser, isScrubbing]);
+
+    if (isExpanded) {
+      timeoutId = window.setTimeout(startDrawing, 300);
+    }
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [audioRef, analyser, isExpanded]);
 
   const [showQueue, setShowQueue] = useState(false);
   const [showCredits, setShowCredits] = useState(false);
@@ -164,15 +177,11 @@ export default function ExpandedPlayer() {
   };
 
   return (
-    <motion.div
-      initial={{ y: '100%', opacity: 0 }}
-      animate={{ y: 0, opacity: 1 }}
-      exit={{ y: '100%', opacity: 0 }}
-      transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-      className="fixed inset-0 z-[60] bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-md flex flex-col pt-12 pb-8 px-6 sm:px-12"
+    <div
+      className={`fixed inset-0 z-[60] bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-md flex flex-col pt-12 pb-8 px-6 sm:px-12 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'translate-y-0' : 'translate-y-full'}`}
     >
       {/* Animated Breathing Background */}
-      <motion.div 
+      <div 
         className="absolute inset-0 z-[-1] opacity-50 dark:opacity-40 pointer-events-none"
         animate={{
           scale: [1.1, 1.3, 1.1],
@@ -196,13 +205,12 @@ export default function ExpandedPlayer() {
 
       {/* Header */}
       <div className="flex justify-between items-center mb-8">
-        <motion.button 
-          whileTap={{ scale: 0.8 }}
+        <button
           onClick={() => setIsExpanded(false)} 
           className="p-2 -ml-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
         >
           <ChevronDown className="w-8 h-8" />
-        </motion.button>
+        </button>
         <div className="flex flex-col items-center">
           <span className="text-[10px] font-bold tracking-[0.2em] text-black/50 dark:text-white/50 uppercase">
             REPRODUCIENDO DESDE
@@ -211,18 +219,17 @@ export default function ExpandedPlayer() {
             {currentTrack.hires ? 'Qobuz Hi-Res' : 'Qobuz'}
           </span>
         </div>
-        <motion.button 
-          whileTap={{ scale: 0.8 }}
+        <button
           onClick={() => setShowQueue(true)} 
           className="p-2 -mr-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
         >
           <ListMusic className="w-6 h-6" />
-        </motion.button>
+        </button>
       </div>
 
       {/* Album Art */}
       <div className="flex-1 w-full min-h-0 flex items-center justify-center mb-6 mt-2 relative">
-        <motion.div 
+        <div 
           className="relative aspect-square rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
           style={{ width: 'min(100%, 45vh)', height: 'min(100%, 45vh)' }}
           animate={{ scale: isPlaying ? 1 : 0.9, y: isPlaying ? 0 : 10 }}
@@ -233,7 +240,7 @@ export default function ExpandedPlayer() {
           ) : (
             <div className="w-full h-full bg-gray-200/50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400">?</div>
           )}
-        </motion.div>
+        </div>
       </div>
 
       {/* Visualizer & Info */}
@@ -315,21 +322,19 @@ export default function ExpandedPlayer() {
 
       {/* Controls */}
       <div className="flex items-center justify-between px-2 sm:px-8 mb-8">
-        <motion.button 
-          whileTap={{ scale: 0.8 }}
+        <button
           onClick={toggleShuffle}
           className={`transition-colors p-2 ${isShuffle ? '' : 'text-black/40 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80'}`}
           style={isShuffle ? { color: dominantColor || 'currentColor' } : undefined}
         >
           <Shuffle className="w-6 h-6" />
-        </motion.button>
+        </button>
         
-        <motion.button whileTap={{ scale: 0.85 }} onClick={prevTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
+        <button onClick={prevTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
           <SkipBack className="w-10 h-10 fill-current" />
-        </motion.button>
+        </button>
         
-        <motion.button 
-          whileTap={{ scale: 0.9 }}
+        <button
           onClick={togglePlay} 
           className="w-20 h-20 flex items-center justify-center text-white dark:text-black rounded-full shadow-xl hover:scale-105 transition-transform"
           style={{ backgroundColor: dominantColor || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black') }}
@@ -341,14 +346,13 @@ export default function ExpandedPlayer() {
           ) : (
             <Play className="w-10 h-10 fill-current ml-1" />
           )}
-        </motion.button>
+        </button>
 
-        <motion.button whileTap={{ scale: 0.85 }} onClick={nextTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
+        <button onClick={nextTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
           <SkipForward className="w-10 h-10 fill-current" />
-        </motion.button>
+        </button>
         
-        <motion.button 
-          whileTap={{ scale: 0.8 }}
+        <button
           onClick={toggleRepeat}
           className={`transition-colors p-2 relative ${repeatMode !== 'off' ? '' : 'text-black/40 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80'}`}
           style={repeatMode !== 'off' ? { color: dominantColor || 'currentColor' } : undefined}
@@ -360,7 +364,7 @@ export default function ExpandedPlayer() {
               style={{ backgroundColor: dominantColor || 'currentColor' }}
             >1</span>
           )}
-        </motion.button>
+        </button>
       </div>
 
       {/* Volume */}
@@ -386,32 +390,26 @@ export default function ExpandedPlayer() {
       </div>
 
       {/* Queue Modal */}
-      <AnimatePresence>
+      
         {showQueue && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col"
+          <div className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom-full duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
           >
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">A Continuación</h3>
-              <motion.button 
-                whileTap={{ scale: 0.8 }}
+              <button
                 onClick={() => setShowQueue(false)} 
                 className="p-2 -mr-2 bg-black/5 dark:bg-white/10 rounded-full text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
-              </motion.button>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-1">
               {queue.map((track, idx) => (
-                <motion.div 
-                  whileTap={{ scale: 0.98 }}
+                <div 
+                  
                   key={`${track.id}-${idx}`}
                   onClick={() => { playTrack(track); setShowQueue(false); }}
-                  className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all ${
+                  className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all active:scale-95 ${
                     currentTrack.id === track.id ? 'bg-black/5 dark:bg-white/10 shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/5'
                   }`}
                 >
@@ -431,7 +429,7 @@ export default function ExpandedPlayer() {
                       <div className="w-[3px] bg-black dark:bg-white animate-[bounce_1s_infinite_0.4s] h-1/2" />
                     </div>
                   )}
-                </motion.div>
+                </div>
               ))}
               {queue.length === 0 && (
                 <div className="h-full flex items-center justify-center text-black/40 dark:text-white/40 font-medium">
@@ -439,25 +437,19 @@ export default function ExpandedPlayer() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
         {showCredits && (
-          <motion.div
-            initial={{ y: '100%' }}
-            animate={{ y: 0 }}
-            exit={{ y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-            className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col"
+          <div className="absolute inset-0 z-50 bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col animate-in slide-in-from-bottom-full duration-300 ease-[cubic-bezier(0.32,0.72,0,1)]"
           >
             <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
               <h3 className="font-bold text-2xl text-black dark:text-white">Créditos de la pista</h3>
-              <motion.button 
-                whileTap={{ scale: 0.8 }}
+              <button
                 onClick={() => setShowCredits(false)} 
                 className="p-2 -mr-2 bg-black/5 dark:bg-white/10 rounded-full text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
               >
                 <X className="w-5 h-5" />
-              </motion.button>
+              </button>
             </div>
             <div className="flex-1 overflow-y-auto p-6 space-y-6">
               <div>
@@ -501,9 +493,9 @@ export default function ExpandedPlayer() {
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
-    </motion.div>
+      
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import { usePlayer } from './PlayerContext';
 import { useEffect, useRef } from 'react';
 import { Play, Pause, Loader2, SkipForward, SkipBack } from 'lucide-react';
 import ExpandedPlayer from './ExpandedPlayer';
-import { AnimatePresence, motion } from 'motion/react';
+import { motion } from 'motion/react';
 
 export default function MiniPlayer() {
   const { currentTrack, isPlaying, isLoading, togglePlay, audioRef, isExpanded, setIsExpanded, nextTrack, prevTrack } = usePlayer();
@@ -85,9 +85,7 @@ export default function MiniPlayer() {
         </motion.div>
       </div>
       
-      <AnimatePresence>
-        {isExpanded && <ExpandedPlayer />}
-      </AnimatePresence>
+      <ExpandedPlayer />
     </>
   );
 }
