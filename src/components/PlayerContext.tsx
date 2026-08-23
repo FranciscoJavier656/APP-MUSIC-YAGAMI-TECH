@@ -38,7 +38,7 @@ interface PlayerContextType {
   toggleShuffle: () => void;
   repeatMode: 'off' | 'all' | 'one';
   toggleRepeat: () => void;
-  analyser: AnalyserNode | null;
+  analyser: any;
   audioRef: React.MutableRefObject<HTMLAudioElement | null>;
 }
 
@@ -66,28 +66,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playTrackRef = useRef<((track: Track, newQueue?: Track[]) => void) | null>(null);
   const playRequestRef = useRef(0);
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const [analyser, setAnalyser] = useState<AnalyserNode | null>(null);
 
-  const initAudioContext = () => {
-    if (!audioContextRef.current && audioRef.current) {
-      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-      if (AudioContextClass) {
-        audioContextRef.current = new AudioContextClass();
-        const analyserNode = audioContextRef.current.createAnalyser();
-        analyserNode.fftSize = 256;
-        analyserNode.smoothingTimeConstant = 0.8;
-        
-        const source = audioContextRef.current.createMediaElementSource(audioRef.current);
-        source.connect(analyserNode);
-        analyserNode.connect(audioContextRef.current.destination);
-        
-        analyserRef.current = analyserNode;
-        setAnalyser(analyserNode);
-      }
-    }
-  };
 
   // Keep refs in sync for event listeners
   useEffect(() => {
@@ -169,10 +148,6 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playTrack = async (track: Track, newQueue?: Track[]) => {
     const requestId = ++playRequestRef.current;
     
-    initAudioContext();
-    if (audioContextRef.current && audioContextRef.current.state === 'suspended') {
-      audioContextRef.current.resume();
-    }
 
     setCurrentTrack(track);
     if (newQueue) setQueue(newQueue);
@@ -310,7 +285,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       currentTrack, isPlaying, isLoading, playTrack, togglePlay, 
       duration, isExpanded, setIsExpanded, seekTo, volume, setVolume,
       queue, nextTrack, prevTrack, isShuffle, toggleShuffle, repeatMode, toggleRepeat,
-      analyser,
+      analyser: null,
         audioRef
     }}>
       {children}
