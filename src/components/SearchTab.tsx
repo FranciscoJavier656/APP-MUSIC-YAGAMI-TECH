@@ -6,7 +6,7 @@ import { Search as SearchIcon, Download, Disc, Music, Loader2, Play } from 'luci
 import { usePlayer } from './PlayerContext';
 import DownloadModal from './DownloadModal';
 import AlbumView from './AlbumView';
-import { AnimatePresence } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface QobuzItem {
   id: string;
@@ -41,7 +41,9 @@ interface SearchResults {
   artists?: { items: QobuzItem[] };
 }
 
+import PlaylistView from './PlaylistView';
 export default function SearchTab() {
+  const [activeItem, setActiveItem] = useState<{id: string, type: string} | null>(null);
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<SearchResults | null>(null);
@@ -107,11 +109,33 @@ export default function SearchTab() {
   };
 
   if (selectedAlbumId) {
-    return <AlbumView albumId={selectedAlbumId} onBack={() => setSelectedAlbumId(null)} />;
+    return <AlbumView albumId={selectedAlbumId} onBack={() => setActiveItem(null)} />;
   }
 
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="h-full relative">
+
+      <AnimatePresence mode="wait">
+        {activeItem?.type === 'album' && (
+          <motion.div 
+            key="album-view"
+            initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000] overflow-y-auto"
+          >
+            <AlbumView albumId={activeItem.id} onBack={() => setActiveItem(null)} />
+          </motion.div>
+        )}
+        {activeItem?.type === 'playlist' && (
+          <motion.div 
+            key="playlist-view"
+            initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000] overflow-y-auto"
+          >
+            <PlaylistView playlistId={activeItem.id} onBack={() => setActiveItem(null)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className="flex flex-col min-h-full">
       {/* iOS style sticky header with blur */}
       <header className="sticky top-0 z-40 bg-[#F2F2F7]/80 dark:bg-[#000000]/80 backdrop-blur-xl px-8 pt-12 pb-4">
         <div className="flex justify-between items-end mb-4">
@@ -221,7 +245,7 @@ export default function SearchTab() {
         )}
       </div>
 
-      <AnimatePresence>
+            <AnimatePresence>
         {downloadItem && (
           <DownloadModal 
             item={downloadItem.item} 
@@ -230,6 +254,7 @@ export default function SearchTab() {
           />
         )}
       </AnimatePresence>
+    </div>
     </div>
   );
 }

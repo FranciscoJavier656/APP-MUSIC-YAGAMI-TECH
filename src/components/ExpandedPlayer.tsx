@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListMusic, Info } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
+import { Capacitor } from '@capacitor/core';
 
 export default function ExpandedPlayer() {
   const { 
@@ -73,11 +74,13 @@ export default function ExpandedPlayer() {
   useEffect(() => {
     let listener: any;
     const setup = async () => {
-      listener = await QobuzAudio.addListener('onFftData', (info) => {
+      if (Capacitor.isNativePlatform()) {
+        listener = await QobuzAudio.addListener('onFftData', (info) => {
          if (canvasRef.current && info.data) {
             (canvasRef.current as any).nativeFftData = info.data;
          }
       });
+      }
     };
     setup();
     return () => { if (listener) listener.remove(); };

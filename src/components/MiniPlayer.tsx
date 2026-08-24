@@ -7,7 +7,6 @@ import { motion } from 'motion/react';
 export default function MiniPlayer() {
   const { currentTrack, isPlaying, isLoading, togglePlay, audioRef, isExpanded, setIsExpanded, nextTrack, prevTrack } = usePlayer();
 
-  if (!currentTrack) return null;
   const progressRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -22,6 +21,8 @@ export default function MiniPlayer() {
     updateProgress();
     return () => cancelAnimationFrame(animationId);
   }, [audioRef]);
+
+  if (!currentTrack) return null;
 
 
   return (

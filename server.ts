@@ -33,12 +33,13 @@ const ai = new GoogleGenAI({
   },
 });
 
-const qobuzAppId = process.env.QOBUZ_APP_ID || '';
-const qobuzSecret = process.env.QOBUZ_SECRET || '';
+const qobuzAppId = process.env.QOBUZ_APP_ID || process.env.VITE_QOBUZ_APP_ID || '';
+const qobuzSecret = process.env.QOBUZ_SECRET || process.env.VITE_QOBUZ_APP_SECRET || '';
 let qobuzToken = '';
 try {
   const tokens = JSON.parse(process.env.QOBUZ_AUTH_TOKENS || '[]');
   if (tokens.length > 0) qobuzToken = tokens[0];
+  if (!qobuzToken) qobuzToken = process.env.VITE_QOBUZ_USER_TOKEN || '';
 } catch(e) {
   console.error("Failed to parse QOBUZ_AUTH_TOKENS");
 }
@@ -63,6 +64,60 @@ async function qobuzSearch(query: string, limit = 10, offset = 0) {
     return { error: 'Failed to search Qobuz' };
   }
 }
+
+app.get('/api/featured', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  const type = req.query.type || 'new-releases';
+  try {
+    const response = await axios.get(`${qobuzApiBase}album/getFeatured`, {
+      params: { type, limit: 15 },
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Qobuz featured error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get featured albums', details: error?.response?.data });
+  }
+});
+
+
+app.get('/api/playlist', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  const { playlist_id } = req.query;
+  try {
+    const response = await axios.get(`${qobuzApiBase}playlist/get`, {
+      params: { playlist_id, extra: 'tracks' },
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Qobuz playlist error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get playlist' });
+  }
+});
+
+app.get('/api/playlists', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  try {
+    const response = await axios.get(`${qobuzApiBase}playlist/getFeatured`, {
+      params: { type: 'editor-picks', limit: 15 },
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error('Qobuz playlists error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get playlists', details: error?.response?.data });
+  }
+});
 
 app.get('/api/search', async (req, res) => {
   const { q } = req.query;
@@ -101,7 +156,7 @@ app.get('/api/stream', async (req, res) => {
     res.json(response.data);
   } catch (error: any) {
     console.error('Qobuz stream error:', error?.response?.data || error.message);
-    res.status(500).json({ error: 'Failed to get stream URL' });
+    res.status(500).json({ error: 'Failed to get stream URL', details: error?.response?.data });
   }
 });
 
@@ -112,7 +167,6 @@ app.get('/api/album', async (req, res) => {
 
   try {
     const response = await axios.get(`${qobuzApiBase}album/get`, {
-      params: { album_id },
       headers: {
         'x-app-id': qobuzAppId,
         'x-user-auth-token': qobuzToken || undefined,
