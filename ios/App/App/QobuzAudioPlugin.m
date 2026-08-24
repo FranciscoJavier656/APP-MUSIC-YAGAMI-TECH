@@ -1,6 +1,8 @@
 #import <CoreMedia/CoreMedia.h>
 #import <Foundation/Foundation.h>
 #import <Capacitor/Capacitor.h>
+#import <Capacitor/CAPBridgedJSTypes.h>
+#import <Capacitor/Capacitor-Swift.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
@@ -120,7 +122,6 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     });
 }
 
-
 @implementation QobuzAudioPlugin
 
 - (void)logMessage:(NSString *)msg {
@@ -140,6 +141,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     
     NSURL *url = [NSURL URLWithString:urlString];
     if (!url) {
+        [self logMessage:@"❌ Error: URL mal formada"];
         [call resolve];
         return;
     }
@@ -174,43 +176,42 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         [call resolve];
     });
     
-    // Instead of async loadTracksWithMediaType (iOS 15+) which may cause CI symbol issues,
-    // we use synchronous tracksWithMediaType (deprecated in 15, but compiles safely on all versions).
-    // This is running on the Capacitor background bridge thread anyway, so it won't block the UI.
-    NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
-    if (!tracks || tracks.count == 0) {
-        [self logMessage:@"❌ No se encontró pista de audio en ObjC"];
-        return;
-    }
-    
-    AVAssetTrack *audioTrack = tracks.firstObject;
-    
-    MTAudioProcessingTapCallbacks callbacks;
-    callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
-    callbacks.clientInfo = (__bridge void *)self; // Safe: plugin singleton outlives tap
-    callbacks.init = tapInit;
-    callbacks.finalize = tapFinalize;
-    callbacks.prepare = tapPrepare;
-    callbacks.unprepare = tapUnprepare;
-    callbacks.process = tapProcess;
-    
-    MTAudioProcessingTapRef tap;
-    OSStatus status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PostEffects, &tap);
-    
-    if (status == noErr && tap) {
-        AVMutableAudioMixInputParameters *inputParams = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:audioTrack];
-        inputParams.audioTapProcessor = tap;
+    [asset loadTracksWithMediaType:AVMediaTypeAudio completionHandler:^(NSArray<AVAssetTrack *> * _Nullable tracks, NSError * _Nullable loadError) {
+        if (!tracks || tracks.count == 0) {
+            [weakSelf logMessage:@"❌ No se encontró pista de audio en ObjC"];
+            return;
+        }
         
-        AVMutableAudioMix *audioMix = [AVMutableAudioMix audioMix];
-        audioMix.inputParameters = @[inputParams];
+        AVAssetTrack *audioTrack = tracks.firstObject;
         
-        dispatch_async(dispatch_get_main_queue(), ^{
-            playerItem.audioMix = audioMix;
-            [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
-        });
-    } else {
-        [self logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
-    }
+        MTAudioProcessingTapCallbacks callbacks;
+        callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
+        // Keep a strong reference to self via the (__bridge void *) so the tap can access it
+        callbacks.clientInfo = (__bridge void *)self; 
+        callbacks.init = tapInit;
+        callbacks.finalize = tapFinalize;
+        callbacks.prepare = tapPrepare;
+        callbacks.unprepare = tapUnprepare;
+        callbacks.process = tapProcess;
+        
+        MTAudioProcessingTapRef tap;
+        OSStatus status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PostEffects, &tap);
+        
+        if (status == noErr && tap) {
+            AVMutableAudioMixInputParameters *inputParams = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:audioTrack];
+            inputParams.audioTapProcessor = tap;
+            
+            AVMutableAudioMix *audioMix = [AVMutableAudioMix audioMix];
+            audioMix.inputParameters = @[inputParams];
+            
+            dispatch_async(dispatch_get_main_queue(), ^{
+                playerItem.audioMix = audioMix;
+                [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
+            });
+        } else {
+            [weakSelf logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
+        }
+    }];
 }
 
 - (void)pause:(CAPPluginCall *)call {
