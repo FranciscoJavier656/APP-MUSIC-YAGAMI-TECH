@@ -1,7 +1,6 @@
 #import <CoreMedia/CoreMedia.h>
 #import <Foundation/Foundation.h>
 #import <Capacitor/Capacitor.h>
-#import <Capacitor/CAPBridgedJSTypes.h>
 #import <AVFoundation/AVFoundation.h>
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
@@ -13,6 +12,22 @@
 @property (nonatomic, assign) BOOL isPlaying;
 @property (nonatomic, assign) NSTimeInterval lastFftUpdate;
 @property (nonatomic, strong) id errorLogObservation;
+@end
+
+@interface QobuzAudioPlugin (CAPPluginCategory) <CAPBridgedPlugin>
+@end
+
+@implementation QobuzAudioPlugin (CAPPluginCategory)
+- (NSString *)identifier { return @"QobuzAudioPlugin"; }
+- (NSString *)jsName { return @"QobuzAudio"; }
+- (NSArray *)pluginMethods {
+    NSMutableArray *methods = [NSMutableArray new];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"play" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"pause" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"resume" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"seek" returnType:CAPPluginReturnPromise]];
+    return methods;
+}
 @end
 
 // Context for the audio tap
@@ -34,7 +49,7 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     context->plugin = clientInfo;
     context->fftSize = FFT_SIZE;
     context->log2n = 10; // log2(1024)
-    context->fftSetup = vDSP_create_fftsetup(context->log2n, kFFTRadix2);
+    context->fftSetup = vDSP_create_fftsetup((vDSP_Length)context->log2n, kFFTRadix2);
     
     int halfSize = context->fftSize / 2;
     context->window = (float *)malloc(sizeof(float) * context->fftSize);
@@ -44,7 +59,7 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     context->splitComplex.realp = context->realBuffer;
     context->splitComplex.imagp = context->imagBuffer;
     
-    vDSP_hann_window(context->window, context->fftSize, vDSP_HANN_NORM);
+    vDSP_hann_window(context->window, (vDSP_Length)context->fftSize, vDSP_HANN_NORM);
     *tapStorageOut = context;
 }
 
@@ -83,13 +98,13 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     int halfSize = context->fftSize / 2;
     float windowedBuffer[FFT_SIZE];
     
-    vDSP_vmul(samples, 1, context->window, 1, windowedBuffer, 1, context->fftSize);
-    vDSP_ctoz((DSPComplex *)windowedBuffer, 2, &context->splitComplex, 1, halfSize);
-    vDSP_fft_zrip(context->fftSetup, &context->splitComplex, 1, context->log2n, FFT_FORWARD);
-    vDSP_zvabs(&context->splitComplex, 1, context->magnitudes, 1, halfSize);
+    vDSP_vmul(samples, 1, context->window, 1, windowedBuffer, 1, (vDSP_Length)context->fftSize);
+    vDSP_ctoz((DSPComplex *)windowedBuffer, 2, &context->splitComplex, 1, (vDSP_Length)halfSize);
+    vDSP_fft_zrip(context->fftSetup, &context->splitComplex, 1, (vDSP_Length)context->log2n, FFT_FORWARD);
+    vDSP_zvabs(&context->splitComplex, 1, context->magnitudes, 1, (vDSP_Length)halfSize);
     
     float scale = 2.0 / (float)context->fftSize;
-    vDSP_vsmul(context->magnitudes, 1, &scale, context->magnitudes, 1, halfSize);
+    vDSP_vsmul(context->magnitudes, 1, &scale, context->magnitudes, 1, (vDSP_Length)halfSize);
     
     NSMutableArray *result = [NSMutableArray arrayWithCapacity:64];
     for (int i = 0; i < 64; i++) {
@@ -116,8 +131,8 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 }
 
 - (void)play:(CAPPluginCall *)call {
-    NSString *urlString = [call getString:@"url" defaultValue:nil];
-    if (!urlString) {
+    NSString *urlString = call.options[@"url"];
+    if (!urlString || ![urlString isKindOfClass:[NSString class]]) {
         [self logMessage:@"❌ Error: URL inválida"];
         [call resolve];
         return;
@@ -159,41 +174,43 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         [call resolve];
     });
     
-    [asset loadTracksWithMediaType:AVMediaTypeAudio completionHandler:^(NSArray<AVAssetTrack *> * _Nullable tracks, NSError * _Nullable loadError) {
-        if (!tracks || tracks.count == 0) {
-            [weakSelf logMessage:@"❌ No se encontró pista de audio en ObjC"];
-            return;
-        }
+    // Instead of async loadTracksWithMediaType (iOS 15+) which may cause CI symbol issues,
+    // we use synchronous tracksWithMediaType (deprecated in 15, but compiles safely on all versions).
+    // This is running on the Capacitor background bridge thread anyway, so it won't block the UI.
+    NSArray<AVAssetTrack *> *tracks = [asset tracksWithMediaType:AVMediaTypeAudio];
+    if (!tracks || tracks.count == 0) {
+        [self logMessage:@"❌ No se encontró pista de audio en ObjC"];
+        return;
+    }
+    
+    AVAssetTrack *audioTrack = tracks.firstObject;
+    
+    MTAudioProcessingTapCallbacks callbacks;
+    callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
+    callbacks.clientInfo = (__bridge void *)self; // Safe: plugin singleton outlives tap
+    callbacks.init = tapInit;
+    callbacks.finalize = tapFinalize;
+    callbacks.prepare = tapPrepare;
+    callbacks.unprepare = tapUnprepare;
+    callbacks.process = tapProcess;
+    
+    MTAudioProcessingTapRef tap;
+    OSStatus status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PostEffects, &tap);
+    
+    if (status == noErr && tap) {
+        AVMutableAudioMixInputParameters *inputParams = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:audioTrack];
+        inputParams.audioTapProcessor = tap;
         
-        AVAssetTrack *audioTrack = tracks.firstObject;
+        AVMutableAudioMix *audioMix = [AVMutableAudioMix audioMix];
+        audioMix.inputParameters = @[inputParams];
         
-        MTAudioProcessingTapCallbacks callbacks;
-        callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
-        callbacks.clientInfo = (__bridge void *)self; // Must retain 'self' so tap continues to call it
-        callbacks.init = tapInit;
-        callbacks.finalize = tapFinalize;
-        callbacks.prepare = tapPrepare;
-        callbacks.unprepare = tapUnprepare;
-        callbacks.process = tapProcess;
-        
-        MTAudioProcessingTapRef tap;
-        OSStatus status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PostEffects, &tap);
-        
-        if (status == noErr && tap) {
-            AVMutableAudioMixInputParameters *inputParams = [AVMutableAudioMixInputParameters audioMixInputParametersWithTrack:audioTrack];
-            inputParams.audioTapProcessor = tap;
-            
-            AVMutableAudioMix *audioMix = [AVMutableAudioMix audioMix];
-            audioMix.inputParameters = @[inputParams];
-            
-            dispatch_async(dispatch_get_main_queue(), ^{
-                playerItem.audioMix = audioMix;
-                [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
-            });
-        } else {
-            [weakSelf logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
-        }
-    }];
+        dispatch_async(dispatch_get_main_queue(), ^{
+            playerItem.audioMix = audioMix;
+            [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
+        });
+    } else {
+        [self logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
+    }
 }
 
 - (void)pause:(CAPPluginCall *)call {
@@ -213,8 +230,8 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 }
 
 - (void)seek:(CAPPluginCall *)call {
-    NSNumber *timeNum = [call getNumber:@"time" defaultValue:nil];
-    if (!timeNum) {
+    NSNumber *timeNum = call.options[@"time"];
+    if (!timeNum || ![timeNum isKindOfClass:[NSNumber class]]) {
         [call resolve];
         return;
     }
@@ -227,10 +244,3 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 }
 
 @end
-
-CAP_PLUGIN(QobuzAudioPlugin, "QobuzAudio",
-    CAP_PLUGIN_METHOD(play, CAPPluginReturnPromise);
-    CAP_PLUGIN_METHOD(pause, CAPPluginReturnPromise);
-    CAP_PLUGIN_METHOD(resume, CAPPluginReturnPromise);
-    CAP_PLUGIN_METHOD(seek, CAPPluginReturnPromise);
-)
