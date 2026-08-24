@@ -216,7 +216,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 
 - (void)updateNowPlayingState {
     NSMutableDictionary *info = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
-    if (!info) return;
+    if (!info) info = [NSMutableDictionary dictionary];
     
     if (self.player) {
         info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(CMTimeGetSeconds(self.player.currentTime));
@@ -266,7 +266,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
                             }];
                             dispatch_async(dispatch_get_main_queue(), ^{
                                 NSMutableDictionary *info = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
-                                if (!info) return;
+                                if (!info) info = [NSMutableDictionary dictionary];
                                 info[MPMediaItemPropertyArtwork] = artwork;
                                 [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
                             });
@@ -307,8 +307,9 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     [self logMessage:[NSString stringWithFormat:@"▶️ Iniciando URL: %@", urlString]];
     
     NSError *error = nil;
-    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:&error];
+    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:&error];
     [[AVAudioSession sharedInstance] setActive:YES error:&error];
+    [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
     
     AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
     AVPlayerItem *playerItem = [AVPlayerItem playerItemWithAsset:asset];

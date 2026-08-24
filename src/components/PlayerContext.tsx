@@ -193,6 +193,13 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       if (streamUrl && audioRef.current) {
         if (Capacitor.isNativePlatform()) {
           await QobuzAudio.play({ url: streamUrl });
+          QobuzAudio.updateMetadata({
+              title: track.title,
+              artist: track.artist || "Desconocido",
+              album: track.albumTitle || "Qobuz Audio",
+              coverUrl: track.image || "",
+              duration: track.duration || 0
+          });
           setIsPlaying(true);
           setIsLoading(false);
           // Start a dummy interval to update time since native plugin handles playback
