@@ -1,4 +1,5 @@
 import { usePlayer } from './PlayerContext';
+import { Capacitor } from '@capacitor/core';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { ChevronDown, Play, Pause, Loader2, SkipBack, SkipForward, Repeat, Shuffle, Volume2, ListMusic, X } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';

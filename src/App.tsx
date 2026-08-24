@@ -1,18 +1,14 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import { useState, useEffect } from 'react';
-import { Search, Sparkles, Settings as SettingsIcon } from 'lucide-react';
+import { Search, Sparkles, Settings as SettingsIcon, Terminal } from 'lucide-react';
 import SearchTab from './components/SearchTab';
 import AssistantTab from './components/AssistantTab';
 import SettingsTab from './components/SettingsTab';
+import LogsTab from './components/LogsTab';
 import { PlayerProvider } from './components/PlayerContext';
 import MiniPlayer from './components/MiniPlayer';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'search' | 'assistant' | 'settings'>('search');
+  const [activeTab, setActiveTab] = useState<'search' | 'assistant' | 'settings' | 'logs'>('search');
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -41,6 +37,7 @@ export default function App() {
           {activeTab === 'search' && <SearchTab />}
           {activeTab === 'assistant' && <AssistantTab />}
           {activeTab === 'settings' && <SettingsTab isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />}
+          {activeTab === 'logs' && <LogsTab />}
         </main>
 
         {/* Mini Player */}
@@ -55,7 +52,7 @@ export default function App() {
                 activeTab === 'search' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
               }`}
             >
-              <Search size={28} strokeWidth={2} />
+              <Search size={24} strokeWidth={2} />
               <span className="text-[10px] font-medium uppercase tracking-tighter">Buscar</span>
             </button>
             
@@ -65,17 +62,27 @@ export default function App() {
                 activeTab === 'assistant' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
               }`}
             >
-              <Sparkles size={28} strokeWidth={2} />
+              <Sparkles size={24} strokeWidth={2} />
               <span className="text-[10px] font-medium uppercase tracking-tighter">Asistente</span>
             </button>
             
+            <button
+              onClick={() => setActiveTab('logs')}
+              className={`flex flex-col items-center gap-1 transition-colors ${
+                activeTab === 'logs' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
+              }`}
+            >
+              <Terminal size={24} strokeWidth={2} />
+              <span className="text-[10px] font-medium uppercase tracking-tighter">Logs</span>
+            </button>
+
             <button
               onClick={() => setActiveTab('settings')}
               className={`flex flex-col items-center gap-1 transition-colors ${
                 activeTab === 'settings' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
               }`}
             >
-              <SettingsIcon size={28} strokeWidth={2} />
+              <SettingsIcon size={24} strokeWidth={2} />
               <span className="text-[10px] font-medium uppercase tracking-tighter">Ajustes</span>
             </button>
           </div>
@@ -84,4 +91,3 @@ export default function App() {
     </PlayerProvider>
   );
 }
-
