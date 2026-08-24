@@ -18,10 +18,9 @@ fileprivate func tapUnprepare(tap: MTAudioProcessingTap) {}
 fileprivate func tapProcess(tap: MTAudioProcessingTap, numberFrames: CMItemCount, flags: MTAudioProcessingTapFlags, bufferListInOut: UnsafeMutablePointer<AudioBufferList>, numberFramesOut: UnsafeMutablePointer<CMItemCount>, flagsOut: UnsafeMutablePointer<MTAudioProcessingTapFlags>) {
     let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
     if status == noErr {
-        if let storage = MTAudioProcessingTapGetStorage(tap) {
-            let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
-            plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
-        }
+        let storage = MTAudioProcessingTapGetStorage(tap)
+        let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
+        plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
     }
 }
 
@@ -70,7 +69,7 @@ public class QobuzAudioPlugin: CAPPlugin {
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
-            MTAudioProcessingTapCreationFlags(rawValue: kMTAudioProcessingTapCreationFlag_PostEffects) ?? .postEffects,
+            MTAudioProcessingTapCreationFlags.postEffects,
             &tap
         )
         
