@@ -9,7 +9,7 @@ export default function ExpandedPlayer() {
     duration, isExpanded, setIsExpanded,
     seekTo, nextTrack, prevTrack,
     isShuffle, toggleShuffle, repeatMode, toggleRepeat,
-    audioRef
+    audioRef, queue
   } = usePlayer();
 
   const [isScrubbing, _setIsScrubbing] = useState(false);
@@ -37,6 +37,26 @@ export default function ExpandedPlayer() {
   };
   const [showLyrics, setShowLyrics] = useState(false);
   const [showMetadata, setShowMetadata] = useState(false);
+  const [showQueue, setShowQueue] = useState(false);
+  const [lyrics, setLyrics] = useState<string>("Cargando letras...");
+  type LyricLine = { time: number; text: string };
+  const [parsedLyrics, setParsedLyrics] = useState<LyricLine[] | null>(null);
+  const parsedLyricsRef = useRef<LyricLine[] | null>(null);
+  const activeLyricIndexRef = useRef<number>(-1);
+  const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Swipe gesture state
+  const [touchStartY, setTouchStartY] = useState(0);
+  const handleTouchStart = (e: React.TouchEvent) => setTouchStartY(e.touches[0].clientY);
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (touchStartY === 0) return;
+    const currentY = e.touches[0].clientY;
+    if (currentY - touchStartY > 100) {
+      setIsExpanded(false);
+      setTouchStartY(0);
+    }
+  };
+  const handleTouchEnd = () => setTouchStartY(0);
 
   // Sync FFT data
   useEffect(() => {
@@ -77,6 +97,38 @@ export default function ExpandedPlayer() {
             }
             if (remainingTimeRef.current) {
               remainingTimeRef.current.textContent = "-" + formatTime(dur - current);
+            }
+          }
+          
+          // 1.5 Update Synced Lyrics
+          if (parsedLyricsRef.current && lyricsContainerRef.current) {
+            const lyricsArray = parsedLyricsRef.current;
+            let activeIdx = -1;
+            for (let i = 0; i < lyricsArray.length; i++) {
+                if (current >= lyricsArray[i].time) {
+                    activeIdx = i;
+                } else {
+                    break;
+                }
+            }
+            
+            if (activeIdx !== activeLyricIndexRef.current) {
+                activeLyricIndexRef.current = activeIdx;
+                const container = lyricsContainerRef.current;
+                const children = container.children;
+                for (let i = 0; i < children.length; i++) {
+                    const child = children[i] as HTMLElement;
+                    if (i === activeIdx) {
+                        child.style.opacity = '1';
+                        child.style.transform = 'scale(1.05)';
+                        child.style.color = '#fff';
+                        child.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    } else {
+                        child.style.opacity = '0.4';
+                        child.style.transform = 'scale(1)';
+                        child.style.color = 'rgba(255,255,255,0.7)';
+                    }
+                }
             }
           }
         }
@@ -170,6 +222,51 @@ export default function ExpandedPlayer() {
     }
   }, [currentTrack?.image]);
 
+  useEffect(() => {
+    if (currentTrack && showLyrics) {
+      setLyrics("Buscando letras sincronizadas...");
+      setParsedLyrics(null);
+      parsedLyricsRef.current = null;
+      activeLyricIndexRef.current = -1;
+      
+      const url = `https://lrclib.net/api/search?track_name=${encodeURIComponent(currentTrack.title)}&artist_name=${encodeURIComponent(currentTrack.artist)}`;
+      
+      fetch(url)
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            const bestMatch = data[0];
+            if (bestMatch.syncedLyrics) {
+              const lines = bestMatch.syncedLyrics.split('\n');
+              const parsed: LyricLine[] = [];
+              for (const line of lines) {
+                const match = line.match(/\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/);
+                if (match) {
+                  const minutes = parseInt(match[1], 10);
+                  const seconds = parseInt(match[2], 10);
+                  const msStr = match[3].length === 2 ? match[3] + '0' : match[3];
+                  const ms = parseInt(msStr, 10);
+                  const time = minutes * 60 + seconds + ms / 1000;
+                  const text = match[4].trim();
+                  if (text) parsed.push({ time, text });
+                }
+              }
+              setParsedLyrics(parsed);
+              parsedLyricsRef.current = parsed;
+              setLyrics("");
+            } else if (bestMatch.plainLyrics) {
+              setLyrics(bestMatch.plainLyrics);
+            } else {
+              setLyrics("Letras no encontradas.");
+            }
+          } else {
+            setLyrics("Letras no encontradas.");
+          }
+        })
+        .catch(() => setLyrics("Letras no disponibles."));
+    }
+  }, [currentTrack, showLyrics]);
+
   if (!currentTrack) return null;
 
   const formatTime = (secs: number) => {
@@ -198,6 +295,9 @@ export default function ExpandedPlayer() {
 
   return (
     <div
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
       className={`fixed inset-0 z-[60] bg-white dark:bg-black flex flex-col pt-12 pb-8 px-6 sm:px-12 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'translate-y-0' : 'translate-y-full'}`}
     >
       {dominantColor && (
@@ -221,7 +321,7 @@ export default function ExpandedPlayer() {
           REPRODUCIENDO DESDE<br/>
           <span className="text-black/80 dark:text-white/80 block mt-0.5 tracking-widest text-center">Qobuz</span>
         </span>
-        <button className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+        <button onClick={() => setShowQueue(true)} className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
           <ListMusic className="w-6 h-6 text-black dark:text-white" />
         </button>
       </div>
@@ -248,12 +348,24 @@ export default function ExpandedPlayer() {
             style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
           >
             <h3 className="text-white font-bold text-xl mb-4 opacity-80 text-center">Letras</h3>
-            <div className="overflow-y-auto flex-1 text-center" style={{ scrollbarWidth: 'none' }}>
-              <p className="text-white/90 text-lg leading-relaxed font-medium mt-8">
-                 🎶<br/><br/>
-                 (Sincronización de letras no disponible para esta pista local)<br/><br/>
-                 ...
-              </p>
+            <div className="overflow-y-auto flex-1 text-center mask-image-fade" style={{ scrollbarWidth: 'none', maskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%)' }}>
+              <div className="flex flex-col items-center justify-center min-h-full py-20 px-2" ref={lyricsContainerRef}>
+                {parsedLyrics ? (
+                  parsedLyrics.map((line, idx) => (
+                    <p 
+                      key={idx} 
+                      className="text-white/70 text-xl md:text-2xl font-bold mb-6 transition-all duration-300 ease-out origin-center"
+                      style={{ opacity: 0.4, transform: 'scale(1)' }}
+                    >
+                      {line.text}
+                    </p>
+                  ))
+                ) : (
+                  <div className="text-white/90 text-lg leading-relaxed font-medium whitespace-pre-wrap">
+                    {lyrics}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -372,6 +484,40 @@ export default function ExpandedPlayer() {
           </button>
         </div>
       </div>
+      {/* Queue Modal */}
+      {showQueue && (
+        <div className="absolute inset-0 z-50 bg-white dark:bg-black p-6 flex flex-col animate-in slide-in-from-bottom-8">
+          <div className="flex items-center justify-between mb-6 pt-6">
+            <h3 className="text-2xl font-bold text-black dark:text-white">A continuación</h3>
+            <button onClick={() => setShowQueue(false)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 text-black dark:text-white">
+              <ChevronDown className="w-8 h-8" />
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-20 space-y-4">
+            {queue.map((track, idx) => {
+              const isPlayingQueue = currentTrack?.id === track.id;
+              return (
+                <div key={idx} className={`flex items-center gap-4 p-3 rounded-2xl ${isPlayingQueue ? 'bg-black/5 dark:bg-white/10' : ''}`}>
+                  <img src={track.image} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
+                  <div className="flex-1 min-w-0">
+                    <p className={`font-bold truncate ${isPlayingQueue ? 'text-black dark:text-white' : 'text-black/80 dark:text-white/80'}`}>
+                      {track.title}
+                    </p>
+                    <p className="text-sm text-black/50 dark:text-white/50 truncate">{track.artist}</p>
+                  </div>
+                  {isPlayingQueue && (
+                    <div className="w-4 h-4 flex items-end justify-between gap-[2px]">
+                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite] h-2"></div>
+                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_100ms] h-4"></div>
+                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_200ms] h-3"></div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
