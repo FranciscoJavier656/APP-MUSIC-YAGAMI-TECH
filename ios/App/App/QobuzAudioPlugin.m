@@ -150,7 +150,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     [self logMessage:[NSString stringWithFormat:@"▶️ Iniciando URL: %@", urlString]];
     
     NSError *error = nil;
-    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault error:&error];
+    [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:&error];
     [[AVAudioSession sharedInstance] setActive:YES error:&error];
     
     AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
