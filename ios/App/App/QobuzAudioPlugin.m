@@ -1,3 +1,4 @@
+#import <CoreMedia/CoreMedia.h>
 #import <Foundation/Foundation.h>
 #import <Capacitor/Capacitor.h>
 #import <Capacitor/CAPBridgedJSTypes.h>
@@ -5,14 +6,13 @@
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
 
+#define FFT_SIZE 1024
+
 @interface QobuzAudioPlugin : CAPPlugin
 @property (nonatomic, strong) AVPlayer *player;
 @property (nonatomic, assign) BOOL isPlaying;
 @property (nonatomic, assign) NSTimeInterval lastFftUpdate;
 @property (nonatomic, strong) id errorLogObservation;
-@property (nonatomic, assign) int fftSize;
-@property (nonatomic, assign) int log2n;
-@property (nonatomic, assign) FFTSetup fftSetup;
 @end
 
 // Context for the audio tap
@@ -32,8 +32,8 @@ typedef struct {
 static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapStorageOut) {
     TapContext *context = (TapContext *)malloc(sizeof(TapContext));
     context->plugin = clientInfo;
-    context->fftSize = 1024;
-    context->log2n = log2(1024);
+    context->fftSize = FFT_SIZE;
+    context->log2n = 10; // log2(1024)
     context->fftSetup = vDSP_create_fftsetup(context->log2n, kFFTRadix2);
     
     int halfSize = context->fftSize / 2;
@@ -81,7 +81,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     if (!samples) return;
     
     int halfSize = context->fftSize / 2;
-    float windowedBuffer[context->fftSize];
+    float windowedBuffer[FFT_SIZE];
     
     vDSP_vmul(samples, 1, context->window, 1, windowedBuffer, 1, context->fftSize);
     vDSP_ctoz((DSPComplex *)windowedBuffer, 2, &context->splitComplex, 1, halfSize);
@@ -119,13 +119,13 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     NSString *urlString = [call getString:@"url" defaultValue:nil];
     if (!urlString) {
         [self logMessage:@"❌ Error: URL inválida"];
-        [call reject:@"URL de stream inválida"];
+        [call resolve];
         return;
     }
     
     NSURL *url = [NSURL URLWithString:urlString];
     if (!url) {
-        [call reject:@"URL mal formada"];
+        [call resolve];
         return;
     }
     
@@ -139,28 +139,29 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     AVURLAsset *asset = [AVURLAsset URLAssetWithURL:url options:nil];
     AVPlayerItem *playerItem = [AVPlayerItem playerItemWithAsset:asset];
     
+    __weak typeof(self) weakSelf = self;
+    
     dispatch_async(dispatch_get_main_queue(), ^{
-        self.player = [AVPlayer playerWithPlayerItem:playerItem];
+        weakSelf.player = [AVPlayer playerWithPlayerItem:playerItem];
         
-        if (self.errorLogObservation) {
-            [[NSNotificationCenter defaultCenter] removeObserver:self.errorLogObservation];
+        if (weakSelf.errorLogObservation) {
+            [[NSNotificationCenter defaultCenter] removeObserver:weakSelf.errorLogObservation];
         }
         
-        __weak typeof(self) weakSelf = self;
-        self.errorLogObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
+        weakSelf.errorLogObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
             NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
             [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
         }];
         
-        [self.player play];
-        self.isPlaying = YES;
-        [self logMessage:@"🚀 Play() ejecutado. Obj-C manejando todo."];
+        [weakSelf.player play];
+        weakSelf.isPlaying = YES;
+        [weakSelf logMessage:@"🚀 Play() ejecutado. Obj-C manejando todo."];
         [call resolve];
     });
     
     [asset loadTracksWithMediaType:AVMediaTypeAudio completionHandler:^(NSArray<AVAssetTrack *> * _Nullable tracks, NSError * _Nullable loadError) {
         if (!tracks || tracks.count == 0) {
-            [self logMessage:@"❌ No se encontró pista de audio en ObjC"];
+            [weakSelf logMessage:@"❌ No se encontró pista de audio en ObjC"];
             return;
         }
         
@@ -168,7 +169,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         
         MTAudioProcessingTapCallbacks callbacks;
         callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
-        callbacks.clientInfo = (__bridge void *)self;
+        callbacks.clientInfo = (__bridge void *)self; // Must retain 'self' so tap continues to call it
         callbacks.init = tapInit;
         callbacks.finalize = tapFinalize;
         callbacks.prepare = tapPrepare;
@@ -187,10 +188,10 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
             
             dispatch_async(dispatch_get_main_queue(), ^{
                 playerItem.audioMix = audioMix;
-                [self logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
+                [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
             });
         } else {
-            [self logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
+            [weakSelf logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
         }
     }];
 }
@@ -214,7 +215,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 - (void)seek:(CAPPluginCall *)call {
     NSNumber *timeNum = [call getNumber:@"time" defaultValue:nil];
     if (!timeNum) {
-        [call reject:@"Tiempo inválido"];
+        [call resolve];
         return;
     }
     
