@@ -1,138 +1,32 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
-import { Capacitor } from '@capacitor/core';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
-import { ChevronDown, Play, Pause, Loader2, SkipBack, SkipForward, Repeat, Shuffle, Volume2, ListMusic, X } from 'lucide-react';
-import React, { useState, useEffect, useRef } from 'react';
-
-const Visualizer = ({ isPlaying }: { isPlaying: boolean }) => {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  
-  useEffect(() => {
-    if (!canvasRef.current) return;
-    const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    
-    let listener: any;
-    const bufferLength = 64;
-
-    const setupListener = async () => {
-      listener = await QobuzAudio.addListener('onFftData', (info) => {
-        if (!isPlaying) return;
-        const dataArray = info.data;
-        const width = canvas.width;
-        const height = canvas.height;
-        ctx.clearRect(0, 0, width, height);
-        
-        const barWidth = (width / bufferLength) * 2.5;
-        let barHeight;
-        let x = 0;
-        
-        for (let i = 0; i < Math.min(bufferLength, dataArray.length); i++) {
-          barHeight = (dataArray[i] / 255) * height;
-          const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          ctx.fillStyle = isDarkMode ? `rgba(255, 255, 255, ${dataArray[i]/255 * 0.5})` : `rgba(0, 0, 0, ${dataArray[i]/255 * 0.5})`;
-          
-          ctx.beginPath();
-          ctx.roundRect(x, height - barHeight, barWidth - 1, barHeight, 4);
-          ctx.fill();
-          x += barWidth + 1;
-        }
-      });
-    };
-    
-    setupListener();
-    
-    return () => {
-      if (listener) {
-        listener.remove();
-      }
-    };
-  }, [isPlaying]);
-
-  return <canvas ref={canvasRef} width={200} height={40} className="w-full h-10 opacity-70" />;
-};
 
 export default function ExpandedPlayer() {
   const { 
-    currentTrack, isPlaying, isLoading, togglePlay, duration,
-    audioRef, isExpanded, 
-    setIsExpanded, seekTo, volume, setVolume,
-    queue, nextTrack, prevTrack, isShuffle, toggleShuffle, repeatMode, toggleRepeat, playTrack,
-    analyser
+    currentTrack, isPlaying, togglePlay, 
+    duration, isExpanded, setIsExpanded,
+    seekTo, nextTrack, prevTrack,
+    isShuffle, toggleShuffle, repeatMode, toggleRepeat,
+    audioRef
   } = usePlayer();
+
   const [isScrubbing, _setIsScrubbing] = useState(false);
   const isScrubbingRef = useRef(false);
   const setIsScrubbing = (val: boolean) => {
     isScrubbingRef.current = val;
     _setIsScrubbing(val);
   };
+
   const progressRef = useRef<HTMLDivElement>(null);
   const seekInputRef = useRef<HTMLInputElement>(null);
   const currentTimeRef = useRef<HTMLSpanElement>(null);
   const remainingTimeRef = useRef<HTMLSpanElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  useEffect(() => {
-    let animationId: number;
-    let timeoutId: number;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
-    
-    
-
-    const startDrawing = () => {
-      const draw = () => {
-      // 1. Update Progress UI
-      if (audioRef.current && audioRef.current.duration) {
-        const current = audioRef.current.currentTime;
-        const dur = audioRef.current.duration;
-        const percent = (current / dur) * 100;
-        
-        if (progressRef.current && !isScrubbingRef.current) {
-          progressRef.current.style.width = `${percent}%`;
-        }
-        if (currentTimeRef.current) currentTimeRef.current.textContent = formatTime(current);
-        if (remainingTimeRef.current) remainingTimeRef.current.textContent = "-" + formatTime(dur - current);
-      }
-
-      // 2. Draw Analyser (Native iOS vDSP)
-      if (ctx && canvas && (canvas as any).nativeFftData) {
-        const dataArray = (canvas as any).nativeFftData;
-        const bufferLength = dataArray.length;
-        
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        const barWidth = (canvas.width / bufferLength) * 2.5;
-        let x = 0;
-        
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = (dataArray[i] / 255) * canvas.height;
-          // Soft iOS Blue
-          ctx.fillStyle = `rgba(0, 122, 255, ${0.3 + (dataArray[i]/255)*0.7})`; 
-          ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-          x += barWidth + 1;
-        }
-      }
-
-      animationId = requestAnimationFrame(draw);
-      };
-      draw();
-    };
-
-    if (isExpanded) {
-      timeoutId = window.setTimeout(startDrawing, 300);
-    }
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (animationId) cancelAnimationFrame(animationId);
-    };
-  }, [audioRef, analyser, isExpanded]);
-
-  const [showQueue, setShowQueue] = useState(false);
-  const [showCredits, setShowCredits] = useState(false);
   const [dominantColor, setDominantColor] = useState<string | null>(null);
+
+  // Sync FFT data
   useEffect(() => {
     let listener: any;
     const setup = async () => {
@@ -145,6 +39,77 @@ export default function ExpandedPlayer() {
     setup();
     return () => { if (listener) listener.remove(); };
   }, []);
+
+  // Main rendering loop for Progress and FFT
+  useEffect(() => {
+    let animationId: number;
+    let timeoutId: number;
+    const canvas = canvasRef.current;
+    const ctx = canvas?.getContext('2d');
+        
+    const startDrawing = () => {
+      const draw = () => {
+        // 1. Update Progress UI
+        if (audioRef.current) {
+          const current = (audioRef.current as any).nativeCurrentTime ?? audioRef.current.currentTime;
+          const dur = (audioRef.current as any).nativeDuration ?? (audioRef.current.duration || duration);
+          
+          if (dur > 0) {
+            const percent = (current / dur) * 100;
+            
+            if (progressRef.current && !isScrubbingRef.current) {
+              progressRef.current.style.width = `${percent}%`;
+            }
+            if (currentTimeRef.current && !isScrubbingRef.current) {
+              currentTimeRef.current.textContent = formatTime(current);
+            }
+            if (remainingTimeRef.current) {
+              remainingTimeRef.current.textContent = "-" + formatTime(dur - current);
+            }
+          }
+        }
+
+        // 2. Draw Analyser (Native iOS vDSP)
+        if (ctx && canvas && (canvas as any).nativeFftData) {
+          const dataArray = (canvas as any).nativeFftData;
+          const bufferLength = dataArray.length;
+          
+          if (!(canvas as any).smoothedFftData) {
+             (canvas as any).smoothedFftData = new Float32Array(bufferLength);
+          }
+          const smoothed = (canvas as any).smoothedFftData;
+          
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          
+          // Slight padding between bars
+          const barWidth = (canvas.width / bufferLength);
+          let x = 0;
+          
+          for (let i = 0; i < bufferLength; i++) {
+            // Exponential smoothing for buttery smooth animation
+            smoothed[i] = smoothed[i] * 0.70 + dataArray[i] * 0.30;
+            
+            const barHeight = (smoothed[i] / 255) * canvas.height;
+            
+            ctx.fillStyle = `rgba(120, 120, 120, ${0.2 + (smoothed[i]/255)*0.8})`; 
+            ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+            x += barWidth;
+          }
+        }
+
+        animationId = requestAnimationFrame(draw);
+      };
+      draw();
+    };
+
+    if (isExpanded) {
+      timeoutId = window.setTimeout(startDrawing, 100);
+    }
+    return () => {
+      clearTimeout(timeoutId);
+      if (animationId) cancelAnimationFrame(animationId);
+    };
+  }, [audioRef, isExpanded, duration]);
 
   useEffect(() => {
     if (currentTrack?.image) {
@@ -177,324 +142,157 @@ export default function ExpandedPlayer() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const handleSeek = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIsScrubbing(true);
     const val = parseFloat(e.target.value);
-    seekTo((val / 100) * duration);
+    const dur = (audioRef.current as any)?.nativeDuration ?? duration;
+    const current = (val / 100) * dur;
+    if (progressRef.current) progressRef.current.style.width = `${val}%`;
+    if (currentTimeRef.current) currentTimeRef.current.textContent = formatTime(current);
+  };
+
+  const handleSeekCommit = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    const dur = (audioRef.current as any)?.nativeDuration ?? duration;
+    seekTo((val / 100) * dur);
+    // Add small delay to let native catch up before we resume automatic updates
+    setTimeout(() => setIsScrubbing(false), 200);
   };
 
   return (
     <div
-      className={`fixed inset-0 z-[60] bg-white/90 dark:bg-[#1C1C1E]/90 backdrop-blur-md flex flex-col pt-12 pb-8 px-6 sm:px-12 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'translate-y-0' : 'translate-y-full'}`}
+      className={`fixed inset-0 z-[60] bg-white dark:bg-black flex flex-col pt-12 pb-8 px-6 sm:px-12 transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${isExpanded ? 'translate-y-0' : 'translate-y-full'}`}
     >
-      {/* Animated Breathing Background */}
-      <div 
-        className="absolute inset-0 z-[-1] opacity-50 dark:opacity-40 pointer-events-none"
-        animate={{
-          scale: [1.1, 1.3, 1.1],
-          rotate: [0, 5, -5, 0]
-        }}
-        transition={{
-          duration: 20,
-          repeat: Infinity,
-          ease: "linear"
-        }}
-        style={{
-          backgroundImage: `url(${currentTrack.image})`,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-          filter: 'blur(120px) saturate(250%)'
-        }}
-      />
-      
-      {/* Dark overlay to ensure contrast */}
-      <div className="absolute inset-0 z-[-1] bg-gradient-to-b from-transparent to-black/20 dark:to-black/50 pointer-events-none" />
+      {dominantColor && (
+        <div 
+          className="absolute inset-0 opacity-20 dark:opacity-30 mix-blend-screen dark:mix-blend-lighten pointer-events-none transition-colors duration-1000"
+          style={{ 
+            background: `radial-gradient(circle at 50% 0%, ${dominantColor} 0%, transparent 70%)` 
+          }}
+        />
+      )}
 
       {/* Header */}
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex items-center justify-between mb-8 relative z-10">
         <button
-          onClick={() => setIsExpanded(false)} 
-          className="p-2 -ml-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
+          onClick={() => setIsExpanded(false)}
+          className="p-2 -ml-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
         >
-          <ChevronDown className="w-8 h-8" />
+          <ChevronDown className="w-8 h-8 text-black dark:text-white" />
         </button>
-        <div className="flex flex-col items-center">
-          <span className="text-[10px] font-bold tracking-[0.2em] text-black/50 dark:text-white/50 uppercase">
-            REPRODUCIENDO DESDE
-          </span>
-          <span className="text-xs font-semibold text-black/80 dark:text-white/80 mt-0.5">
-            {currentTrack.hires ? 'Qobuz Hi-Res' : 'Qobuz'}
-          </span>
-        </div>
-        <button
-          onClick={() => setShowQueue(true)} 
-          className="p-2 -mr-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
-        >
-          <ListMusic className="w-6 h-6" />
-        </button>
+        <span className="text-[11px] font-bold tracking-[0.2em] uppercase text-black/40 dark:text-white/40">
+          REPRODUCIENDO DESDE<br/>
+          <span className="text-black/80 dark:text-white/80 block mt-0.5 tracking-widest text-center">Qobuz</span>
+        </span>
+        <div className="w-8" />
       </div>
 
-      {/* Album Art */}
-      <div className="flex-1 w-full min-h-0 flex items-center justify-center mb-6 mt-2 relative">
-        <div 
-          className="relative aspect-square rounded-2xl overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.3)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)]"
-          style={{ width: 'min(100%, 45vh)', height: 'min(100%, 45vh)' }}
-          animate={{ scale: isPlaying ? 1 : 0.9, y: isPlaying ? 0 : 10 }}
-          transition={{ type: 'spring', damping: 20, stiffness: 200 }}
-        >
-          {currentTrack.image ? (
-            <img src={currentTrack.image} alt={currentTrack.title} className="w-full h-full object-cover absolute inset-0" />
-          ) : (
-            <div className="w-full h-full bg-gray-200/50 dark:bg-gray-800/50 flex items-center justify-center text-gray-400">?</div>
-          )}
+      {/* Artwork */}
+      <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative z-10">
+        <div className="relative w-full max-w-[320px] sm:max-w-[400px] aspect-square rounded-[2rem] overflow-hidden shadow-2xl transition-transform duration-500 ease-out">
+          <img
+            src={currentTrack.image}
+            alt={currentTrack.albumTitle}
+            className={`w-full h-full object-cover transition-transform duration-700 ${isPlaying ? 'scale-105' : 'scale-100'}`}
+          />
         </div>
       </div>
 
-      {/* Visualizer & Info */}
-      <div className="mb-6">
-        <div className="mb-2">
-          <Visualizer isPlaying={isPlaying} />
-        </div>
-        <div className="flex justify-between items-end">
-          <div className="flex-1 min-w-0 pr-4">
-            <h2 className="text-[26px] font-bold leading-tight truncate text-black dark:text-white drop-shadow-sm">{currentTrack.title}</h2>
-            <p className="text-[18px] text-black/70 dark:text-white/70 truncate mt-1 font-medium">{currentTrack.artist}</p>
+      {/* Audio Visualizer Canvas */}
+      <div className="h-16 w-full max-w-[320px] sm:max-w-[400px] mx-auto mt-4 mb-2 flex items-end">
+         <canvas 
+            ref={canvasRef} 
+            width={300} 
+            height={60} 
+            className="w-full h-full"
+         />
+      </div>
+
+      {/* Track Info & Controls */}
+      <div className="mt-2 mb-8 relative z-10">
+        <div className="flex justify-between items-end mb-6">
+          <div className="overflow-hidden pr-4">
+            <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white truncate tracking-tight">{currentTrack.title}</h2>
+            <p className="text-lg text-black/60 dark:text-white/60 truncate mt-1">{currentTrack.artist}</p>
           </div>
-          
-          <button 
-            onClick={() => setShowCredits(true)}
-            className="flex flex-col items-end gap-1.5 flex-shrink-0 hover:opacity-80 transition-opacity active:scale-95 origin-right cursor-pointer"
-          >
-            {currentTrack.hires ? (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-yellow-500/20 backdrop-blur-md rounded border border-yellow-500/30 shadow-sm">
-                <span className="text-[10px] font-black tracking-wider text-yellow-600 dark:text-yellow-500">HI-RES AUDIO</span>
-              </div>
-            ) : (
-              <div className="flex items-center gap-1.5 px-2.5 py-1 bg-gray-500/20 backdrop-blur-md rounded border border-gray-500/30 shadow-sm">
-                <span className="text-[10px] font-black tracking-wider text-gray-600 dark:text-gray-400">LOSSLESS</span>
-              </div>
-            )}
-            
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] font-bold tracking-widest text-black/40 dark:text-white/40 border border-black/10 dark:border-white/10 px-1.5 py-0.5 rounded">
-                FLAC
-              </span>
-              {(currentTrack.bitDepth || currentTrack.samplingRate) && (
-                <span className="text-[9px] font-bold tracking-widest text-black/40 dark:text-white/40">
-                  {currentTrack.bitDepth || 16}-BIT / {currentTrack.samplingRate || 44.1} kHz
-                </span>
-              )}
-            </div>
-          </button>
+          <div className="flex-shrink-0 flex flex-col items-end gap-2">
+            <span className="px-2.5 py-1 bg-black/5 dark:bg-white/10 rounded-md text-[10px] font-bold tracking-widest text-black/80 dark:text-white/80 border border-black/10 dark:border-white/10 uppercase">
+              Lossless
+            </span>
+            <span className="text-[10px] font-medium tracking-wide text-black/40 dark:text-white/40 uppercase">
+              FLAC • 16-Bit / 44.1 kHz
+            </span>
+          </div>
         </div>
-      </div>
 
-      {/* Scrubber */}
-      <div className="mb-8">
-        <div 
-          className="relative w-full flex items-center group cursor-pointer"
-          style={{ height: isScrubbing ? '16px' : '8px' }}
-        >
+        {/* Progress */}
+        <div className="mb-8 relative group">
           <input
             type="range"
             min="0"
             max="100"
-            step="0.01"
             defaultValue="0"
             ref={seekInputRef}
-            onChange={handleSeek}
-            onMouseDown={() => setIsScrubbing(true)}
-            onMouseUp={() => setIsScrubbing(false)}
-            onTouchStart={() => setIsScrubbing(true)}
-            onTouchEnd={() => setIsScrubbing(false)}
-            className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer touch-none"
+            onChange={handleSeekChange}
+            onMouseUp={handleSeekCommit}
+            onTouchEnd={handleSeekCommit}
+            className="absolute top-1/2 -translate-y-1/2 w-full h-8 z-10 opacity-0 cursor-pointer"
           />
-          <div className="w-full bg-black/10 dark:bg-white/10 rounded-full overflow-hidden transition-all duration-200"
-               style={{ height: isScrubbing ? '8px' : '4px' }}>
-            <div 
+          <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden pointer-events-none">
+            <div
               ref={progressRef}
-              className="h-full relative"
-              style={{ width: '0%', backgroundColor: dominantColor || 'currentColor' }}
+              className="h-full relative transition-all duration-100"
+              style={{ width: '0%', backgroundColor: dominantColor || 'rgba(120, 120, 120, 0.8)' }}
             >
-              {/* Thumb */}
-              <div className={`absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-white rounded-full shadow-md transition-opacity duration-200 ${isScrubbing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`} />
             </div>
+          </div>
+          <div className="flex justify-between mt-3 text-[12px] font-semibold text-black/50 dark:text-white/50 tabular-nums tracking-wide">
+            <span ref={currentTimeRef}>0:00</span>
+            <span ref={remainingTimeRef}>-0:00</span>
           </div>
         </div>
-        <div className="flex justify-between mt-2 text-[12px] font-semibold text-black/50 dark:text-white/50 tabular-nums">
-          <span ref={currentTimeRef}>0:00</span>
-          <span ref={remainingTimeRef}>-0:00</span>
+
+        {/* Main Controls */}
+        <div className="flex items-center justify-between px-2 sm:px-8 mb-4">
+          <button
+            onClick={toggleShuffle}
+            className={`transition-colors p-2 ${isShuffle ? 'text-black dark:text-white' : 'text-black/30 dark:text-white/30 hover:text-black/80 dark:hover:text-white/80'}`}
+          >
+            <Shuffle className="w-5 h-5" />
+          </button>
+          <button 
+            onClick={prevTrack}
+            className="p-3 text-black dark:text-white hover:opacity-70 transition-opacity"
+          >
+            <SkipBack className="w-8 h-8 fill-current" />
+          </button>
+          <button
+            onClick={togglePlay}
+            className="w-20 h-20 flex items-center justify-center bg-black dark:bg-white text-white dark:text-black rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg"
+          >
+            {isPlaying ? (
+              <Pause className="w-8 h-8 fill-current" />
+            ) : (
+              <Play className="w-8 h-8 fill-current translate-x-1" />
+            )}
+          </button>
+          <button 
+            onClick={nextTrack}
+            className="p-3 text-black dark:text-white hover:opacity-70 transition-opacity"
+          >
+            <SkipForward className="w-8 h-8 fill-current" />
+          </button>
+          <button
+            onClick={toggleRepeat}
+            className={`transition-colors p-2 relative ${repeatMode !== 'off' ? 'text-black dark:text-white' : 'text-black/30 dark:text-white/30 hover:text-black/80 dark:hover:text-white/80'}`}
+          >
+            <Repeat className="w-5 h-5" />
+            {repeatMode === 'one' && (
+              <span className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[9px] font-bold">1</span>
+            )}
+          </button>
         </div>
       </div>
-
-      {/* Controls */}
-      <div className="flex items-center justify-between px-2 sm:px-8 mb-8">
-        <button
-          onClick={toggleShuffle}
-          className={`transition-colors p-2 ${isShuffle ? '' : 'text-black/40 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80'}`}
-          style={isShuffle ? { color: dominantColor || 'currentColor' } : undefined}
-        >
-          <Shuffle className="w-6 h-6" />
-        </button>
-        
-        <button onClick={prevTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
-          <SkipBack className="w-10 h-10 fill-current" />
-        </button>
-        
-        <button
-          onClick={togglePlay} 
-          className="w-20 h-20 flex items-center justify-center text-white dark:text-black rounded-full shadow-xl hover:scale-105 transition-transform"
-          style={{ backgroundColor: dominantColor || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black') }}
-        >
-          {isLoading ? (
-            <Loader2 className="w-10 h-10 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="w-10 h-10 fill-current" />
-          ) : (
-            <Play className="w-10 h-10 fill-current ml-1" />
-          )}
-        </button>
-
-        <button onClick={nextTrack} className="text-black dark:text-white hover:opacity-70 transition-opacity p-2">
-          <SkipForward className="w-10 h-10 fill-current" />
-        </button>
-        
-        <button
-          onClick={toggleRepeat}
-          className={`transition-colors p-2 relative ${repeatMode !== 'off' ? '' : 'text-black/40 dark:text-white/40 hover:text-black/80 dark:hover:text-white/80'}`}
-          style={repeatMode !== 'off' ? { color: dominantColor || 'currentColor' } : undefined}
-        >
-          <Repeat className="w-6 h-6" />
-          {repeatMode === 'one' && (
-            <span 
-              className="absolute top-1 right-1 text-white dark:text-black text-[9px] font-bold w-3.5 h-3.5 flex items-center justify-center rounded-full"
-              style={{ backgroundColor: dominantColor || 'currentColor' }}
-            >1</span>
-          )}
-        </button>
-      </div>
-
-      {/* Volume */}
-      <div className="flex items-center gap-4 px-4 mt-auto mb-2">
-        <Volume2 className="w-4 h-4 text-black/40 dark:text-white/40" />
-        <div className="relative h-4 flex-1 flex items-center group cursor-pointer">
-          <input
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={volume}
-            onChange={(e) => setVolume(parseFloat(e.target.value))}
-            className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-pointer touch-none"
-          />
-          <div className="w-full h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden transition-all duration-200 group-hover:h-2">
-            <div 
-              className="h-full transition-all duration-75"
-              style={{ width: `${volume * 100}%`, backgroundColor: dominantColor || 'currentColor' }}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Queue Modal */}
-      
-        <div className={`absolute inset-0 z-[70] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${showQueue ? 'translate-y-0' : 'translate-y-full'}`}>
-            <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
-              <h3 className="font-bold text-2xl text-black dark:text-white">A Continuación</h3>
-              <button
-                onClick={() => setShowQueue(false)} 
-                className="p-2 -mr-2 bg-black/5 dark:bg-white/10 rounded-full text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-4 space-y-1">
-              {queue.map((track, idx) => (
-                <div 
-                  
-                  key={`${track.id}-${idx}`}
-                  onClick={() => { playTrack(track); setShowQueue(false); }}
-                  className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all active:scale-95 ${
-                    currentTrack.id === track.id ? 'bg-black/5 dark:bg-white/10 shadow-sm' : 'hover:bg-black/5 dark:hover:bg-white/5'
-                  }`}
-                >
-                  <img src={track.image} alt={track.title} className="w-12 h-12 rounded-xl object-cover shadow-sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className={`font-semibold text-[15px] truncate ${currentTrack.id === track.id ? 'text-black dark:text-white' : 'text-black/80 dark:text-white/80'}`}>
-                      {track.title}
-                    </p>
-                    <p className="text-[13px] text-black/50 dark:text-white/50 truncate mt-0.5 font-medium">
-                      {track.artist}
-                    </p>
-                  </div>
-                  {currentTrack.id === track.id && (
-                    <div className="w-4 flex items-end justify-between h-4 pr-1">
-                      <div className="w-[3px] bg-black dark:bg-white animate-[bounce_1s_infinite] h-full" />
-                      <div className="w-[3px] bg-black dark:bg-white animate-[bounce_1s_infinite_0.2s] h-3/4" />
-                      <div className="w-[3px] bg-black dark:bg-white animate-[bounce_1s_infinite_0.4s] h-1/2" />
-                    </div>
-                  )}
-                </div>
-              ))}
-              {queue.length === 0 && (
-                <div className="h-full flex items-center justify-center text-black/40 dark:text-white/40 font-medium">
-                  La cola está vacía
-                </div>
-              )}
-            </div>
-          </div>
-        <div className={`absolute inset-0 z-[70] bg-white/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md flex flex-col transform transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${showCredits ? 'translate-y-0' : 'translate-y-full'}`}>
-            <div className="p-6 pt-12 flex justify-between items-center border-b border-black/5 dark:border-white/5 bg-transparent sticky top-0 z-10">
-              <h3 className="font-bold text-2xl text-black dark:text-white">Créditos de la pista</h3>
-              <button
-                onClick={() => setShowCredits(false)} 
-                className="p-2 -mr-2 bg-black/5 dark:bg-white/10 rounded-full text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="flex-1 overflow-y-auto p-6 space-y-6">
-              <div>
-                <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Pista</h4>
-                <p className="text-[17px] font-semibold text-black dark:text-white">{currentTrack.title}</p>
-                <p className="text-[15px] text-black/70 dark:text-white/70">{currentTrack.artist}</p>
-              </div>
-
-              {currentTrack.albumTitle && (
-                <div>
-                  <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Álbum</h4>
-                  <p className="text-[15px] font-medium text-black dark:text-white">{currentTrack.albumTitle}</p>
-                </div>
-              )}
-
-              {currentTrack.composer && (
-                <div>
-                  <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Compositor</h4>
-                  <p className="text-[15px] font-medium text-black dark:text-white">{currentTrack.composer}</p>
-                </div>
-              )}
-
-              {currentTrack.label && (
-                <div>
-                  <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Sello Discográfico (Label)</h4>
-                  <p className="text-[15px] font-medium text-black dark:text-white">{currentTrack.label}</p>
-                </div>
-              )}
-
-              {currentTrack.releaseDate && (
-                <div>
-                  <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Lanzamiento</h4>
-                  <p className="text-[15px] font-medium text-black dark:text-white">{new Date(currentTrack.releaseDate).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                </div>
-              )}
-
-              {currentTrack.copyright && (
-                <div>
-                  <h4 className="text-[11px] font-bold tracking-widest text-black/50 dark:text-white/50 uppercase mb-1">Copyright</h4>
-                  <p className="text-[13px] text-black/70 dark:text-white/70">{currentTrack.copyright}</p>
-                </div>
-              )}
-            </div>
-          </div>
-                  </div>
+    </div>
   );
 }

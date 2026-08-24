@@ -92,6 +92,17 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     audio.addEventListener('timeupdate', updateTime);
     audio.addEventListener('loadedmetadata', updateDuration);
     
+    let timeUpdateListener: any;
+    if (Capacitor.isNativePlatform()) {
+      QobuzAudio.addListener('onTimeUpdate', (info) => {
+        if (audioRef.current) {
+          (audioRef.current as any).nativeCurrentTime = info.currentTime;
+          (audioRef.current as any).nativeDuration = info.duration;
+          setDuration(info.duration);
+        }
+      }).then(l => timeUpdateListener = l);
+    }
+    
     audio.addEventListener('ended', () => {
       const mode = repeatModeRef.current;
       if (mode === 'one') {
@@ -142,6 +153,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return () => {
       audio.removeEventListener('timeupdate', updateTime);
       audio.removeEventListener('loadedmetadata', updateDuration);
+      if (timeUpdateListener) timeUpdateListener.remove();
       audio.pause();
       audio.removeAttribute('src');
     };
@@ -170,7 +182,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
            setIsPlaying(true);
            setIsLoading(false);
            // Start a dummy interval to update time since native plugin handles playback
-           if (!(window as any).nativeTimeInterval) {
+           // Native time is handled by onTimeUpdate listener
+           if (false) {
              (window as any).nativeTimeInterval = setInterval(() => {
                 if (audioRef.current) {
                    audioRef.current.currentTime += 0.5; // Dummy progression for UI

@@ -14,6 +14,7 @@
 @property (nonatomic, assign) BOOL isPlaying;
 @property (nonatomic, assign) NSTimeInterval lastFftUpdate;
 @property (nonatomic, strong) id errorLogObservation;
+@property (nonatomic, strong) id timeObserver;
 @end
 
 @interface QobuzAudioPlugin (CAPPluginCategory) <CAPBridgedPlugin>
@@ -108,9 +109,32 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     float scale = 2.0 / (float)context->fftSize;
     vDSP_vsmul(context->magnitudes, 1, &scale, context->magnitudes, 1, (vDSP_Length)halfSize);
     
-    NSMutableArray *result = [NSMutableArray arrayWithCapacity:64];
-    for (int i = 0; i < 64; i++) {
-        float val = context->magnitudes[i] * 5.0;
+    int numBins = 64;
+    NSMutableArray *result = [NSMutableArray arrayWithCapacity:numBins];
+    
+    float minBin = 1.0;
+    float maxBin = 511.0;
+    float logMin = log10f(minBin);
+    float logMax = log10f(maxBin);
+    
+    for (int i = 0; i < numBins; i++) {
+        float logPos1 = logMin + ((float)i / (float)numBins) * (logMax - logMin);
+        float logPos2 = logMin + ((float)(i + 1) / (float)numBins) * (logMax - logMin);
+        
+        int binStart = (int)powf(10.0, logPos1);
+        int binEnd = (int)powf(10.0, logPos2);
+        if (binEnd <= binStart) binEnd = binStart + 1;
+        if (binEnd > 511) binEnd = 511;
+        
+        float maxVal = 0;
+        for (int j = binStart; j < binEnd; j++) {
+            if (context->magnitudes[j] > maxVal) {
+                maxVal = context->magnitudes[j];
+            }
+        }
+        
+        float freqBoost = 1.0 + ((float)i / (float)numBins) * 4.0;
+        float val = maxVal * 25.0 * freqBoost;
         int scaled = MIN(MAX((int)(val * 255.0), 0), 255);
         [result addObject:@(scaled)];
     }
@@ -170,6 +194,18 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
             [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
         }];
         
+        if (weakSelf.timeObserver) {
+            [weakSelf.player removeTimeObserver:weakSelf.timeObserver];
+            weakSelf.timeObserver = nil;
+        }
+        
+        weakSelf.timeObserver = [weakSelf.player addPeriodicTimeObserverForInterval:CMTimeMake(1, 10) queue:dispatch_get_main_queue() usingBlock:^(CMTime time) {
+            float currentTime = CMTimeGetSeconds(time);
+            float duration = CMTimeGetSeconds(weakSelf.player.currentItem.duration);
+            if (isnan(duration)) duration = 0;
+            [weakSelf notifyListeners:@"onTimeUpdate" data:@{@"currentTime": @(currentTime), @"duration": @(duration)}];
+        }];
+        
         [weakSelf.player play];
         weakSelf.isPlaying = YES;
         [weakSelf logMessage:@"🚀 Play() ejecutado. Obj-C manejando todo."];
@@ -186,7 +222,6 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         
         MTAudioProcessingTapCallbacks callbacks;
         callbacks.version = kMTAudioProcessingTapCallbacksVersion_0;
-        // Keep a strong reference to self via the (__bridge void *) so the tap can access it
         callbacks.clientInfo = (__bridge void *)self; 
         callbacks.init = tapInit;
         callbacks.finalize = tapFinalize;
