@@ -7,7 +7,8 @@
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
 
-#define FFT_SIZE 1024
+#define FFT_SIZE 4096
+#define NUM_BINS 64
 
 @interface QobuzAudioPlugin : CAPPlugin
 @property (nonatomic, strong) AVPlayer *player;
@@ -44,6 +45,7 @@ typedef struct {
     float *imagBuffer;
     float *magnitudes;
     DSPSplitComplex splitComplex;
+    int binIndices[NUM_BINS + 1];
 } TapContext;
 
 // MTAudioProcessingTap callbacks
@@ -51,10 +53,10 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     TapContext *context = (TapContext *)malloc(sizeof(TapContext));
     context->plugin = clientInfo;
     context->fftSize = FFT_SIZE;
-    context->log2n = 10; // log2(1024)
+    context->log2n = 12; // log2(4096)
     context->fftSetup = vDSP_create_fftsetup((vDSP_Length)context->log2n, kFFTRadix2);
     
-    int halfSize = context->fftSize / 2;
+    int halfSize = context->fftSize / 2; // 2048
     context->window = (float *)malloc(sizeof(float) * context->fftSize);
     context->realBuffer = (float *)malloc(sizeof(float) * halfSize);
     context->imagBuffer = (float *)malloc(sizeof(float) * halfSize);
@@ -63,6 +65,34 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     context->splitComplex.imagp = context->imagBuffer;
     
     vDSP_hann_window(context->window, (vDSP_Length)context->fftSize, vDSP_HANN_NORM);
+    
+    // Pre-calculate Mel/Logarithmic Bin Indices
+    // Sample rate approx 44100, Nyquist = 22050
+    // Bin resolution = 22050 / 2048 = 10.76 Hz per bin
+    float minFreq = 40.0;
+    float maxFreq = 16000.0;
+    float minMel = 2595.0 * log10f(1.0 + minFreq / 700.0);
+    float maxMel = 2595.0 * log10f(1.0 + maxFreq / 700.0);
+    
+    for (int i = 0; i <= NUM_BINS; i++) {
+        float mel = minMel + ((float)i / (float)NUM_BINS) * (maxMel - minMel);
+        float freq = 700.0 * (powf(10.0, mel / 2595.0) - 1.0);
+        int binIndex = (int)(freq / 10.766);
+        if (binIndex < 1) binIndex = 1; // skip DC
+        if (binIndex > halfSize - 1) binIndex = halfSize - 1;
+        context->binIndices[i] = binIndex;
+    }
+    
+    // Ensure minimum 1 bin width
+    for (int i = 0; i < NUM_BINS; i++) {
+        if (context->binIndices[i+1] <= context->binIndices[i]) {
+            context->binIndices[i+1] = context->binIndices[i] + 1;
+            if (context->binIndices[i+1] > halfSize - 1) {
+                context->binIndices[i+1] = halfSize - 1;
+            }
+        }
+    }
+    
     *tapStorageOut = context;
 }
 
@@ -109,40 +139,34 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     float scale = 2.0 / (float)context->fftSize;
     vDSP_vsmul(context->magnitudes, 1, &scale, context->magnitudes, 1, (vDSP_Length)halfSize);
     
-    int numBins = 64;
-    NSMutableArray *result = [NSMutableArray arrayWithCapacity:numBins];
+    uint8_t outBuffer[NUM_BINS];
     
-    float minBin = 1.0;
-    float maxBin = 511.0;
-    float logMin = log10f(minBin);
-    float logMax = log10f(maxBin);
-    
-    for (int i = 0; i < numBins; i++) {
-        float logPos1 = logMin + ((float)i / (float)numBins) * (logMax - logMin);
-        float logPos2 = logMin + ((float)(i + 1) / (float)numBins) * (logMax - logMin);
-        
-        int binStart = (int)powf(10.0, logPos1);
-        int binEnd = (int)powf(10.0, logPos2);
-        if (binEnd <= binStart) binEnd = binStart + 1;
-        if (binEnd > 511) binEnd = 511;
+    for (int i = 0; i < NUM_BINS; i++) {
+        int startBin = context->binIndices[i];
+        int endBin = context->binIndices[i+1];
         
         float maxVal = 0;
-        for (int j = binStart; j < binEnd; j++) {
+        for (int j = startBin; j < endBin; j++) {
             if (context->magnitudes[j] > maxVal) {
                 maxVal = context->magnitudes[j];
             }
         }
         
-        float freqBoost = 1.0 + ((float)i / (float)numBins) * 4.0;
-        float val = maxVal * 25.0 * freqBoost;
+        // Adjust gain based on frequency (higher frequencies need more boost)
+        float freqBoost = 1.0 + ((float)i / (float)NUM_BINS) * 4.0;
+        float val = maxVal * 25.0 * freqBoost; // tuned multiplier
+        
         int scaled = MIN(MAX((int)(val * 255.0), 0), 255);
-        [result addObject:@(scaled)];
+        outBuffer[i] = (uint8_t)scaled;
     }
+    
+    NSData *dataObj = [NSData dataWithBytes:outBuffer length:NUM_BINS];
+    NSString *base64String = [dataObj base64EncodedStringWithOptions:0];
     
     plugin.lastFftUpdate = now;
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        [plugin notifyListeners:@"onFftData" data:@{@"data": result}];
+        [plugin notifyListeners:@"onFftData" data:@{@"data": base64String}];
     });
 }
 

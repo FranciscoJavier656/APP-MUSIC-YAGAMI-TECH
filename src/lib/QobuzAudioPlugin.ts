@@ -5,7 +5,7 @@ export interface QobuzAudioPlugin {
   pause(): Promise<void>;
   resume(): Promise<void>;
   seek(options: { time: number }): Promise<void>;
-  addListener(eventName: 'onFftData', listenerFunc: (info: { data: number[] }) => void): any;
+  addListener(eventName: 'onFftData', listenerFunc: (info: { data: string }) => void): any;
   addListener(eventName: 'onTimeUpdate', listenerFunc: (info: { currentTime: number, duration: number }) => void): any;
   addListener(eventName: 'onDebugLog', listenerFunc: (info: { message: string }) => void): any;
 }
