@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Forzando commit para fix de enum y unmanaged
+// Fix final: React plugin registration + Swift MTAudioProcessingTap callbacks
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

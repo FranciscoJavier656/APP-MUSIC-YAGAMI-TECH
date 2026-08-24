@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
-import { registerPlugin, Capacitor } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 import { Terminal } from 'lucide-react';
-
-const QobuzAudio = registerPlugin('QobuzAudioPlugin');
+import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 
 interface LogMessage {
   time: string;
