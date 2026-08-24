@@ -139,7 +139,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     float scale = 2.0 / (float)context->fftSize;
     vDSP_vsmul(context->magnitudes, 1, &scale, context->magnitudes, 1, (vDSP_Length)halfSize);
     
-    uint8_t outBuffer[NUM_BINS];
+    NSMutableArray *result = [NSMutableArray arrayWithCapacity:NUM_BINS];
     
     for (int i = 0; i < NUM_BINS; i++) {
         int startBin = context->binIndices[i];
@@ -157,16 +157,13 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         float val = maxVal * 25.0 * freqBoost; // tuned multiplier
         
         int scaled = MIN(MAX((int)(val * 255.0), 0), 255);
-        outBuffer[i] = (uint8_t)scaled;
+        [result addObject:@(scaled)];
     }
-    
-    NSData *dataObj = [NSData dataWithBytes:outBuffer length:NUM_BINS];
-    NSString *base64String = [dataObj base64EncodedStringWithOptions:0];
     
     plugin.lastFftUpdate = now;
     
     dispatch_async(dispatch_get_main_queue(), ^{
-        [plugin notifyListeners:@"onFftData" data:@{@"data": base64String}];
+        [plugin notifyListeners:@"onFftData" data:@{@"data": result}];
     });
 }
 
@@ -207,6 +204,12 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     __weak typeof(self) weakSelf = self;
     
     dispatch_async(dispatch_get_main_queue(), ^{
+        // REMOVE OLD OBSERVERS BEFORE OVERWRITING THE PLAYER
+        if (weakSelf.timeObserver && weakSelf.player) {
+            [weakSelf.player removeTimeObserver:weakSelf.timeObserver];
+            weakSelf.timeObserver = nil;
+        }
+        
         weakSelf.player = [AVPlayer playerWithPlayerItem:playerItem];
         
         if (weakSelf.errorLogObservation) {
@@ -217,11 +220,6 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
             NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
             [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
         }];
-        
-        if (weakSelf.timeObserver) {
-            [weakSelf.player removeTimeObserver:weakSelf.timeObserver];
-            weakSelf.timeObserver = nil;
-        }
         
         weakSelf.timeObserver = [weakSelf.player addPeriodicTimeObserverForInterval:CMTimeMake(1, 10) queue:dispatch_get_main_queue() usingBlock:^(CMTime time) {
             float currentTime = CMTimeGetSeconds(time);
@@ -267,6 +265,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
                 playerItem.audioMix = audioMix;
                 [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
             });
+            CFRelease(tap); // Crucial to prevent memory leaks when changing tracks
         } else {
             [weakSelf logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
         }
