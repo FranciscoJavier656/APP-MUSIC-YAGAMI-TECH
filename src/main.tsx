@@ -3,7 +3,7 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
-// Fix final: React plugin registration + Swift MTAudioProcessingTap callbacks
+// Fix final: Objective-C Plugin implementation to bypass Swift compiler 65 error
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
