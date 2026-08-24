@@ -7,7 +7,7 @@
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
 
-#define FFT_SIZE 4096
+#define FFT_SIZE 1024
 #define NUM_BINS 64
 
 @interface QobuzAudioPlugin : CAPPlugin
@@ -53,10 +53,10 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     TapContext *context = (TapContext *)malloc(sizeof(TapContext));
     context->plugin = clientInfo;
     context->fftSize = FFT_SIZE;
-    context->log2n = 12; // log2(4096)
+    context->log2n = 10; // log2(1024)
     context->fftSetup = vDSP_create_fftsetup((vDSP_Length)context->log2n, kFFTRadix2);
     
-    int halfSize = context->fftSize / 2; // 2048
+    int halfSize = context->fftSize / 2;
     context->window = (float *)malloc(sizeof(float) * context->fftSize);
     context->realBuffer = (float *)malloc(sizeof(float) * halfSize);
     context->imagBuffer = (float *)malloc(sizeof(float) * halfSize);
@@ -77,7 +77,7 @@ static void tapInit(MTAudioProcessingTapRef tap, void *clientInfo, void **tapSto
     for (int i = 0; i <= NUM_BINS; i++) {
         float mel = minMel + ((float)i / (float)NUM_BINS) * (maxMel - minMel);
         float freq = 700.0 * (powf(10.0, mel / 2595.0) - 1.0);
-        int binIndex = (int)(freq / 10.766);
+        int binIndex = (int)(freq / 43.066);
         if (binIndex < 1) binIndex = 1; // skip DC
         if (binIndex > halfSize - 1) binIndex = halfSize - 1;
         context->binIndices[i] = binIndex;
@@ -264,8 +264,8 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
             dispatch_async(dispatch_get_main_queue(), ^{
                 playerItem.audioMix = audioMix;
                 [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
+                CFRelease(tap); // Release after assigning to prevent early deallocation
             });
-            CFRelease(tap); // Crucial to prevent memory leaks when changing tracks
         } else {
             [weakSelf logMessage:[NSString stringWithFormat:@"❌ Error creando Tap en ObjC (Status: %d)", (int)status]];
         }

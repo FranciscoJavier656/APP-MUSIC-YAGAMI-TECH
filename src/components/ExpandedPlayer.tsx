@@ -85,14 +85,24 @@ export default function ExpandedPlayer() {
           const barWidth = (canvas.width / bufferLength);
           let x = 0;
           
+          const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+          const baseRgb = isDarkMode ? '255, 255, 255' : '0, 0, 0';
+          
           for (let i = 0; i < bufferLength; i++) {
             // Exponential smoothing for buttery smooth animation
             smoothed[i] = smoothed[i] * 0.70 + dataArray[i] * 0.30;
             
-            const barHeight = (smoothed[i] / 255) * canvas.height;
+            let barHeight = (smoothed[i] / 255) * canvas.height;
+            if (barHeight < 3) barHeight = 3; // Minimum height for silence
             
-            ctx.fillStyle = `rgba(120, 120, 120, ${0.2 + (smoothed[i]/255)*0.8})`; 
-            ctx.fillRect(x, canvas.height - barHeight, barWidth - 1, barHeight);
+            ctx.fillStyle = `rgba(${baseRgb}, ${0.15 + (smoothed[i]/255)*0.85})`; 
+            ctx.beginPath();
+            if (ctx.roundRect) {
+              ctx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, [4, 4, 0, 0]);
+            } else {
+              ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
+            }
+            ctx.fill();
             x += barWidth;
           }
         }
