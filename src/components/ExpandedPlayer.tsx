@@ -290,7 +290,7 @@ export default function ExpandedPlayer() {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
-  const handleSeekChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleSeekChange = (e: any) => {
     setIsScrubbing(true);
     const val = parseFloat(e.target.value);
     const dur = (audioRef.current as any)?.nativeDuration ?? duration;
@@ -299,9 +299,12 @@ export default function ExpandedPlayer() {
     if (currentTimeRef.current) currentTimeRef.current.textContent = formatTime(current);
   };
 
-  const handleSeekCommit = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = parseFloat(e.target.value);
-    const dur = (audioRef.current as any)?.nativeDuration ?? duration;
+  const handleSeekCommit = (e: any) => {
+    let val = parseFloat(e.target?.value);
+    if (isNaN(val) && seekInputRef.current) {
+        val = parseFloat(seekInputRef.current.value);
+    }
+    const dur = (audioRef.current as any)?.nativeDuration ?? (audioRef.current?.duration || duration);
     seekTo((val / 100) * dur);
     // Add small delay to let native catch up before we resume automatic updates
     setTimeout(() => setIsScrubbing(false), 200);
@@ -313,7 +316,7 @@ export default function ExpandedPlayer() {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
       className={`fixed inset-0 z-[60] bg-white dark:bg-black flex flex-col pt-12 pb-8 px-6 sm:px-12 transform ${touchOffsetY === 0 ? 'transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]' : ''}`}
-      style={{ transform: `translateY(${isExpanded ? touchOffsetY : '100%'}px)` }}
+      style={{ transform: isExpanded ? (touchOffsetY > 0 ? `translateY(${touchOffsetY}px)` : 'translateY(0px)') : 'translateY(100%)' }}
     >
       {dominantColor && (
         <div 
@@ -453,7 +456,9 @@ export default function ExpandedPlayer() {
             onChange={handleSeekChange}
             onMouseUp={handleSeekCommit}
             onTouchEnd={handleSeekCommit}
-            className="absolute top-1/2 -translate-y-1/2 w-full h-8 z-10 opacity-0 cursor-pointer"
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchMove={(e) => e.stopPropagation()}
+            className="absolute top-1/2 -translate-y-1/2 w-full h-8 z-10 opacity-0 cursor-pointer touch-none"
           />
           <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden pointer-events-none">
             <div
