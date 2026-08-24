@@ -14,6 +14,11 @@ export default function ExpandedPlayer() {
 
   const [isScrubbing, _setIsScrubbing] = useState(false);
   const isScrubbingRef = useRef(false);
+  const isPlayingRef = useRef(isPlaying);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
   const setIsScrubbing = (val: boolean) => {
     isScrubbingRef.current = val;
     _setIsScrubbing(val);
@@ -71,8 +76,8 @@ export default function ExpandedPlayer() {
 
         // 2. Draw Analyser (Native iOS vDSP)
         if (ctx && canvas && (canvas as any).nativeFftData) {
-          const dataArray = (canvas as any).nativeFftData;
-          const bufferLength = dataArray.length;
+          const rawDataArray = (canvas as any).nativeFftData;
+          const bufferLength = rawDataArray.length;
           
           if (!(canvas as any).smoothedFftData) {
              (canvas as any).smoothedFftData = new Float32Array(bufferLength);
@@ -89,8 +94,11 @@ export default function ExpandedPlayer() {
           const baseRgb = isDarkMode ? '255, 255, 255' : '0, 0, 0';
           
           for (let i = 0; i < bufferLength; i++) {
+            // If paused, force the target value to 0 so it decays smoothly
+            const targetValue = isPlayingRef.current ? rawDataArray[i] : 0;
+            
             // Exponential smoothing for buttery smooth animation
-            smoothed[i] = smoothed[i] * 0.70 + dataArray[i] * 0.30;
+            smoothed[i] = smoothed[i] * 0.70 + targetValue * 0.30;
             
             let barHeight = (smoothed[i] / 255) * canvas.height;
             if (barHeight < 3) barHeight = 3; // Minimum height for silence
