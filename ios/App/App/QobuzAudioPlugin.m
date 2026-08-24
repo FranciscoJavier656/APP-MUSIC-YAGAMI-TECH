@@ -4,6 +4,7 @@
 #import <Capacitor/CAPBridgedJSTypes.h>
 #import <Capacitor/Capacitor-Swift.h>
 #import <AVFoundation/AVFoundation.h>
+#import <MediaPlayer/MediaPlayer.h>
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
 
@@ -16,6 +17,7 @@
 @property (nonatomic, assign) NSTimeInterval lastFftUpdate;
 @property (nonatomic, strong) id errorLogObservation;
 @property (nonatomic, strong) id timeObserver;
+@property (nonatomic, strong) id endObservation;
 @end
 
 @interface QobuzAudioPlugin (CAPPluginCategory) <CAPBridgedPlugin>
@@ -30,6 +32,8 @@
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"pause" returnType:CAPPluginReturnPromise]];
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"resume" returnType:CAPPluginReturnPromise]];
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"seek" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"updateMetadata" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"setupRemoteControls" returnType:CAPPluginReturnPromise]];
     return methods;
 }
 @end
@@ -215,10 +219,18 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         if (weakSelf.errorLogObservation) {
             [[NSNotificationCenter defaultCenter] removeObserver:weakSelf.errorLogObservation];
         }
+        if (weakSelf.endObservation) {
+            [[NSNotificationCenter defaultCenter] removeObserver:weakSelf.endObservation];
+        }
         
         weakSelf.errorLogObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
             NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
             [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
+        }];
+        
+        weakSelf.endObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemDidPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
+            [weakSelf notifyListeners:@"onEnded" data:@{}];
+            [weakSelf logMessage:@"🏁 Pista terminada nativamente. Emitiendo onEnded a JS."];
         }];
         
         weakSelf.timeObserver = [weakSelf.player addPeriodicTimeObserverForInterval:CMTimeMake(1, 10) queue:dispatch_get_main_queue() usingBlock:^(CMTime time) {
@@ -230,6 +242,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         
         [weakSelf.player play];
         weakSelf.isPlaying = YES;
+        [weakSelf updateNowPlayingState];
         [weakSelf logMessage:@"🚀 Play() ejecutado. Obj-C manejando todo."];
         [call resolve];
     });
@@ -276,6 +289,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.player pause];
         self.isPlaying = NO;
+        [self updateNowPlayingState];
         [call resolve];
     });
 }
@@ -284,6 +298,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.player play];
         self.isPlaying = YES;
+        [self updateNowPlayingState];
         [call resolve];
     });
 }
@@ -298,6 +313,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     CMTime targetTime = CMTimeMakeWithSeconds([timeNum doubleValue], 600);
     dispatch_async(dispatch_get_main_queue(), ^{
         [self.player seekToTime:targetTime];
+        [self updateNowPlayingState];
         [call resolve];
     });
 }

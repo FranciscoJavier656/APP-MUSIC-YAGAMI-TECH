@@ -1,118 +1,131 @@
 const fs = require('fs');
+
 let code = fs.readFileSync('ios/App/App/QobuzAudioPlugin.m', 'utf8');
 
-// Fix the array serialization vs base64
-const oldFftSend = `    uint8_t outBuffer[NUM_BINS];
-    
-    for (int i = 0; i < NUM_BINS; i++) {
-        int startBin = context->binIndices[i];
-        int endBin = context->binIndices[i+1];
-        
-        float maxVal = 0;
-        for (int j = startBin; j < endBin; j++) {
-            if (context->magnitudes[j] > maxVal) {
-                maxVal = context->magnitudes[j];
-            }
-        }
-        
-        // Adjust gain based on frequency (higher frequencies need more boost)
-        float freqBoost = 1.0 + ((float)i / (float)NUM_BINS) * 4.0;
-        float val = maxVal * 25.0 * freqBoost; // tuned multiplier
-        
-        int scaled = MIN(MAX((int)(val * 255.0), 0), 255);
-        outBuffer[i] = (uint8_t)scaled;
-    }
-    
-    NSData *dataObj = [NSData dataWithBytes:outBuffer length:NUM_BINS];
-    NSString *base64String = [dataObj base64EncodedStringWithOptions:0];
-    
-    plugin.lastFftUpdate = now;
-    
+if (!code.includes('<MediaPlayer/MediaPlayer.h>')) {
+    code = code.replace('#import <AVFoundation/AVFoundation.h>', '#import <AVFoundation/AVFoundation.h>\n#import <MediaPlayer/MediaPlayer.h>');
+}
+
+if (!code.includes('updateMetadata')) {
+    code = code.replace('[methods addObject:[[CAPPluginMethod alloc] initWithName:@"seek" returnType:CAPPluginReturnPromise]];', '[methods addObject:[[CAPPluginMethod alloc] initWithName:@"seek" returnType:CAPPluginReturnPromise]];\n    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"updateMetadata" returnType:CAPPluginReturnPromise]];\n    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"setupRemoteControls" returnType:CAPPluginReturnPromise]];');
+}
+
+const remoteControlsCode = `
+- (void)setupRemoteControls:(CAPPluginCall *)call {
     dispatch_async(dispatch_get_main_queue(), ^{
-        [plugin notifyListeners:@"onFftData" data:@{@"data": base64String}];
-    });`;
-
-const newFftSend = `    NSMutableArray *result = [NSMutableArray arrayWithCapacity:NUM_BINS];
-    
-    for (int i = 0; i < NUM_BINS; i++) {
-        int startBin = context->binIndices[i];
-        int endBin = context->binIndices[i+1];
+        MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
         
-        float maxVal = 0;
-        for (int j = startBin; j < endBin; j++) {
-            if (context->magnitudes[j] > maxVal) {
-                maxVal = context->magnitudes[j];
-            }
-        }
+        [commandCenter.playCommand removeTarget:nil];
+        [commandCenter.pauseCommand removeTarget:nil];
+        [commandCenter.nextTrackCommand removeTarget:nil];
+        [commandCenter.previousTrackCommand removeTarget:nil];
+        [commandCenter.changePlaybackPositionCommand removeTarget:nil];
         
-        // Adjust gain based on frequency (higher frequencies need more boost)
-        float freqBoost = 1.0 + ((float)i / (float)NUM_BINS) * 4.0;
-        float val = maxVal * 25.0 * freqBoost; // tuned multiplier
-        
-        int scaled = MIN(MAX((int)(val * 255.0), 0), 255);
-        [result addObject:@(scaled)];
-    }
-    
-    plugin.lastFftUpdate = now;
-    
-    dispatch_async(dispatch_get_main_queue(), ^{
-        [plugin notifyListeners:@"onFftData" data:@{@"data": result}];
-    });`;
-
-code = code.replace(oldFftSend, newFftSend);
-
-// Fix the observer crash
-const oldObserver = `    dispatch_async(dispatch_get_main_queue(), ^{
-        weakSelf.player = [AVPlayer playerWithPlayerItem:playerItem];
-        
-        if (weakSelf.errorLogObservation) {
-            [[NSNotificationCenter defaultCenter] removeObserver:weakSelf.errorLogObservation];
-        }
-        
-        weakSelf.errorLogObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
-            NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
-            [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
+        [commandCenter.playCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            [self notifyListeners:@"onRemotePlay" data:@{}];
+            return MPRemoteCommandHandlerStatusSuccess;
         }];
         
-        if (weakSelf.timeObserver) {
-            [weakSelf.player removeTimeObserver:weakSelf.timeObserver];
-            weakSelf.timeObserver = nil;
-        }`;
+        [commandCenter.pauseCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            [self notifyListeners:@"onRemotePause" data:@{}];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [commandCenter.nextTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            [self notifyListeners:@"onRemoteNext" data:@{}];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [commandCenter.previousTrackCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            [self notifyListeners:@"onRemotePrev" data:@{}];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [commandCenter.changePlaybackPositionCommand addTargetWithHandler:^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+            MPChangePlaybackPositionCommandEvent *positionEvent = (MPChangePlaybackPositionCommandEvent *)event;
+            [self notifyListeners:@"onRemoteSeek" data:@{@"time": @(positionEvent.positionTime)}];
+            return MPRemoteCommandHandlerStatusSuccess;
+        }];
+        
+        [call resolve];
+    });
+}
 
-const newObserver = `    dispatch_async(dispatch_get_main_queue(), ^{
-        // REMOVE OLD OBSERVERS BEFORE OVERWRITING THE PLAYER
-        if (weakSelf.timeObserver && weakSelf.player) {
-            [weakSelf.player removeTimeObserver:weakSelf.timeObserver];
-            weakSelf.timeObserver = nil;
+- (void)updateNowPlayingState {
+    NSMutableDictionary *info = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+    if (!info) return;
+    
+    if (self.player) {
+        info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(CMTimeGetSeconds(self.player.currentTime));
+        info[MPNowPlayingInfoPropertyPlaybackRate] = @(self.isPlaying ? 1.0 : 0.0);
+    }
+    
+    [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
+}
+
+- (void)updateMetadata:(CAPPluginCall *)call {
+    NSString *title = call.options[@"title"];
+    NSString *artist = call.options[@"artist"];
+    NSString *album = call.options[@"album"];
+    NSString *coverUrl = call.options[@"coverUrl"];
+    NSNumber *durationNum = call.options[@"duration"];
+    
+    dispatch_async(dispatch_get_main_queue(), ^{
+        NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+        if (!nowPlayingInfo) nowPlayingInfo = [NSMutableDictionary dictionary];
+        
+        if (title) nowPlayingInfo[MPMediaItemPropertyTitle] = title;
+        if (artist) nowPlayingInfo[MPMediaItemPropertyArtist] = artist;
+        if (album) nowPlayingInfo[MPMediaItemPropertyAlbumTitle] = album;
+        
+        if (durationNum) {
+            nowPlayingInfo[MPMediaItemPropertyPlaybackDuration] = durationNum;
         }
         
-        weakSelf.player = [AVPlayer playerWithPlayerItem:playerItem];
-        
-        if (weakSelf.errorLogObservation) {
-            [[NSNotificationCenter defaultCenter] removeObserver:weakSelf.errorLogObservation];
+        if (self.player) {
+            nowPlayingInfo[MPNowPlayingInfoPropertyElapsedPlaybackTime] = @(CMTimeGetSeconds(self.player.currentTime));
+            nowPlayingInfo[MPNowPlayingInfoPropertyPlaybackRate] = @(self.isPlaying ? 1.0 : 0.0);
         }
         
-        weakSelf.errorLogObservation = [[NSNotificationCenter defaultCenter] addObserverForName:AVPlayerItemFailedToPlayToEndTimeNotification object:playerItem queue:[NSOperationQueue mainQueue] usingBlock:^(NSNotification * _Nonnull note) {
-            NSError *err = note.userInfo[AVPlayerItemFailedToPlayToEndTimeErrorKey];
-            [weakSelf logMessage:[NSString stringWithFormat:@"⚠️ Error interno AVPlayer: %@", err.localizedDescription]];
-        }];`;
-
-code = code.replace(oldObserver, newObserver);
-
-// Fix the tap leak
-const oldTap = `            dispatch_async(dispatch_get_main_queue(), ^{
-                playerItem.audioMix = audioMix;
-                [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
+        [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
+        
+        // Asynchronous image loading for cover
+        if (coverUrl && [coverUrl isKindOfClass:[NSString class]] && coverUrl.length > 0) {
+            dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+                NSURL *url = [NSURL URLWithString:coverUrl];
+                if (url) {
+                    NSData *data = [NSData dataWithContentsOfURL:url];
+                    if (data) {
+                        UIImage *image = [UIImage imageWithData:data];
+                        if (image) {
+                            MPMediaItemArtwork *artwork = [[MPMediaItemArtwork alloc] initWithBoundsSize:image.size requestHandler:^UIImage * _Nonnull(CGSize size) {
+                                return image;
+                            }];
+                            dispatch_async(dispatch_get_main_queue(), ^{
+                                NSMutableDictionary *info = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+                                if (!info) return;
+                                info[MPMediaItemPropertyArtwork] = artwork;
+                                [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = info;
+                            });
+                        }
+                    }
+                }
             });
-        } else {`;
+        }
+        
+        [call resolve];
+    });
+}
+`;
 
-const newTap = `            dispatch_async(dispatch_get_main_queue(), ^{
-                playerItem.audioMix = audioMix;
-                [weakSelf logMessage:@"✅ Tap inyectado exitosamente al stream activo (Objective-C)"];
-            });
-            CFRelease(tap); // Crucial to prevent memory leaks when changing tracks
-        } else {`;
+if (!code.includes('setupRemoteControls')) {
+    code = code.replace('@implementation QobuzAudioPlugin\n', '@implementation QobuzAudioPlugin\n' + remoteControlsCode);
+}
 
-code = code.replace(oldTap, newTap);
+// Ensure updateNowPlayingState is called on play, pause, resume, seek
+code = code.replace('weakSelf.isPlaying = YES;\n        [weakSelf logMessage', 'weakSelf.isPlaying = YES;\n        [weakSelf updateNowPlayingState];\n        [weakSelf logMessage');
+code = code.replace('self.isPlaying = NO;\n        [call resolve];', 'self.isPlaying = NO;\n        [self updateNowPlayingState];\n        [call resolve];');
+code = code.replace('self.isPlaying = YES;\n        [call resolve];', 'self.isPlaying = YES;\n        [self updateNowPlayingState];\n        [call resolve];');
+code = code.replace('[self.player seekToTime:targetTime];\n        [call resolve];', '[self.player seekToTime:targetTime];\n        [self updateNowPlayingState];\n        [call resolve];');
 
 fs.writeFileSync('ios/App/App/QobuzAudioPlugin.m', code);
