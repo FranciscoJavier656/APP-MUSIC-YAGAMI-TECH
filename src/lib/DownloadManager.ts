@@ -3,6 +3,54 @@ import { Filesystem, Directory } from '@capacitor/filesystem';
 import axios from 'axios';
 import { getQobuzTrackUrl } from './qobuz';
 
+// --- TIPO DE DATOS ---
+interface QueueItem {
+  track: any;
+  formatId: string;
+  ext: string;
+  resolve: (value: boolean) => void;
+}
+
+// --- QUEUE MANAGER ---
+class DownloadQueueManager {
+  private queue: QueueItem[] = [];
+  private activeDownloads: number = 0;
+  private MAX_CONCURRENT = 3;
+
+  public async enqueue(track: any, formatId: string, ext: string): Promise<boolean> {
+    return new Promise((resolve) => {
+      this.queue.push({ track, formatId, ext, resolve });
+      this.processQueue();
+    });
+  }
+
+  private async processQueue() {
+    if (this.activeDownloads >= this.MAX_CONCURRENT || this.queue.length === 0) {
+      return;
+    }
+
+    this.activeDownloads++;
+    const item = this.queue.shift()!;
+    
+    // Disparar estado de que empezó a descargar (si estaba en cola)
+    window.dispatchEvent(new CustomEvent('download_state', {
+      detail: { trackId: item.track.id.toString(), status: 'downloading' }
+    }));
+
+    try {
+      await processSingleDownload(item.track, item.formatId, item.ext);
+      item.resolve(true);
+    } catch (e) {
+      console.error("Queue process error for track:", item.track.id, e);
+      item.resolve(false);
+    } finally {
+      this.activeDownloads--;
+      this.processQueue();
+    }
+  }
+}
+
+const queueManager = new DownloadQueueManager();
 const downloadMap: Record<string, string> = {};
 
 if (Capacitor.isNativePlatform()) {
@@ -22,6 +70,77 @@ if (Capacitor.isNativePlatform()) {
   });
 }
 
+// --- LOGICA DE METADATOS (IDÉNTICA A REDUX ORIGINAL) ---
+const addMetadataToLibrary = (trackWithLocalPath: any) => {
+  try {
+    const trackId = trackWithLocalPath.id.toString();
+    const trackTitle = trackWithLocalPath.title || 'Unknown';
+    const artistName = trackWithLocalPath.artist?.name || trackWithLocalPath.performer?.name || 'Unknown Artist';
+    const albumTitle = trackWithLocalPath.album?.title || 'Unknown Album';
+    const artistId = trackWithLocalPath.artist?.id?.toString() || artistName;
+    const albumId = trackWithLocalPath.album?.id?.toString() || albumTitle;
+
+    // 1. Guardar el Track
+    const offlineTracks = JSON.parse(localStorage.getItem('offline_library_tracks') || '{}');
+    offlineTracks[trackId] = {
+      id: trackId,
+      title: trackTitle,
+      subtitle: artistName,
+      image: trackWithLocalPath.album?.image?.small || trackWithLocalPath.image?.small || trackWithLocalPath.image,
+      type: 'track',
+      original: trackWithLocalPath,
+      downloadedAt: Date.now()
+    };
+    localStorage.setItem('offline_library_tracks', JSON.stringify(offlineTracks));
+    
+    // Por retrocompatibilidad (para la pestaña Downloads)
+    const oldTracks = JSON.parse(localStorage.getItem('offline_tracks') || '{}');
+    oldTracks[trackId] = trackWithLocalPath;
+    localStorage.setItem('offline_tracks', JSON.stringify(oldTracks));
+
+    // 2. Guardar el Album
+    const offlineAlbums = JSON.parse(localStorage.getItem('offline_library_albums') || '{}');
+    if (!offlineAlbums[albumId]) {
+      offlineAlbums[albumId] = {
+        id: albumId,
+        title: albumTitle,
+        subtitle: artistName,
+        image: trackWithLocalPath.album?.image?.large || trackWithLocalPath.album?.image?.small,
+        type: 'album',
+        trackCount: 1,
+        genres: trackWithLocalPath.album?.genre?.name || trackWithLocalPath.genre?.name,
+        releaseDate: trackWithLocalPath.album?.released_at || trackWithLocalPath.released_at,
+        original: trackWithLocalPath
+      };
+    } else {
+      offlineAlbums[albumId].trackCount += 1;
+    }
+    localStorage.setItem('offline_library_albums', JSON.stringify(offlineAlbums));
+
+    // 3. Guardar el Artista
+    const offlineArtists = JSON.parse(localStorage.getItem('offline_library_artists') || '{}');
+    if (!offlineArtists[artistId]) {
+      offlineArtists[artistId] = {
+        id: artistId,
+        title: artistName,
+        subtitle: 'Artista',
+        image: trackWithLocalPath.artist?.image?.large || trackWithLocalPath.artist?.image?.small || trackWithLocalPath.album?.image?.small,
+        type: 'artist',
+        trackCount: 1,
+        original: trackWithLocalPath
+      };
+    } else {
+      offlineArtists[artistId].trackCount += 1;
+    }
+    localStorage.setItem('offline_library_artists', JSON.stringify(offlineArtists));
+
+    // Notificar UI
+    window.dispatchEvent(new CustomEvent('offline-library-updated'));
+  } catch (e) {
+    console.error('Error saving metadata to library components', e);
+  }
+};
+
 export const downloadFileWeb = async (url: string, filename: string) => {
   const res = await axios.get(url, { responseType: 'blob' });
   const blobUrl = URL.createObjectURL(res.data);
@@ -34,73 +153,72 @@ export const downloadFileWeb = async (url: string, filename: string) => {
   URL.revokeObjectURL(blobUrl);
 };
 
+// Logica interna del proceso de descarga
+const processSingleDownload = async (track: any, formatId: string, ext: string): Promise<void> => {
+  const url = await getQobuzTrackUrl(track.id.toString(), formatId);
+  if (!url) throw new Error("No URL");
+  
+  if (Capacitor.isNativePlatform()) {
+    const trackId = track.id.toString();
+    downloadMap[url] = trackId;
+    const filename = `${trackId}.${ext}`;
+    
+    try {
+      await Filesystem.downloadFile({
+        url: url,
+        path: `Downloads/${filename}`,
+        directory: Directory.Data,
+      });
+      
+      window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'processing_metadata' } }));
+      await new Promise(r => setTimeout(r, 800));
+      
+      window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'importing_library' } }));
+      await new Promise(r => setTimeout(r, 600));
+      
+      // Organizar metadatos en las 3 secciones (Albums, Artistas, Tracks)
+      const trackWithLocalPath = {
+        ...track,
+        localPath: `Downloads/${filename}`,
+        downloadedAt: Date.now()
+      };
+      
+      addMetadataToLibrary(trackWithLocalPath);
+      
+      window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'organizing' } }));
+      await new Promise(r => setTimeout(r, 500));
+      
+      window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
+      delete downloadMap[url];
+    } catch (e: any) {
+      window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId, error: e.message || 'Error nativo' } }));
+      delete downloadMap[url];
+      throw e;
+    }
+  } else {
+    // Web mock
+    const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?+%*:_|"C>]/g, '-')}.${ext}`;
+    await downloadFileWeb(url, filename);
+  }
+};
+
+// ENTRADA PRINCIPAL ENRUTADA (LA QUE LLAMA LA UI)
 export const downloadTrackRouted = async (
   track: any, 
   formatId: string, 
   ext: string
 ): Promise<boolean> => {
   try {
-    const url = await getQobuzTrackUrl(track.id.toString(), formatId);
-    if (!url) return false;
-
     if (Capacitor.isNativePlatform()) {
-      console.log(`[iOS] Encolando descarga nativa estable con Capacitor Filesystem: ${track.title}`);
-      
-      const trackId = track.id.toString();
-      downloadMap[url] = trackId;
-      const filename = `${trackId}.${ext}`;
-
-      window.dispatchEvent(new CustomEvent('download_state', {
-        detail: { trackId, status: 'downloading' }
-      }));
-
-      // Ejecutar en segundo plano para no bloquear la UI
-      (async () => {
-        try {
-          await Filesystem.downloadFile({
-            url: url,
-            path: `Downloads/${filename}`,
-            directory: Directory.Data,
-          });
-
-          window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'processing_metadata' } }));
-          await new Promise(r => setTimeout(r, 1200));
-          
-          window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'importing_library' } }));
-          await new Promise(r => setTimeout(r, 1000));
-          
-          // Guardar en la librería local (IndexedDB / LocalStorage)
-          try {
-            const offlineLibrary = JSON.parse(localStorage.getItem('offline_tracks') || '{}');
-            offlineLibrary[trackId] = {
-              ...track,
-              localPath: `Downloads/${filename}`,
-              downloadedAt: Date.now()
-            };
-            localStorage.setItem('offline_tracks', JSON.stringify(offlineLibrary));
-          } catch(e) {
-            console.error('Error saving to offline_tracks', e);
-          }
-
-          window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'organizing' } }));
-          await new Promise(r => setTimeout(r, 800));
-          
-          window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
-          
-          delete downloadMap[url];
-        } catch (e: any) {
-          console.error("Error en Filesystem.downloadFile:", e);
-          window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId, error: e.message || 'Error nativo' } }));
-          delete downloadMap[url];
-        }
-      })();
+      // Si es nativo, encolamos y devolvemos true INMEDIATAMENTE para liberar la UI, 
+      // la UI ya puso el track en 'queued' vía DownloadContext.
+      queueManager.enqueue(track, formatId, ext);
+      return true;
+    } else {
+      console.log(`[Web] Procesando descarga web: ${track.title}`);
+      await processSingleDownload(track, formatId, ext);
       return true;
     }
-
-    console.log(`[Web] Procesando descarga web: ${track.title}`);
-    const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?%*:|"<>]/g, '-')}.${ext}`;
-    await downloadFileWeb(url, filename);
-    return true;
   } catch (e: any) {
     console.error("Fallo al descargar track", track.id, e);
     window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId: track.id.toString(), error: e.message || "Error" } }));

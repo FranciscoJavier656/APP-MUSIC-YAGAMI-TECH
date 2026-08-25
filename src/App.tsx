@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Search, Library, Settings as SettingsIcon } from 'lucide-react';
+import { Home, Search, Library, Download, Settings as SettingsIcon } from 'lucide-react';
 import { YagamiLoader } from './components/YagamiLoader';
 import HomeTab from './components/HomeTab';
 import SearchTab from './components/SearchTab';
 import SettingsTab from './components/SettingsTab';
 import LibraryTab from './components/LibraryTab';
+import DownloadsTab from './components/DownloadsTab';
 import { PlayerProvider } from './components/PlayerContext';
 import { DownloadProvider } from './lib/DownloadContext';
 import MiniPlayer from './components/MiniPlayer';
 
 export default function App() {
   const [isAppLoading, setIsAppLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'settings'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -65,6 +66,9 @@ export default function App() {
           <div className={activeTab === 'library' ? 'block h-full' : 'hidden'}>
             <LibraryTab />
           </div>
+          <div className={activeTab === 'downloads' ? 'block h-full' : 'hidden'}>
+            <DownloadsTab />
+          </div>
           <div className={activeTab === 'settings' ? 'block h-full' : 'hidden'}>
             <SettingsTab isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
           </div>
@@ -104,6 +108,16 @@ export default function App() {
             >
               <Library size={24} strokeWidth={2} />
               <span className="text-[10px] font-medium uppercase tracking-tighter">Librería</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('downloads')}
+              className={`flex flex-col items-center gap-1 transition-colors ${
+                activeTab === 'downloads' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
+              }`}
+            >
+              <Download size={24} strokeWidth={2} />
+              <span className="text-[10px] font-medium uppercase tracking-tighter">Descargas</span>
             </button>
             
             <button

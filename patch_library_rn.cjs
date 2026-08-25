@@ -1,4 +1,6 @@
-import React, { useState, useEffect, useMemo } from 'react';
+const fs = require('fs');
+
+const code = `import React, { useState, useEffect, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { motion } from 'motion/react';
 import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter } from 'lucide-react';
@@ -6,8 +8,6 @@ import { usePlayer } from './PlayerContext';
 
 export default function LibraryTab() {
   const [offlineTracks, setOfflineTracks] = useState<any[]>([]);
-  const [offlineAlbums, setOfflineAlbums] = useState<any[]>([]);
-  const [offlineArtists, setOfflineArtists] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'playlists' | 'albums' | 'artists' | 'favorites'>('favorites');
   const [favoriteFilter, setFavoriteFilter] = useState<'all' | 'local'>('local');
   const [isLoading, setIsLoading] = useState(true);
@@ -16,8 +16,7 @@ export default function LibraryTab() {
 
   const loadOfflineLibrary = () => {
     try {
-      // Tracks (favorites)
-      const tracksStr = localStorage.getItem('offline_library_tracks');
+      const tracksStr = localStorage.getItem('offline_tracks');
       if (tracksStr) {
         const tracksObj = JSON.parse(tracksStr);
         const tracks = Object.values(tracksObj).sort((a: any, b: any) => {
@@ -25,32 +24,8 @@ export default function LibraryTab() {
         });
         setOfflineTracks(tracks);
       } else {
-        // Fallback backward compatibility
-        const oldStr = localStorage.getItem('offline_tracks');
-        if (oldStr) {
-           const oldObj = JSON.parse(oldStr);
-           setOfflineTracks(Object.values(oldObj));
-        } else {
-           setOfflineTracks([]);
-        }
+        setOfflineTracks([]);
       }
-
-      // Albums
-      const albumsStr = localStorage.getItem('offline_library_albums');
-      if (albumsStr) {
-        setOfflineAlbums(Object.values(JSON.parse(albumsStr)));
-      } else {
-        setOfflineAlbums([]);
-      }
-
-      // Artists
-      const artistsStr = localStorage.getItem('offline_library_artists');
-      if (artistsStr) {
-        setOfflineArtists(Object.values(JSON.parse(artistsStr)));
-      } else {
-        setOfflineArtists([]);
-      }
-
     } catch (e) {
       console.error("Error loading offline library:", e);
     } finally {
@@ -75,27 +50,61 @@ export default function LibraryTab() {
   // Process data for the views
   const items = useMemo(() => {
     if (activeTab === 'favorites') {
-      return offlineTracks.map(track => {
-        if (track.type === 'track') return track; // Ya viene formateado
-        // Fallback viejo formato
-        return {
-          id: track.id,
-          title: track.title,
-          subtitle: track.artist?.name || track.performer?.name,
-          image: track.album?.image?.small || track.image?.small || track.image,
-          type: 'track',
-          original: track
-        };
-      });
+      return offlineTracks.map(track => ({
+        id: track.id,
+        title: track.title,
+        subtitle: track.artist?.name || track.performer?.name,
+        image: track.album?.image?.small || track.image?.small || track.image,
+        type: 'track',
+        original: track
+      }));
     }
     if (activeTab === 'albums') {
-      return offlineAlbums;
+      const albumsMap = new Map();
+      offlineTracks.forEach(track => {
+        if (track.album) {
+          if (!albumsMap.has(track.album.id)) {
+            albumsMap.set(track.album.id, {
+              id: track.album.id,
+              title: track.album.title,
+              subtitle: track.artist?.name || track.performer?.name,
+              image: track.album.image?.small,
+              type: 'album',
+              trackCount: 1,
+              original: track
+            });
+          } else {
+            albumsMap.get(track.album.id).trackCount += 1;
+          }
+        }
+      });
+      return Array.from(albumsMap.values());
     }
     if (activeTab === 'artists') {
-      return offlineArtists;
+      const artistsMap = new Map();
+      offlineTracks.forEach(track => {
+        const artistName = track.artist?.name || track.performer?.name;
+        const artistId = track.artist?.id || artistName;
+        if (artistName) {
+          if (!artistsMap.has(artistId)) {
+            artistsMap.set(artistId, {
+              id: artistId,
+              title: artistName,
+              subtitle: 'Artista',
+              image: track.artist?.image?.small || track.image?.small,
+              type: 'artist',
+              trackCount: 1,
+              original: track
+            });
+          } else {
+            artistsMap.get(artistId).trackCount += 1;
+          }
+        }
+      });
+      return Array.from(artistsMap.values());
     }
     return [];
-  }, [offlineTracks, offlineAlbums, offlineArtists, activeTab]);
+  }, [offlineTracks, activeTab]);
 
   const handleFilterToggle = () => {
     setFavoriteFilter(prev => prev === 'all' ? 'local' : 'all');
@@ -176,7 +185,7 @@ export default function LibraryTab() {
               <button 
                 onClick={handleFilterToggle}
                 disabled={activeTab !== 'favorites'}
-                className={`overflow-hidden rounded-xl ${activeTab !== 'favorites' ? 'opacity-50' : ''}`}
+                className={\`overflow-hidden rounded-xl \${activeTab !== 'favorites' ? 'opacity-50' : ''}\`}
               >
                 <div className="p-3 backdrop-blur-[40px] bg-white/5 border border-white/5">
                   <Filter 
@@ -199,18 +208,18 @@ export default function LibraryTab() {
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`overflow-hidden rounded-2xl flex-shrink-0 transition-all ${isActive ? 'shadow-[0_4px_12px_rgba(29,185,84,0.3)]' : ''}`}
+                  className={\`overflow-hidden rounded-2xl flex-shrink-0 transition-all \${isActive ? 'shadow-[0_4px_12px_rgba(29,185,84,0.3)]' : ''}\`}
                 >
-                  <div className={`flex items-center gap-2 px-4 py-2.5 backdrop-blur-[20px] border border-white/5 ${
+                  <div className={\`flex items-center gap-2 px-4 py-2.5 backdrop-blur-[20px] border border-white/5 \${
                     isActive 
                       ? 'bg-gradient-to-r from-[#1DB954]/20 to-[#1DB954]/10' 
                       : 'bg-white/5'
-                  }`}>
+                  }\`}>
                     <Icon 
                       className="w-4 h-4" 
                       color={isActive ? '#1DB954' : 'rgba(255,255,255,0.6)'} 
                     />
-                    <span className={`text-sm font-semibold ${isActive ? 'text-[#1DB954]' : 'text-white/60'}`}>
+                    <span className={\`text-sm font-semibold \${isActive ? 'text-[#1DB954]' : 'text-white/60'}\`}>
                       {tab.title}
                     </span>
                   </div>
@@ -238,7 +247,7 @@ export default function LibraryTab() {
                         <img 
                           src={item.image} 
                           alt="" 
-                          className={`w-20 h-20 bg-white/5 ${item.type === 'artist' ? 'rounded-full' : 'rounded-xl'} object-cover`}
+                          className={\`w-20 h-20 bg-white/5 \${item.type === 'artist' ? 'rounded-full' : 'rounded-xl'} object-cover\`}
                         />
                         {/* Type Badge */}
                         <div className="absolute -bottom-1 -right-1 overflow-hidden rounded-xl">
@@ -296,3 +305,7 @@ export default function LibraryTab() {
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/LibraryTab.tsx', code);
+console.log("Patched LibraryTab natively");
