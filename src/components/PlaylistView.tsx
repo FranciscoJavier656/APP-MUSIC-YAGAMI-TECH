@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ChevronLeft, Play, Download, Loader2, Music, Shuffle } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
+import { useSwipeBack } from '../lib/useSwipeBack';
 import DownloadModal from './DownloadModal';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -17,6 +18,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
   const [error, setError] = useState('');
   const { playTrack, currentTrack, isPlaying } = usePlayer();
   const [downloadItem, setDownloadItem] = useState<{item: any, type: 'playlist'|'track'} | null>(null);
+  useSwipeBack(onBack);
 
   useEffect(() => {
     const fetchPlaylist = async () => {
@@ -68,7 +70,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
 
   if (error || !playlist) {
     return (
-      <div className="p-8">
+      <div className="p-8 pt-16">
         <button onClick={onBack} className="flex items-center text-[#007AFF] mb-4">
           <ChevronLeft className="w-5 h-5 mr-1" /> Volver
         </button>
@@ -93,7 +95,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
   return (
     <div className="flex flex-col h-full bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white pb-24 overflow-y-auto">
       {/* Header */}
-      <div className="sticky top-0 z-10 bg-[#F2F2F7]/90 dark:bg-[#000000]/90 backdrop-blur-md px-4 py-3 flex items-center justify-between shadow-sm">
+      <div className="sticky top-0 z-10 bg-[#F2F2F7]/90 dark:bg-[#000000]/90 backdrop-blur-md px-4 py-3 pt-14 flex items-center justify-between shadow-sm">
         <button onClick={onBack} className="w-8 h-8 flex items-center justify-center rounded-full bg-white dark:bg-gray-800 shadow-sm border border-gray-200 dark:border-transparent">
           <ChevronLeft className="w-5 h-5" />
         </button>

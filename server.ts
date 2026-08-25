@@ -167,6 +167,7 @@ app.get('/api/album', async (req, res) => {
 
   try {
     const response = await axios.get(`${qobuzApiBase}album/get`, {
+      params: { album_id },
       headers: {
         'x-app-id': qobuzAppId,
         'x-user-auth-token': qobuzToken || undefined,

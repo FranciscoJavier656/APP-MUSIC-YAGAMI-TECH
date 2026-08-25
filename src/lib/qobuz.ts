@@ -33,7 +33,7 @@ export const searchQobuz = async (query: string) => {
 export const getQobuzAlbum = async (albumId: string) => {
   if (Capacitor.isNativePlatform()) {
     const res = await axios.get(`${QOBUZ_API}album/get`, {
-      params: { album_id: albumId, extra: 'tracks' },
+      params: { album_id: albumId },
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;

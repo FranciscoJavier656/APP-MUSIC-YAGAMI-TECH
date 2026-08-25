@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { ChevronLeft, Play, Download, Loader2, Disc, Music } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
+import { useSwipeBack } from '../lib/useSwipeBack';
 import DownloadModal from './DownloadModal';
 import { AnimatePresence, motion } from 'motion/react';
 
@@ -17,6 +18,7 @@ export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
   const [error, setError] = useState('');
   const { playTrack, currentTrack, isPlaying } = usePlayer();
   const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'} | null>(null);
+  useSwipeBack(onBack);
 
   useEffect(() => {
     const fetchAlbum = async () => {
@@ -69,7 +71,7 @@ export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
 
   if (error || !album) {
     return (
-      <div className="p-8">
+      <div className="p-8 pt-16">
         <button onClick={onBack} className="flex items-center text-[#007AFF] mb-4">
           <ChevronLeft className="w-5 h-5 mr-1" /> Volver
         </button>
