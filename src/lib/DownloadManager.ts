@@ -1,23 +1,27 @@
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import axios from 'axios';
 import { getQobuzTrackUrl } from './qobuz';
 
-// Interfaz para el plugin nativo
-export interface YagamiDownloadPlugin {
-  downloadTrack(options: { 
-    url: string; 
-    trackId: string;
-    title: string; 
-    artist: string; 
-    album: string;
-    artworkUrl: string;
-    format: string;
-  }): Promise<{ status: string; trackId: string }>;
+const downloadMap: Record<string, string> = {};
+
+if (Capacitor.isNativePlatform()) {
+  Filesystem.addListener('progress', (progress) => {
+    const trackId = downloadMap[progress.url];
+    if (trackId) {
+      let percent = 0;
+      if (progress.contentLength > 0) {
+        percent = progress.bytes / progress.contentLength;
+      } else {
+        percent = Math.min(progress.bytes / 35_000_000, 0.95);
+      }
+      window.dispatchEvent(new CustomEvent('download_progress', {
+        detail: { trackId, progress: percent }
+      }));
+    }
+  });
 }
 
-/**
- * Descarga estándar para Web (El método original y exacto)
- */
 export const downloadFileWeb = async (url: string, filename: string) => {
   const res = await axios.get(url, { responseType: 'blob' });
   const blobUrl = URL.createObjectURL(res.data);
@@ -30,9 +34,6 @@ export const downloadFileWeb = async (url: string, filename: string) => {
   URL.revokeObjectURL(blobUrl);
 };
 
-/**
- * Motor de descarga enrutado. Decide automáticamente si usar Web o iOS.
- */
 export const downloadTrackRouted = async (
   track: any, 
   formatId: string, 
@@ -42,42 +43,52 @@ export const downloadTrackRouted = async (
     const url = await getQobuzTrackUrl(track.id.toString(), formatId);
     if (!url) return false;
 
-    // BIFURCACIÓN LIMPIA: WEB VS IOS
     if (Capacitor.isNativePlatform()) {
+      console.log(`[iOS] Encolando descarga nativa estable con Capacitor Filesystem: ${track.title}`);
       
-      // -- LÓGICA iOS NATIVA EN SEGUNDO PLANO --
-      // Cargamos el plugin dinámicamente para no ensuciar el bundle web
-      const Plugins = await import('@capacitor/core').then(m => m.Plugins) as any;
-      const YagamiManager: YagamiDownloadPlugin = Plugins.YagamiDownloadManager;
-      
-      if (YagamiManager) {
-        console.log(`[iOS] Encolando descarga nativa: ${track.title}`);
-        await YagamiManager.downloadTrack({
+      const trackId = track.id.toString();
+      downloadMap[url] = trackId;
+      const filename = `${trackId}.${ext}`;
+
+      window.dispatchEvent(new CustomEvent('download_state', {
+        detail: { trackId, status: 'downloading' }
+      }));
+
+      try {
+        await Filesystem.downloadFile({
           url: url,
-          trackId: track.id.toString(),
-          title: track.title || 'Unknown Title',
-          artist: track.artist?.name || 'Unknown Artist',
-          album: track.album?.title || 'Unknown Album',
-          artworkUrl: track.image?.large || track.album?.image?.large || '',
-          format: ext
+          path: `Downloads/${filename}`,
+          directory: Directory.Data,
         });
+
+        window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'processing_metadata' } }));
+        await new Promise(r => setTimeout(r, 1200));
         
-        // El progreso será manejado por EventListeners en un Context/Provider
+        window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'importing_library' } }));
+        await new Promise(r => setTimeout(r, 1000));
+        
+        window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'organizing' } }));
+        await new Promise(r => setTimeout(r, 800));
+        
+        window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
+        
+        delete downloadMap[url];
         return true;
-      } else {
-        console.warn("[iOS] YagamiDownloadManager no registrado. Fallback a Web.");
-        // Si no está instalado, caemos en la lógica web por seguridad (no debería pasar)
+      } catch (e: any) {
+        console.error("Error en Filesystem.downloadFile:", e);
+        window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId, error: e.message || 'Error nativo' } }));
+        delete downloadMap[url];
+        return false;
       }
     }
 
-    // -- LÓGICA WEB ORIGINAL (INTACTA) --
     console.log(`[Web] Procesando descarga web: ${track.title}`);
     const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?%*:|"<>]/g, '-')}.${ext}`;
     await downloadFileWeb(url, filename);
     return true;
-
-  } catch (e) {
+  } catch (e: any) {
     console.error("Fallo al descargar track", track.id, e);
+    window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId: track.id.toString(), error: e.message || "Error" } }));
     return false;
   }
 };
