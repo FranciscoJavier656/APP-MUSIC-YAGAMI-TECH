@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { motion } from 'motion/react';
-import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter } from 'lucide-react';
+import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter, ChevronLeft } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
 
 export default function LibraryTab() {
@@ -10,6 +10,8 @@ export default function LibraryTab() {
   const [offlineArtists, setOfflineArtists] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'playlists' | 'albums' | 'artists' | 'favorites'>('favorites');
   const [favoriteFilter, setFavoriteFilter] = useState<'all' | 'local'>('local');
+  const [selectedAlbum, setSelectedAlbum] = useState<any>(null);
+  const [selectedArtist, setSelectedArtist] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   
   const { playTrack } = usePlayer();
@@ -123,6 +125,87 @@ export default function LibraryTab() {
     );
   }
 
+
+  const renderDrillDown = () => {
+    const parent = selectedAlbum || selectedArtist;
+    if (!parent) return null;
+
+    // Filter tracks
+    const tracks = offlineTracks.filter(t => {
+      const orig = t.original || t;
+      if (selectedAlbum) {
+         return (orig.album?.id?.toString() === selectedAlbum.id) || (orig.album?.title === selectedAlbum.title);
+      }
+      if (selectedArtist) {
+         const aId = orig.artist?.id?.toString() || orig.artist?.name || orig.performer?.name;
+         return aId === selectedArtist.id || orig.artist?.name === selectedArtist.title;
+      }
+      return false;
+    });
+
+    return (
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
+        {/* Header Back */}
+        <div className="px-4 pt-4 pb-2 flex items-center gap-3">
+          <button 
+            onClick={() => { setSelectedAlbum(null); setSelectedArtist(null); }}
+            className="p-2 bg-white/10 rounded-full backdrop-blur-md border border-white/5"
+          >
+            <ChevronLeft className="w-6 h-6 text-white" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-xl font-bold text-white truncate">{parent.title}</h2>
+            <p className="text-sm text-white/60">{selectedAlbum ? 'Álbum' : 'Artista'} • {tracks.length} pistas</p>
+          </div>
+        </div>
+
+        {/* Tracks List */}
+        <div className="flex-1 overflow-y-auto px-4 pb-24 space-y-3 mt-2">
+          {tracks.map((item, idx) => (
+            <div key={item.id || idx} className="overflow-hidden rounded-2xl backdrop-blur-[15px] bg-white/5 border border-white/5">
+              <div className="flex items-center p-3 gap-3">
+                <div className="relative">
+                  <img src={item.image} alt="" className="w-16 h-16 bg-white/5 rounded-xl object-cover" />
+                </div>
+                <div className="flex-1 gap-1">
+                  <h4 className="text-base font-bold text-white truncate">{item.title}</h4>
+                  <p className="text-[13px] text-white/60 truncate">{item.subtitle}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => {
+                      const t = item.original || item;
+                      const artistName = t.artist?.name || t.performer?.name || item.subtitle || 'Unknown Artist';
+                      const albumImg = t.album?.image?.large || t.album?.image?.small || t.image?.small || t.image || item.image;
+                      playTrack({
+                        id: t.id ? t.id.toString() : item.id,
+                        title: t.title || item.title,
+                        artist: artistName,
+                        image: albumImg,
+                        hires: t.hires || t.maximum_bit_depth > 16 || false,
+                        duration: t.duration || 0,
+                        bitDepth: t.maximum_bit_depth,
+                        samplingRate: t.maximum_sampling_rate,
+                        albumTitle: t.album?.title,
+                        streamUrl: Capacitor.isNativePlatform() && t.localPath ? Capacitor.convertFileSrc(t.localPath) : t.localPath
+                      });
+                    }}
+                    className="p-3 backdrop-blur-[20px] bg-white/10 rounded-xl border border-white/5 hover:bg-[#1DB954] transition-colors group"
+                  >
+                    <Play className="w-5 h-5 text-white/80 group-hover:text-white fill-current ml-0.5" />
+                  </button>
+                  <button onClick={() => removeTrack(item.id)} className="p-3 backdrop-blur-[20px] bg-white/10 rounded-xl border border-white/5 hover:bg-red-500/80 transition-colors group">
+                    <Trash2 className="w-5 h-5 text-white/80 group-hover:text-white" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   const renderEmptyState = () => {
     const activeTabInfo = tabs.find(t => t.id === activeTab);
     const IconComponent = activeTabInfo?.icon || Music;
@@ -198,7 +281,7 @@ export default function LibraryTab() {
               return (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
+                  onClick={() => { setActiveTab(tab.id as any); setSelectedAlbum(null); setSelectedArtist(null); }}
                   className={`overflow-hidden rounded-2xl flex-shrink-0 transition-all ${isActive ? 'shadow-[0_4px_12px_rgba(29,185,84,0.3)]' : ''}`}
                 >
                   <div className={`flex items-center gap-2 px-4 py-2.5 backdrop-blur-[20px] border border-white/5 ${
@@ -226,7 +309,7 @@ export default function LibraryTab() {
           animate={{ opacity: 1 }}
           className="flex-1 flex flex-col"
         >
-          {items.length === 0 ? (
+          {(selectedAlbum || selectedArtist) ? renderDrillDown() : items.length === 0 ? (
             renderEmptyState()
           ) : (
             <div className="px-4 pb-24 space-y-3">
@@ -250,7 +333,10 @@ export default function LibraryTab() {
                         </div>
                       </div>
 
-                      <div className="flex-1 gap-1">
+                      <div className="flex-1 gap-1 cursor-pointer" onClick={() => {
+                        if (item.type === 'album') setSelectedAlbum(item);
+                        if (item.type === 'artist') setSelectedArtist(item);
+                      }}>
                         <h4 className="text-base font-bold text-white">{item.title}</h4>
                         <p className="text-[13px] text-white/60">{item.subtitle}</p>
                         {item.trackCount && (
