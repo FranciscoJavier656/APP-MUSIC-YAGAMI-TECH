@@ -1,8 +1,10 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListMusic, Info } from 'lucide-react';
+import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListMusic, Info, MoreHorizontal, Download } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { Capacitor } from '@capacitor/core';
+import { getImageSrc } from '../lib/image';
+
 
 export default function ExpandedPlayer() {
   const { 
@@ -10,7 +12,7 @@ export default function ExpandedPlayer() {
     duration, isExpanded, setIsExpanded,
     seekTo, nextTrack, prevTrack,
     isShuffle, toggleShuffle, repeatMode, toggleRepeat,
-    audioRef, queue
+    audioRef, queue, setContextMenuTrack, setDownloadItem
   } = usePlayer();
 
   const [isScrubbing, _setIsScrubbing] = useState(false);
@@ -342,22 +344,32 @@ export default function ExpandedPlayer() {
           REPRODUCIENDO DESDE<br/>
           <span className="text-black/80 dark:text-white/80 block mt-0.5 tracking-widest text-center">Qobuz</span>
         </span>
-        <button onClick={() => setShowQueue(true)} className="p-2 -mr-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-          <ListMusic className="w-6 h-6 text-black dark:text-white" />
-        </button>
+        <div className="flex items-center gap-1 -mr-2">
+          <button onClick={() => setContextMenuTrack(currentTrack)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+            <MoreHorizontal className="w-6 h-6 text-black dark:text-white" />
+          </button>
+          <button onClick={() => setShowQueue(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+            <ListMusic className="w-6 h-6 text-black dark:text-white" />
+          </button>
+        </div>
       </div>
 
       {/* Artwork */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative z-10 w-full" style={{ perspective: '2000px' }}>
         <div 
-          className="relative w-full max-w-[320px] sm:max-w-[400px] aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] cursor-pointer"
-          style={{ transformStyle: 'preserve-3d', transform: showLyrics ? 'rotateY(180deg) scale(0.95)' : 'rotateY(0deg) scale(1)' }}
+          className="relative aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] cursor-pointer"
+          style={{ 
+            width: 'min(100%, 45vh, 380px)',
+            height: 'min(100%, 45vh, 380px)',
+            transformStyle: 'preserve-3d', 
+            transform: showLyrics ? 'rotateY(180deg) scale(0.95)' : 'rotateY(0deg) scale(1)' 
+          }}
           onClick={() => setShowLyrics(!showLyrics)}
         >
           {/* Front (Image) */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-inner" style={{ backfaceVisibility: 'hidden' }}>
             <img
-              src={currentTrack.image}
+              src={getImageSrc(currentTrack.image)}
               alt={currentTrack.albumTitle}
               className={`w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] ${isPlaying && !showLyrics ? 'scale-105' : 'scale-100'}`}
             />
@@ -421,6 +433,22 @@ export default function ExpandedPlayer() {
             <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white truncate tracking-tight">{currentTrack.title}</h2>
             <p className="text-lg text-black/60 dark:text-white/60 truncate mt-1">{currentTrack.artist}</p>
           </div>
+          
+          <div className="flex items-center gap-3 relative">
+            <button 
+              onClick={(e) => { e.stopPropagation(); setDownloadItem({item: currentTrack, type: 'track'}); }}
+              className="w-10 h-10 flex-shrink-0 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+            >
+              <Download className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={(e) => { e.stopPropagation(); setContextMenuTrack(currentTrack); }}
+              className="w-10 h-10 flex-shrink-0 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
+            >
+              <MoreHorizontal className="w-5 h-5" />
+            </button>
+          </div>
+            
           <div className="flex-shrink-0 flex flex-col items-end gap-2 relative">
             <button 
               onClick={() => setShowMetadata(!showMetadata)}
@@ -540,7 +568,7 @@ export default function ExpandedPlayer() {
               const isPlayingQueue = currentTrack?.id === track.id;
               return (
                 <div key={idx} className={`flex items-center gap-4 p-3 rounded-2xl ${isPlayingQueue ? 'bg-black/5 dark:bg-white/10' : ''}`}>
-                  <img src={track.image} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
+                  <img src={getImageSrc(track.image)} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
                   <div className="flex-1 min-w-0">
                     <p className={`font-bold truncate ${isPlayingQueue ? 'text-black dark:text-white' : 'text-black/80 dark:text-white/80'}`}>
                       {track.title}

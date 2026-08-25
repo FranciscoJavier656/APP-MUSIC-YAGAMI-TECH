@@ -20,12 +20,12 @@ const QOBUZ_API = 'https://www.qobuz.com/api.json/0.2/';
 export const searchQobuz = async (query: string) => {
   if (Capacitor.isNativePlatform()) {
     const res = await axios.get(`${QOBUZ_API}catalog/search`, {
-      params: { query, limit: 10, offset: 0 },
+      params: { query, limit: 50, offset: 0 },
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;
   }
-  const res = await axios.get(`/api/search`, { params: { q: query } });
+  const res = await axios.get(`/api/search`, { params: { q: query, limit: 50 } });
   if (res.data.error) throw new Error(res.data.error);
   return res.data;
 };

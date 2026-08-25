@@ -1,4 +1,6 @@
 import { getQobuzAlbum, getQobuzTrackUrl } from "../lib/qobuz";
+import { downloadTrackRouted } from "../lib/DownloadManager";
+import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
 import { X, Download, Loader2, Music, CheckCircle, Disc } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
@@ -15,17 +17,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
   const [status, setStatus] = useState<'idle' | 'fetching' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
 
-    const downloadFileAsBlob = async (url: string, filename: string) => {
-    const res = await axios.get(url, { responseType: 'blob' });
-    const blobUrl = URL.createObjectURL(res.data);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(blobUrl);
-  };
+    
 
   const handleDownload = async () => {
     setStatus('fetching');
@@ -49,10 +41,9 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
       for (let i = 0; i < tracksToDownload.length; i++) {
         const track = tracksToDownload[i];
         try {
-          const url = await getQobuzTrackUrl(track.id.toString(), format);
-          if (url) {
-            const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?%*:|"<>]/g, '-')}.${ext}`;
-            await downloadFileAsBlob(url, filename);
+          const success = await downloadTrackRouted(track, format, ext);
+          if (!success) {
+            console.warn("Skipped or failed download for track:", track.id);
           }
           // Delay slightly between tracks
           await new Promise(r => setTimeout(r, 1000));
@@ -83,13 +74,14 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
           <div className="flex justify-between items-start mb-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gray-100 dark:bg-gray-800 rounded-xl overflow-hidden">
-                {(item.image?.small || item.album?.image?.small || item.image?.thumbnail) ? (
-                  <img src={item.image?.small || item.album?.image?.small || item.image?.thumbnail} alt="" className="w-full h-full object-cover" />
-                ) : (
+                {(() => {
+                const src = item.album?.image?.small || item.album?.image?.large || item.image?.small || item.image?.large || item.image?.thumbnail || (typeof item.image === 'string' ? item.image : '');
+                return src ? <img src={src} alt="" className="w-full h-full object-cover" /> : (
                   <div className="w-full h-full flex items-center justify-center text-gray-400">
                     {type === 'album' ? <Disc /> : <Music />}
                   </div>
-                )}
+                );
+              })()}
               </div>
               <div>
                 <h3 className="font-bold text-lg leading-tight text-black dark:text-white truncate max-w-[200px]">

@@ -46,7 +46,7 @@ try {
 const qobuzApiBase = 'https://www.qobuz.com/api.json/0.2/';
 
 // Helper to interact with Qobuz API
-async function qobuzSearch(query: string, limit = 10, offset = 0) {
+async function qobuzSearch(query: string, limit = 50, offset = 0) {
   if (!qobuzAppId) return { error: 'QOBUZ_APP_ID not configured.' };
   
   try {
@@ -124,7 +124,7 @@ app.get('/api/search', async (req, res) => {
   if (!q) {
     return res.status(400).json({ error: 'Query is required' });
   }
-  const results = await qobuzSearch(q as string);
+  const results = await qobuzSearch(q as string, parseInt(req.query.limit as string) || 50);
   res.json(results);
 });
 

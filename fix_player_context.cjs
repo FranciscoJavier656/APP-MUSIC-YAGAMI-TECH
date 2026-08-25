@@ -1,9 +1,15 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/components/PlayerContext.tsx', 'utf8');
 
-code = code.replace(
-  "if (streamUrl && audioRef.current) {",
-  "if (streamUrl && audioRef.current) {"
-);
+const valueStart = `value={{
+          currentTrack,`;
 
-// Actually, I'll just leave it, or let's add an else block.
+const replacement = `value={{
+          contextMenuTrack,
+          setContextMenuTrack,
+          downloadItem,
+          setDownloadItem,
+          currentTrack,`;
+
+code = code.replace(valueStart, replacement);
+fs.writeFileSync('src/components/PlayerContext.tsx', code);

@@ -1,11 +1,12 @@
-import { getQobuzPlaylist } from "../lib/qobuz";
+const fs = require('fs');
+
+const code = `import { getQobuzPlaylist } from "../lib/qobuz";
 import { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Play, Download, Loader2, Heart, Share, MoreHorizontal } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
 import { useSwipeBack } from '../lib/useSwipeBack';
+import DownloadModal from './DownloadModal';
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react';
-import { getImageSrc } from '../lib/image';
-
 
 interface PlaylistViewProps {
   playlistId: string;
@@ -16,8 +17,8 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
   const [playlist, setPlaylist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const { playTrack, currentTrack, isPlaying, setContextMenuTrack, setDownloadItem } = usePlayer();
-  
+  const { playTrack, currentTrack, isPlaying } = usePlayer();
+  const [downloadItem, setDownloadItem] = useState<{item: any, type: 'playlist'|'track'} | null>(null);
   
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll({ container: containerRef });
@@ -65,33 +66,38 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
   };
 
   const getPlaylistImage = () => {
-    if (!playlist) return null;
     if (playlist.images300 && playlist.images300.length > 0) return playlist.images300[0];
     if (playlist.image_rectangle && playlist.image_rectangle.length > 0) return playlist.image_rectangle[0];
     return playlist.image?.large || playlist.image?.small;
   };
 
-  const mainImage = getImageSrc(getPlaylistImage());
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full text-gray-400 bg-[#F2F2F7] dark:bg-[#000000]">
+        <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#007AFF]" />
+        <p>Cargando playlist...</p>
+      </div>
+    );
+  }
+
+  if (error || !playlist) {
+    return (
+      <div className="p-8 pt-16 h-full bg-[#F2F2F7] dark:bg-[#000000]">
+        <button onClick={onBack} className="flex items-center text-[#007AFF] mb-4">
+          <ChevronLeft className="w-5 h-5 mr-1" /> Volver
+        </button>
+        <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-sm">
+          <p className="font-semibold mb-1">Error</p>
+          <p>{error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const mainImage = getPlaylistImage();
 
   return (
     <div ref={containerRef} className="h-full w-full overflow-y-auto bg-[#F2F2F7] dark:bg-[#000000] relative">
-      {loading ? (
-        <div className="flex flex-col items-center justify-center min-h-[500px] h-full text-gray-400">
-          <Loader2 className="w-8 h-8 animate-spin mb-4 text-[#007AFF]" />
-          <p>Cargando playlist...</p>
-        </div>
-      ) : error || !playlist ? (
-        <div className="p-8 pt-16 h-full">
-          <button onClick={onBack} className="flex items-center text-[#007AFF] mb-4">
-            <ChevronLeft className="w-5 h-5 mr-1" /> Volver
-          </button>
-          <div className="p-4 bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-xl text-sm">
-            <p className="font-semibold mb-1">Error</p>
-            <p>{error}</p>
-          </div>
-        </div>
-      ) : (
-        <>
       
       {/* Blurred background cover */}
       <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden -z-10 pointer-events-none">
@@ -128,10 +134,10 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
           <motion.div style={{ scale: imageScale, opacity: imageOpacity }} className="w-56 md:w-72 aspect-square relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl mb-6 bg-gray-200 dark:bg-gray-800">
             {playlist.images300 && playlist.images300.length === 4 ? (
               <div className="grid grid-cols-2 w-full h-full">
-                <img src={getImageSrc(playlist.images300[0])} alt={playlist.name} className="w-full h-full object-cover" />
-                <img src={getImageSrc(playlist.images300[1])} alt={playlist.name} className="w-full h-full object-cover" />
-                <img src={getImageSrc(playlist.images300[2])} alt={playlist.name} className="w-full h-full object-cover" />
-                <img src={getImageSrc(playlist.images300[3])} alt={playlist.name} className="w-full h-full object-cover" />
+                <img src={playlist.images300[0]} alt={playlist.name} className="w-full h-full object-cover" />
+                <img src={playlist.images300[1]} alt={playlist.name} className="w-full h-full object-cover" />
+                <img src={playlist.images300[2]} alt={playlist.name} className="w-full h-full object-cover" />
+                <img src={playlist.images300[3]} alt={playlist.name} className="w-full h-full object-cover" />
               </div>
             ) : mainImage ? (
               <img src={mainImage} alt={playlist.name} className="w-full h-full object-cover" />
@@ -179,7 +185,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
                 className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
               >
                 <div className="w-10 h-10 rounded-md overflow-hidden shrink-0 relative bg-gray-200 dark:bg-gray-800">
-                  <img src={getImageSrc(track.album?.image) || getImageSrc(track.image)} alt={track.title} className="w-full h-full object-cover" />
+                  <img src={track.album?.image?.small || track.album?.image?.large} alt={track.title} className="w-full h-full object-cover" />
                   {currentTrack?.id === track.id.toString() && isPlaying && (
                     <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                       <div className="flex gap-0.5 justify-center h-4 items-end">
@@ -192,7 +198,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <p className={`font-bold text-[15px] leading-snug truncate ${currentTrack?.id === track.id.toString() ? 'text-[#007AFF]' : 'text-black dark:text-white'}`}>
+                  <p className={\`font-bold text-[15px] leading-snug truncate \${currentTrack?.id === track.id.toString() ? 'text-[#007AFF]' : 'text-black dark:text-white'}\`}>
                     {track.title}
                   </p>
                   <p className="text-gray-500 dark:text-gray-400 text-[13px] font-medium truncate mt-0.5">
@@ -200,17 +206,14 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
                   </p>
                 </div>
                 
-                <div className="flex items-center gap-2 opacity-100 transition-opacity">
+                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                   <button 
                     onClick={(e) => { e.stopPropagation(); setDownloadItem({item: {...track, album: track.album}, type: 'track'}); }}
                     className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors"
                   >
                     <Download className="w-4 h-4" />
                   </button>
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); setContextMenuTrack(track); }}
-                    className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors"
-                  >
+                  <button className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors">
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </div>
@@ -220,9 +223,18 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
         </div>
       </div>
 
-      
-      </>
-      )}
+      <AnimatePresence>
+        {downloadItem && (
+          <DownloadModal 
+            item={downloadItem.item} 
+            type={downloadItem.type} 
+            onClose={() => setDownloadItem(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/PlaylistView.tsx', code);

@@ -1,13 +1,14 @@
-import { searchQobuz } from "../lib/qobuz";
+const fs = require('fs');
+
+const code = `import { searchQobuz } from "../lib/qobuz";
 import { useState, useRef, useEffect } from 'react';
 import type { FormEvent } from 'react';
-import { Search as SearchIcon, Download, Disc, Music, Loader2, Play, X, MoreHorizontal } from 'lucide-react';
+import { Search as SearchIcon, Download, Disc, Music, Loader2, Play, X } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
+import DownloadModal from './DownloadModal';
 import AlbumView from './AlbumView';
 import PlaylistView from './PlaylistView';
 import { AnimatePresence, motion } from 'motion/react';
-import { getImageSrc } from '../lib/image';
-
 
 interface QobuzItem {
   id: string;
@@ -36,11 +37,11 @@ export default function SearchTab() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState('');
-  const { playTrack, currentTrack, isPlaying, setContextMenuTrack, setDownloadItem } = usePlayer();
-  
+  const { playTrack, currentTrack, isPlaying } = usePlayer();
+  const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'} | null>(null);
   const [activeItem, setActiveItem] = useState<{id: string, type: string} | null>(null);
   const [isFocused, setIsFocused] = useState(false);
-  const [filterMode, setFilterMode] = useState<'all' | 'albums' | 'tracks' | 'artists'>('all');
+  const [filterMode, setFilterMode] = useState<'all' | 'albums' | 'tracks'>('all');
   
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -166,8 +167,7 @@ export default function SearchTab() {
                 {BENTO_GENRES.map((genre, idx) => (
                   <div 
                     key={genre.id} 
-                    onClick={() => { setQuery(genre.name); setIsFocused(false); executeSearch(genre.name); }}
-                    className={`relative aspect-[4/3] rounded-2xl p-4 flex flex-col justify-end border ${genre.color} cursor-pointer hover:scale-[1.02] active:scale-95 transition-transform shadow-sm overflow-hidden`}
+                    className={\`relative aspect-[4/3] rounded-2xl p-4 flex flex-col justify-end border \${genre.color} cursor-pointer hover:scale-[1.02] active:scale-95 transition-transform shadow-sm overflow-hidden\`}
                   >
                     <span className="font-bold text-lg leading-tight">{genre.name}</span>
                   </div>
@@ -198,13 +198,13 @@ export default function SearchTab() {
               
               {/* Filter Pills */}
               <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
-                {['all', 'albums', 'tracks', 'artists'].map(mode => (
+                {['all', 'albums', 'tracks'].map(mode => (
                   <button 
                     key={mode}
                     onClick={() => setFilterMode(mode as any)}
-                    className={`px-5 py-2 rounded-full text-[14px] font-bold whitespace-nowrap transition-colors ${filterMode === mode ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300'}`}
+                    className={\`px-5 py-2 rounded-full text-[14px] font-bold whitespace-nowrap transition-colors \${filterMode === mode ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-black/5 dark:bg-white/10 text-gray-600 dark:text-gray-300'}\`}
                   >
-                    {mode === 'all' ? 'Todo' : mode === 'albums' ? 'Álbumes' : mode === 'tracks' ? 'Pistas' : 'Artistas'}
+                    {mode === 'all' ? 'Todo' : mode === 'albums' ? 'Álbumes' : 'Pistas'}
                   </button>
                 ))}
               </div>
@@ -218,11 +218,11 @@ export default function SearchTab() {
                     className="bg-white/60 dark:bg-white/5 rounded-3xl p-5 border border-black/5 dark:border-white/5 shadow-lg flex flex-col gap-4 cursor-pointer hover:bg-white dark:hover:bg-white/10 transition-colors relative overflow-hidden group"
                   >
                     <div className="absolute top-0 right-0 p-6 opacity-10 blur-xl pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-                      {getImageSrc(topHit.image) && <img src={getImageSrc(topHit.image) || ""} alt="" className="w-48 h-48 rounded-full" />}
+                      {topHit.image?.large && <img src={topHit.image.large} alt="" className="w-48 h-48 rounded-full" />}
                     </div>
                     
                     <div className="w-24 h-24 rounded-2xl overflow-hidden bg-gray-200 dark:bg-gray-800 shadow-md">
-                      <img src={getImageSrc(topHit.image) || getImageSrc(topHit.album?.image) || ''} alt={topHit.title} className="w-full h-full object-cover" />
+                      <img src={topHit.image?.large || topHit.album?.image?.large} alt={topHit.title} className="w-full h-full object-cover" />
                     </div>
                     
                     <div className="relative z-10 pr-12">
@@ -248,15 +248,15 @@ export default function SearchTab() {
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Álbumes</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
-                    {results.albums.items.slice(0, filterMode === 'albums' ? 50 : 8).map((album: any) => (
+                    {results.albums.items.slice(0, filterMode === 'albums' ? 20 : 4).map((album: any) => (
                       <div key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
                         <div className="relative aspect-square rounded-xl bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden">
                           {album.image?.large ? (
-                            <img src={getImageSrc(album.image) || ''} alt={album.title} className="w-full h-full object-cover" />
+                            <img src={album.image.large} alt={album.title} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-gray-400"><Disc className="w-8 h-8" /></div>
                           )}
-                          <div className="absolute inset-0 bg-black/20 opacity-100 transition-opacity" />
+                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                         </div>
                         <div>
                           <p className="font-bold text-[14px] leading-tight truncate">{album.title}</p>
@@ -268,65 +268,26 @@ export default function SearchTab() {
                 </section>
               )}
 
-              {/* Artists List */}
-              {(filterMode === 'all' || filterMode === 'artists') && results.artists?.items && results.artists.items.length > 0 && (
-                <section className="mb-8">
-                  <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Artistas</h2>
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
-                    {results.artists.items.slice(0, filterMode === 'artists' ? 50 : 6).map((artist: any) => (
-                      <div 
-                        key={artist.id} 
-                        onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} 
-                        className="flex-none w-[100px] flex flex-col items-center gap-2 cursor-pointer group"
-                      >
-                        <div className="w-[90px] h-[90px] rounded-full bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden border border-black/5 dark:border-white/5 relative">
-                          {(artist.picture || artist.image) ? (
-                            <img src={getImageSrc(artist.picture) || getImageSrc(artist.image) || ''} alt={artist.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 font-black text-2xl">
-                              {artist.name.charAt(0)}
-                            </div>
-                          )}
-                        </div>
-                        <p className="font-bold text-[13px] leading-tight text-center line-clamp-2">{artist.name}</p>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-              )}
-
               {/* Tracks List */}
               {(filterMode === 'all' || filterMode === 'tracks') && results.tracks?.items && results.tracks.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Pistas</h2>
                   <div className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
-                    {results.tracks.items.slice(0, filterMode === 'tracks' ? 50 : 5).map((track: any) => (
+                    {results.tracks.items.slice(0, filterMode === 'tracks' ? 20 : 5).map((track: any) => (
                       <div key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
                         <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
-                          <img src={getImageSrc(track.album?.image) || getImageSrc(track.image) || ''} alt={track.title} className="w-full h-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-100 transition-opacity">
+                          <img src={track.album?.image?.small || track.image?.small} alt={track.title} className="w-full h-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                             <Play className="w-5 h-5 text-white fill-current" />
                           </div>
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className={`font-bold text-[15px] leading-tight truncate ${currentTrack?.id === track.id.toString() ? 'text-[#007AFF]' : ''}`}>{track.title}</p>
+                          <p className={\`font-bold text-[15px] leading-tight truncate \${currentTrack?.id === track.id.toString() ? 'text-[#007AFF]' : ''}\`}>{track.title}</p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {track.hires && <span className="bg-[#FFB800]/20 text-[#FFB800] text-[8px] font-black px-1 rounded uppercase">Hi-Res</span>}
                             <p className="text-gray-500 text-[13px] truncate">{track.artist?.name || track.performer?.name}</p>
                           </div>
                         </div>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setDownloadItem({item: track, type: 'track'}); }}
-                          className="p-2 text-gray-400 hover:text-[#007AFF] transition-colors opacity-100"
-                        >
-                          <Download className="w-5 h-5" />
-                        </button>
-                        <button 
-                          onClick={(e) => { e.stopPropagation(); setContextMenuTrack(track); }}
-                          className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors opacity-100"
-                        >
-                          <MoreHorizontal className="w-5 h-5" />
-                        </button>
                       </div>
                     ))}
                   </div>
@@ -339,7 +300,18 @@ export default function SearchTab() {
         </div>
       </div>
       
-
+      <AnimatePresence>
+        {downloadItem && (
+          <DownloadModal 
+            item={downloadItem.item} 
+            type={downloadItem.type} 
+            onClose={() => setDownloadItem(null)} 
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
+`;
+
+fs.writeFileSync('src/components/SearchTab.tsx', code);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { getFeaturedAlbums, getFeaturedPlaylists } from "../lib/qobuz";
-import { Loader2, Disc, Play, Heart, ChevronRight, Home as HomeIcon } from 'lucide-react';
+import { Loader2, Disc, Play, Heart, ChevronRight, Home as HomeIcon, SlidersHorizontal } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
 
 interface QobuzItem {
@@ -17,13 +17,16 @@ interface QobuzItem {
 
 import AlbumView from './AlbumView';
 import PlaylistView from './PlaylistView';
+import ParaTiSection from './ParaTiSection';
+import { getImageSrc } from '../lib/image';
+
 export default function HomeTab() {
   const [activeItem, setActiveItem] = useState<{id: string, type: string} | null>(null);
   const [loading, setLoading] = useState(true);
   const [editorPicks, setEditorPicks] = useState<QobuzItem[]>([]);
   const [mostStreamed, setMostStreamed] = useState<QobuzItem[]>([]);
   const [playlists, setPlaylists] = useState<QobuzItem[]>([]);
-  const [selectedAlbumId, setSelectedAlbumId] = useState<string | null>(null);
+  
   
   const [activeSubTab, setActiveSubTab] = useState('editorial');
 
@@ -49,20 +52,15 @@ export default function HomeTab() {
     fetchHomeData();
   }, []);
 
-  if (selectedAlbumId) {
-    return <AlbumView albumId={selectedAlbumId} onBack={() => setSelectedAlbumId(null)} />;
-  }
+  
 
   const renderSectionHeader = (title: string, subtitle?: string) => (
-    <div className="px-4 mb-4 mt-10">
+    <div className="px-5 mb-5 mt-12">
       <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-[22px] font-bold tracking-tight text-black dark:text-white leading-tight">{title}</h2>
-          {subtitle && <p className="text-[14px] text-gray-500 dark:text-gray-400 mt-1">{subtitle}</p>}
+        <div className="max-w-[85%]">
+          <h2 className="text-3xl font-black tracking-tighter text-black dark:text-white leading-tight">{title}</h2>
+          {subtitle && <p className="text-[15px] font-medium text-gray-500 dark:text-gray-400 mt-1.5 leading-snug">{subtitle}</p>}
         </div>
-        <button className="flex items-center gap-1 text-[12px] font-medium text-gray-400 dark:text-gray-300 bg-gray-200 dark:bg-gray-800/60 px-3 py-1.5 rounded-full hover:bg-gray-300 dark:hover:bg-gray-700 transition-colors">
-          Ver todos <ChevronRight size={14} />
-        </button>
       </div>
     </div>
   );
@@ -74,8 +72,8 @@ export default function HomeTab() {
         {activeItem?.type === 'album' && (
           <motion.div 
             key="album-view"
-            initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000] overflow-y-auto"
+            initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000]"
           >
             <AlbumView albumId={activeItem.id} onBack={() => setActiveItem(null)} />
           </motion.div>
@@ -83,8 +81,8 @@ export default function HomeTab() {
         {activeItem?.type === 'playlist' && (
           <motion.div 
             key="playlist-view"
-            initial={{ opacity: 0, y: 50 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 50 }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000] overflow-y-auto"
+            initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000]"
           >
             <PlaylistView playlistId={activeItem.id} onBack={() => setActiveItem(null)} />
           </motion.div>
@@ -92,32 +90,29 @@ export default function HomeTab() {
       </AnimatePresence>
     <div className="h-full w-full bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white transition-colors duration-300 overflow-y-auto pb-24">
       {/* Header Tabs */}
-      <div className="pt-14 pb-4 px-4 sticky top-0 bg-[#F2F2F7]/95 dark:bg-[#000000]/95 backdrop-blur-xl z-10">
+      <div className="pt-14 pb-4 px-5 sticky top-0 bg-[#F2F2F7]/90 dark:bg-[#000000]/90 backdrop-blur-2xl z-10 border-b border-black/5 dark:border-white/5">
+        <div className="flex items-center justify-between w-full">
         <div className="flex items-center gap-3">
           <button className="w-10 h-10 rounded-full bg-white dark:bg-gray-800 flex items-center justify-center text-black dark:text-white shadow-sm border border-gray-200 dark:border-transparent">
             <HomeIcon size={20} />
           </button>
           <button 
             onClick={() => setActiveSubTab('editorial')}
-            className={`px-4 h-10 rounded-full text-[14px] font-semibold border transition-colors ${
-              activeSubTab === 'editorial' 
-                ? 'bg-transparent text-black dark:text-white border-gray-400 dark:border-gray-500' 
-                : 'bg-transparent text-gray-500 border-transparent hover:border-gray-300 dark:hover:border-gray-700'
-            }`}
+            className={`px-5 h-10 rounded-full text-[15px] font-semibold transition-all ${activeSubTab === 'editorial' ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-transparent text-gray-500 hover:bg-black/5 dark:hover:bg-white/5'}`}
           >
             Selección editorial
           </button>
           <button 
             onClick={() => setActiveSubTab('parati')}
-            className={`px-4 h-10 rounded-full text-[14px] font-semibold border transition-colors ${
-              activeSubTab === 'parati' 
-                ? 'bg-transparent text-black dark:text-white border-gray-400 dark:border-gray-500' 
-                : 'bg-transparent text-gray-500 border-transparent hover:border-gray-300 dark:hover:border-gray-700'
-            }`}
+            className={`px-5 h-10 rounded-full text-[15px] font-semibold transition-all ${activeSubTab === 'parati' ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' : 'bg-transparent text-gray-500 hover:bg-black/5 dark:hover:bg-white/5'}`}
           >
             Para ti
           </button>
         </div>
+        <button className="w-10 h-10 rounded-full flex items-center justify-center text-gray-500 hover:text-black dark:hover:text-white transition-colors">
+          <SlidersHorizontal size={20} strokeWidth={2.5} />
+        </button>
+      </div>
       </div>
 
       {loading ? (
@@ -126,20 +121,35 @@ export default function HomeTab() {
         </div>
       ) : (
         <div className="pb-8">
-          {activeSubTab === 'editorial' ? (
+          {activeSubTab === 'parati' ? (
+            <ParaTiSection 
+              editorPicks={editorPicks} 
+              playlists={playlists} 
+              onItemClick={(id, type) => setActiveItem({id, type})} 
+            />
+          ) : activeSubTab === 'editorial' ? (
             <div className="h-full">
+              {/* Carrusel de Píldoras Editoriales */}
+              <div className="flex overflow-x-auto px-5 py-4 gap-2 no-scrollbar border-b border-black/5 dark:border-white/5 mb-2">
+                {['Lanzamientos', 'Audio Hi-Res', 'Pop', 'Jazz', 'Clásica', 'Electrónica', 'Relajación'].map((tag, idx) => (
+                  <button key={tag} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap ${idx === 0 ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300'}`}>
+                    {tag}
+                  </button>
+                ))}
+              </div>
+              
               {/* Novedades / Álbumes de la semana */}
               {renderSectionHeader("Álbumes de la semana", "Los álbumes más interesantes de la semana.")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {editorPicks.slice(0, 8).map((item) => (
                   <div 
                     key={item.id} 
-                    className="flex-none w-[160px] cursor-pointer group"
-                    onClick={() => setSelectedAlbumId(item.id.toString())}
+                    className="flex-none w-[180px] cursor-pointer group"
+                    onClick={() => setActiveItem({id: item.id.toString(), type: 'album'})}
                   >
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
-                      <img src={item.image?.large} alt={item.title} className="w-full h-full object-cover" />
-                      <div className="absolute bottom-2 left-2 bg-[#E15328] text-white text-[10px] font-bold px-1.5 py-0.5 rounded shadow-sm flex items-center gap-1 uppercase">
+                      <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" />
+                      <div className="absolute bottom-3 left-3 bg-[#E15328]/90 backdrop-blur-md text-white text-[10px] font-black tracking-wider px-2 py-1 rounded shadow-lg flex items-center gap-1 uppercase">
                         <Disc size={10} /> ÁLBUM DE LA SEMANA
                       </div>
                     </div>
@@ -163,7 +173,7 @@ export default function HomeTab() {
 
               {/* Top Álbumes */}
               {renderSectionHeader("Top Álbumes", "Álbumes más reproducidos en streaming.")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {Array.from({ length: Math.ceil(mostStreamed.length / 3) }).map((_, colIndex) => (
                   <div key={colIndex} className="flex-none w-[300px] flex flex-col gap-4">
                     {mostStreamed.slice(colIndex * 3, colIndex * 3 + 3).map((item, rowIdx) => {
@@ -172,13 +182,15 @@ export default function HomeTab() {
                         <div 
                           key={item.id} 
                           className="flex items-center gap-4 cursor-pointer group"
-                          onClick={() => setSelectedAlbumId(item.id.toString())}
+                          onClick={() => setActiveItem({id: item.id.toString(), type: 'album'})}
                         >
-                          <span className="text-[18px] font-bold text-gray-800 dark:text-white w-6 text-center">
-                            {globalIdx < 10 ? `0${globalIdx}` : globalIdx}
-                          </span>
-                          <div className="relative w-[70px] h-[70px] rounded overflow-hidden shrink-0">
-                            <img src={item.image?.small || item.image?.large} alt={item.title} className="w-full h-full object-cover" />
+                          <div className="w-10 flex-shrink-0 flex items-center justify-start">
+                            <span className="text-[32px] font-black tracking-tighter text-gray-300 dark:text-gray-700/80">
+                              {globalIdx < 10 ? `0${globalIdx}` : globalIdx}
+                            </span>
+                          </div>
+                          <div className="relative w-[70px] h-[70px] rounded-lg shadow-sm overflow-hidden shrink-0">
+                            <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-[15px] line-clamp-1">{item.title}</h3>
@@ -196,21 +208,21 @@ export default function HomeTab() {
 
               {/* Playlists de Qobuz */}
               {renderSectionHeader("Playlists de Qobuz", "Seleccionado por nuestros expertos.")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {playlists.map((item) => (
-                  <div key={item.id} className="flex-none w-[160px] cursor-pointer group">
+                  <div key={item.id} onClick={() => setActiveItem({id: item.id.toString(), type: "playlist"})} className="flex-none w-[180px] cursor-pointer group">
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
                       {item.images300 && item.images300.length === 4 ? (
                         <div className="grid grid-cols-2 w-full h-full">
-                          <img src={item.images300[0]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[1]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[2]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[3]} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" />
                         </div>
                       ) : item.images300 && item.images300.length > 0 ? (
-                        <img src={item.images300[0]} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <img src={item.image?.large || item.image?.root || item.image_rectangle?.[0]} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" />
                       )}
                     </div>
                     <h3 className="font-semibold text-[15px] line-clamp-1 leading-tight">{item.name}</h3>
@@ -221,15 +233,15 @@ export default function HomeTab() {
 
               {/* Playlists por categoría */}
               {renderSectionHeader("Playlists por categoría", "Perfectas para cada momento.")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {[
                   { title: 'Hi-Res', color: 'from-[#D9772F] to-[#E59858]' },
                   { title: 'Foco', color: 'from-[#5433C4] to-[#7B5EE3]' },
                   { title: 'Novedades', color: 'from-[#C43343] to-[#E35E6D]' },
                   { title: 'Humores', color: 'from-[#D96B2F] to-[#E58D58]' },
                   { title: 'Relax', color: 'from-[#3381C4] to-[#5EA1E3]' }
-                ].map((cat) => (
-                  <div key={cat.title} onClick={() => setActiveItem({id: "68995736", type: "playlist"})} className="flex-none w-[160px] aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer">
+                ].map((cat, i) => (
+                  <div key={cat.title} onClick={() => setActiveItem({id: (playlists[i + 5]?.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[160px] aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer">
                     <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-90`} />
                     <h3 className="absolute bottom-3 left-3 text-white font-bold text-lg">{cat.title}</h3>
                   </div>
@@ -238,13 +250,13 @@ export default function HomeTab() {
 
               {/* Canta al ritmo de la letra */}
               {renderSectionHeader("Canta al ritmo de la letra", "Vuelve a descubrir tus canciones favoritas con la letra ahora disponible en el reproductor.")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {[
-                  { title: 'Karaoke - Reggaeton', bg: 'bg-[#B07348]' },
-                  { title: 'Karaoke - Años 1980', bg: 'bg-[#8F3B55]' },
-                  { title: 'Karaoke - Pop Español', bg: 'bg-[#B05B7C]' }
+                  { title: 'Karaoke - Reggaeton', bg: 'bg-[#B07348]', id: playlists[3]?.id || '1752421' },
+                  { title: 'Karaoke - Años 1980', bg: 'bg-[#8F3B55]', id: playlists[4]?.id || '1752421' },
+                  { title: 'Karaoke - Pop Español', bg: 'bg-[#B05B7C]', id: playlists[5]?.id || '1752421' }
                 ].map((karaoke) => (
-                  <div key={karaoke.title} onClick={() => setActiveItem({id: "67211924", type: "playlist"})} className="flex-none w-[200px] cursor-pointer group">
+                  <div key={karaoke.title} onClick={() => setActiveItem({id: (karaoke.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[200px] cursor-pointer group">
                     <div className={`relative aspect-square mb-3 rounded-lg overflow-hidden ${karaoke.bg} flex items-center justify-center`}>
                       <div className="text-white text-3xl font-black italic shadow-sm tracking-tighter">
                         KARAOKE
@@ -260,10 +272,10 @@ export default function HomeTab() {
             <div className="h-full">
               {/* Para ti Content */}
               {renderSectionHeader("Tu música", "Sigue escuchando y descubre más.")}
-              <div className="px-4 pb-6 flex gap-4 overflow-x-auto no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 
                 {/* My Weekly Q */}
-                <div onClick={() => setActiveItem({id: "7802330", type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
+                <div onClick={() => setActiveItem({id: (playlists[0]?.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-800 opacity-95 transition-transform group-hover:scale-105 duration-500" />
                   <div className="absolute inset-0 p-5 flex flex-col justify-between">
                     <div>
@@ -299,21 +311,21 @@ export default function HomeTab() {
               </div>
 
               {renderSectionHeader("Mixes basados en tus gustos")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {playlists.slice(0, 5).map((item, idx) => (
-                  <div key={item.id + 'mix'} onClick={() => setActiveItem({id: item.id.toString(), type: "playlist"})} className="flex-none w-[160px] cursor-pointer group">
+                  <div key={item.id + 'mix'} onClick={() => setActiveItem({id: item.id.toString(), type: "playlist"})} className="flex-none w-[180px] cursor-pointer group">
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
                       {item.images300 && item.images300.length === 4 ? (
                         <div className="grid grid-cols-2 w-full h-full">
-                          <img src={item.images300[0]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[1]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[2]} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={item.images300[3]} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" />
                         </div>
                       ) : item.images300 && item.images300.length > 0 ? (
-                        <img src={item.images300[0]} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
                       ) : (
-                        <img src={item.image?.large || item.image?.root || item.image_rectangle?.[0]} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" />
                       )}
                       
                       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -329,11 +341,11 @@ export default function HomeTab() {
               </div>
               
               {renderSectionHeader("Artistas similares a lo que escuchas")}
-              <div className="flex overflow-x-auto pb-6 px-4 gap-4 no-scrollbar">
+              <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {mostStreamed.slice(0, 6).map((item) => (
-                  <div key={item.id + 'artist'} onClick={() => setActiveItem({id: item.id.toString(), type: "album"})} className="flex-none w-[140px] cursor-pointer group flex flex-col items-center text-center">
+                  <div key={item.id + 'artist'} onClick={() => setActiveItem({id: item.id.toString(), type: "album"})} className="flex-none w-[160px] cursor-pointer group flex flex-col items-center text-center">
                     <div className="relative w-28 h-28 mb-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 border shadow-sm">
-                      <img src={item.image?.small || item.image?.large} alt={item.artist?.name} className="w-full h-full object-cover" />
+                      <img src={getImageSrc(item.image)} alt={item.artist?.name} className="w-full h-full object-cover" />
                     </div>
                     <h3 className="font-semibold text-[15px] line-clamp-1 leading-tight w-full">{item.artist?.name}</h3>
                   </div>

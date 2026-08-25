@@ -10,8 +10,11 @@ import React, {
 import { Capacitor } from "@capacitor/core";
 import { QobuzAudio } from "../lib/QobuzAudioPlugin";
 import axios from "axios";
+import TrackContextMenu from './TrackContextMenu';
+import DownloadModal from './DownloadModal';
 
 export interface Track {
+  local_path?: string;
   id: string;
   title: string;
   artist: string;
@@ -28,6 +31,10 @@ export interface Track {
 }
 
 interface PlayerContextType {
+  contextMenuTrack: any | null;
+  setContextMenuTrack: (track: any | null) => void;
+  downloadItem: {item: any, type: 'album'|'track'} | null;
+  setDownloadItem: (item: {item: any, type: 'album'|'track'} | null) => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   isLoading: boolean;
@@ -54,6 +61,8 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
+  const [contextMenuTrack, setContextMenuTrack] = useState<any | null>(null);
+  const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'} | null>(null);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -186,7 +195,12 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(track.duration || 0); // initial guess from metadata
 
     try {
-      const streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
+      let streamUrl = "";
+      if (track.local_path && Capacitor.isNativePlatform()) {
+        streamUrl = Capacitor.convertFileSrc(track.local_path);
+      } else {
+        streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
+      }
 
       if (requestId !== playRequestRef.current) return;
 
@@ -382,6 +396,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     return (
       <PlayerContext.Provider
         value={{
+          contextMenuTrack,
+          setContextMenuTrack,
+          downloadItem,
+          setDownloadItem,
           currentTrack,
           isPlaying,
           isLoading,
@@ -405,6 +423,22 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         }}
       >
         {children}
+        <TrackContextMenu 
+          track={contextMenuTrack} 
+          onClose={() => setContextMenuTrack(null)}
+          onDownload={() => {
+            if (contextMenuTrack) {
+              setDownloadItem({item: contextMenuTrack, type: 'track'});
+            }
+          }}
+        />
+        {downloadItem && (
+          <DownloadModal 
+            item={downloadItem.item}
+            type={downloadItem.type}
+            onClose={() => setDownloadItem(null)}
+          />
+        )}
       </PlayerContext.Provider>
     );
   };

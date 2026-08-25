@@ -1,10 +1,9 @@
-import { usePlayer } from './PlayerContext';
+const fs = require('fs');
+const code = `import { usePlayer } from './PlayerContext';
 import { useEffect, useRef } from 'react';
 import { Play, Pause, Loader2, SkipForward, SkipBack } from 'lucide-react';
 import ExpandedPlayer from './ExpandedPlayer';
 import { motion, AnimatePresence } from 'motion/react';
-import { getImageSrc } from '../lib/image';
-
 
 export default function MiniPlayer() {
   const { currentTrack, isPlaying, isLoading, togglePlay, audioRef, isExpanded, setIsExpanded, nextTrack, prevTrack } = usePlayer();
@@ -15,7 +14,7 @@ export default function MiniPlayer() {
     const updateProgress = () => {
       if (audioRef.current && progressRef.current && audioRef.current.duration) {
         const percent = (audioRef.current.currentTime / audioRef.current.duration) * 100;
-        progressRef.current.style.width = `${percent}%`;
+        progressRef.current.style.width = \`\${percent}%\`;
       }
       animationId = requestAnimationFrame(updateProgress);
     };
@@ -54,7 +53,7 @@ export default function MiniPlayer() {
               {/* Animated ambient background */}
               <div className="absolute inset-0 z-0 pointer-events-none">
                 {currentTrack.image && (
-                  <img src={getImageSrc(currentTrack.image)} alt="" className="absolute inset-0 w-full h-full object-cover blur-[20px] opacity-60 dark:opacity-40 transform scale-125 saturate-150" />
+                  <img src={currentTrack.image} alt="" className="absolute inset-0 w-full h-full object-cover blur-[20px] opacity-60 dark:opacity-40 transform scale-125 saturate-150" />
                 )}
                 {/* Material overlay - adapts to light/dark mode */}
                 <div className="absolute inset-0 bg-white/60 dark:bg-black/50 backdrop-blur-2xl" />
@@ -67,7 +66,7 @@ export default function MiniPlayer() {
                 {/* Artwork */}
                 <div className="w-12 h-12 rounded-[12px] overflow-hidden shadow-md flex-shrink-0 relative bg-gray-200 dark:bg-gray-800">
                   {currentTrack.image ? (
-                    <img src={getImageSrc(currentTrack.image)} alt={currentTrack.title} className="w-full h-full object-cover" />
+                    <img src={currentTrack.image} alt={currentTrack.title} className="w-full h-full object-cover" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-black/10 dark:bg-white/10 text-gray-500">?</div>
                   )}
@@ -134,3 +133,5 @@ export default function MiniPlayer() {
     </>
   );
 }
+`;
+fs.writeFileSync('src/components/MiniPlayer.tsx', code);
