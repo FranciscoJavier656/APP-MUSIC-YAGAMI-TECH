@@ -64,7 +64,7 @@ if (Capacitor.isNativePlatform()) {
         percent = Math.min(progress.bytes / 35_000_000, 0.95);
       }
       window.dispatchEvent(new CustomEvent('download_progress', {
-        detail: { trackId, progress: percent }
+        detail: { trackId, progress: percent, bytes: progress.bytes, total: progress.contentLength }
       }));
     }
   });
@@ -168,13 +168,14 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
         url: url,
         path: `Downloads/${filename}`,
         directory: Directory.Data,
+        progress: true
       });
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'processing_metadata' } }));
-      await new Promise(r => setTimeout(r, 800));
+      
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'importing_library' } }));
-      await new Promise(r => setTimeout(r, 600));
+      
       
       // Organizar metadatos en las 3 secciones (Albums, Artistas, Tracks)
       const trackWithLocalPath = {
@@ -186,7 +187,7 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
       addMetadataToLibrary(trackWithLocalPath);
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'organizing' } }));
-      await new Promise(r => setTimeout(r, 500));
+      
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
       delete downloadMap[url];

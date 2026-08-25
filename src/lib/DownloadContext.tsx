@@ -4,6 +4,8 @@ import { Capacitor } from '@capacitor/core';
 export interface ActiveDownload {
   trackId: string;
   progress: number;
+  bytes?: number;
+  total?: number;
   status: 'queued' | 'downloading' | 'processing_metadata' | 'importing_library' | 'organizing' | 'completed' | 'error';
   trackMetadata: any;
   error?: string;
@@ -28,7 +30,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         if (!prev[e.detail.trackId]) return prev;
         return {
           ...prev,
-          [e.detail.trackId]: { ...prev[e.detail.trackId], status: 'downloading', progress: e.detail.progress }
+          [e.detail.trackId]: { ...prev[e.detail.trackId], status: 'downloading', progress: e.detail.progress, bytes: e.detail.bytes, total: e.detail.total }
         };
       });
     };

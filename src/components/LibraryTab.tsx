@@ -299,7 +299,7 @@ export default function LibraryTab() {
                             onClick={() => {
                                playTrack({ 
                                  ...item.original, 
-                                 streamUrl: Capacitor.isNativePlatform() ? Capacitor.convertFileSrc(item.original.localPath) : item.original.localPath 
+                                 localPath: item.original.localPath || item.localPath 
                                });
                             }}
                             className="overflow-hidden rounded-xl"

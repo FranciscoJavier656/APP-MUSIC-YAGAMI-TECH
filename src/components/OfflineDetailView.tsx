@@ -34,7 +34,7 @@ export default function OfflineDetailView({ item, tracks, onBack, type }: Offlin
         image: albumImg,
         hires: orig.hires || orig.maximum_bit_depth > 16 || false,
         duration: orig.duration || 0,
-        streamUrl: orig.localPath || t.localPath
+        localPath: orig.localPath || t.localPath
       };
     });
     

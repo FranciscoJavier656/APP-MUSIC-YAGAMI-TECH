@@ -8,6 +8,8 @@ import React, {
   ReactNode,
 } from "react";
 import { Capacitor } from "@capacitor/core";
+import { Filesystem, Directory } from "@capacitor/filesystem";
+import { getImageSrc } from "../lib/image";
 import { QobuzAudio } from "../lib/QobuzAudioPlugin";
 import axios from "axios";
 import TrackContextMenu from './TrackContextMenu';
@@ -197,6 +199,20 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     try {
       let streamUrl = track.streamUrl || "";
+      
+      const lp = track.localPath || track.local_path || (track.original && (track.original.localPath || track.original.local_path));
+      if (!streamUrl && lp && Capacitor.isNativePlatform()) {
+         try {
+             const stat = await Filesystem.getUri({
+                 directory: Directory.Data,
+                 path: lp.replace('file://', '')
+             });
+             streamUrl = stat.uri;
+         } catch(e) {
+             console.error("Failed to get local uri", e);
+         }
+      }
+
       if (!streamUrl && track.local_path && Capacitor.isNativePlatform()) {
         streamUrl = track.local_path.startsWith('file://') ? track.local_path : `file://${track.local_path}`;
       } else if (!streamUrl) {
@@ -212,7 +228,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
               title: track.title,
               artist: track.artist || "Desconocido",
               album: track.albumTitle || "Qobuz Audio",
-              coverUrl: track.image || "",
+              coverUrl: getImageSrc(track.image) || "",
               duration: track.duration || 0
           });
           setIsPlaying(true);
@@ -331,16 +347,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           title: currentTrack.title,
           artist: currentTrack.artist || "Desconocido",
           album: currentTrack.albumTitle || "Qobuz Audio",
-          artwork: currentTrack.image
-            ? [
-                {
-                  src: currentTrack.image,
+          artwork: currentTrack.image ? [{ src: getImageSrc(currentTrack.image) || "",
                   sizes: "512x512",
                   type: "image/jpeg",
                 },
-                {
-                  src: currentTrack.image,
-                  sizes: "1024x1024",
+                { src: getImageSrc(currentTrack.image) || "", sizes: "1024x1024",
                   type: "image/jpeg",
                 }, // High-res
               ]

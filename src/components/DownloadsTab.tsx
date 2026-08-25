@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { motion } from 'motion/react';
 import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter, Download, AlertCircle, Database, CheckCircle, Clock, Pause, RotateCcw, X } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
@@ -78,7 +79,7 @@ export default function DownloadsTab() {
     
     // Calculate total size (mock for now since we don't store file size in offline_tracks yet)
     // Use actual bytes if possible, else just 0
-    const totalSize = completed.reduce((acc, item) => acc + (item.progress?.bytes || 0), 0);
+    const totalSize = completed.reduce((acc, item) => acc + (item.track?.sizeBytes || item.progress?.bytes || 0), 0);
 
     return {
       totalDownloads: downloads.length,
@@ -97,16 +98,33 @@ export default function DownloadsTab() {
     return downloads;
   }, [downloads, filter]);
 
-  const removeTrack = (trackId: string) => {
+    const removeTrack = async (trackId: string) => {
     if (window.confirm("¿Seguro que deseas eliminar esta descarga?")) {
       try {
-        const tracksStr = localStorage.getItem('offline_tracks');
+        const tracksStr = localStorage.getItem('offline_library_tracks');
         if (tracksStr) {
           const tracksObj = JSON.parse(tracksStr);
-          delete tracksObj[trackId];
-          localStorage.setItem('offline_tracks', JSON.stringify(tracksObj));
-          loadOfflineLibrary();
+          if (tracksObj[trackId]) {
+              const lp = tracksObj[trackId].original?.localPath || tracksObj[trackId].localPath;
+              delete tracksObj[trackId];
+              localStorage.setItem('offline_library_tracks', JSON.stringify(tracksObj));
+              
+              if (lp) {
+                  try {
+                      await Filesystem.deleteFile({ directory: Directory.Data, path: lp.replace('file://', '') });
+                  } catch(e){}
+              }
+          }
         }
+        
+        const oldStr = localStorage.getItem('offline_tracks');
+        if (oldStr) {
+           const oldObj = JSON.parse(oldStr);
+           delete oldObj[trackId];
+           localStorage.setItem('offline_tracks', JSON.stringify(oldObj));
+        }
+        
+        loadOfflineLibrary();
       } catch (e) {}
     }
   };
@@ -352,7 +370,7 @@ export default function DownloadsTab() {
                               onClick={() => {
                                 playTrack({ 
                                   ...item.track, 
-                                  streamUrl: Capacitor.isNativePlatform() ? Capacitor.convertFileSrc(item.track.localPath) : item.track.localPath 
+                                  localPath: item.track.localPath 
                                 });
                               }}
                               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#1DB954] group transition-colors"
