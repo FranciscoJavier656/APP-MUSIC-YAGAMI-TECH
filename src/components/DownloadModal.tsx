@@ -61,7 +61,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
         setProgress(p => ({ ...p, current: i + 1 }));
       }
       
-      setStatus('done');
+      if (Capacitor.isNativePlatform()) { setStatus('done'); setTimeout(() => onClose(), 800); } else { setStatus('done'); }
     } catch (error) {
       console.error(error);
       setStatus('error');
