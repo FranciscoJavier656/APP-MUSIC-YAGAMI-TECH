@@ -197,7 +197,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     try {
       let streamUrl = "";
       if (track.local_path && Capacitor.isNativePlatform()) {
-        streamUrl = Capacitor.convertFileSrc(track.local_path);
+        streamUrl = track.local_path.startsWith('file://') ? track.local_path : `file://${track.local_path}`;
       } else {
         streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
       }

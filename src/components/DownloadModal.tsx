@@ -1,5 +1,6 @@
 import { getQobuzAlbum, getQobuzTrackUrl } from "../lib/qobuz";
 import { downloadTrackRouted } from "../lib/DownloadManager";
+import { useDownloads } from "../lib/DownloadContext";
 import { Capacitor } from '@capacitor/core';
 import { useState } from 'react';
 import { X, Download, Loader2, Music, CheckCircle, Disc } from 'lucide-react';
@@ -16,6 +17,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
   const [format, setFormat] = useState('5'); // 5=MP3 320, 6=FLAC 16-Bit, 7=FLAC 24-Bit 96kHz, 27=FLAC 24-Bit 192kHz
   const [status, setStatus] = useState<'idle' | 'fetching' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
+  const { addDownload } = useDownloads();
 
     
 
@@ -41,12 +43,18 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
       for (let i = 0; i < tracksToDownload.length; i++) {
         const track = tracksToDownload[i];
         try {
+          if (Capacitor.isNativePlatform()) {
+            addDownload(track.id.toString(), track);
+          }
           const success = await downloadTrackRouted(track, format, ext);
           if (!success) {
             console.warn("Skipped or failed download for track:", track.id);
           }
-          // Delay slightly between tracks
-          await new Promise(r => setTimeout(r, 1000));
+          
+          if (!Capacitor.isNativePlatform()) {
+             // Delay slightly between tracks on Web only since native is async queued
+             await new Promise(r => setTimeout(r, 1000));
+          }
         } catch (e) {
           console.error("Failed to trigger download for track", track.id, e);
         }

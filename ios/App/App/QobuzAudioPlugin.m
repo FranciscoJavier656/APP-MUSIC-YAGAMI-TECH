@@ -296,7 +296,14 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         return;
     }
     
-    NSURL *url = [NSURL URLWithString:urlString];
+    NSURL *url;
+    if ([urlString hasPrefix:@"file://"]) {
+        url = [NSURL fileURLWithPath:[urlString substringFromIndex:7]];
+    } else if ([urlString hasPrefix:@"/"]) {
+        url = [NSURL fileURLWithPath:urlString];
+    } else {
+        url = [NSURL URLWithString:urlString];
+    }
     if (!url) {
         [self logMessage:@"❌ Error: URL mal formada"];
         [call resolve];
@@ -308,6 +315,7 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     
     NSError *error = nil;
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback mode:AVAudioSessionModeDefault options:0 error:&error];
+    [[AVAudioSession sharedInstance] setPreferredSampleRate:192000.0 error:&error]; // 192kHz Hi-Res FLAC Support
     [[AVAudioSession sharedInstance] setActive:YES error:&error];
     [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
     

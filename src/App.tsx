@@ -7,6 +7,7 @@ import SearchTab from './components/SearchTab';
 import SettingsTab from './components/SettingsTab';
 import LibraryTab from './components/LibraryTab';
 import { PlayerProvider } from './components/PlayerContext';
+import { DownloadProvider } from './lib/DownloadContext';
 import MiniPlayer from './components/MiniPlayer';
 
 export default function App() {
@@ -37,6 +38,7 @@ export default function App() {
   }, [isDarkMode]);
 
   return (
+    <DownloadProvider>
     <PlayerProvider>
       <div className="flex flex-col h-screen w-full bg-[#F2F2F7] dark:bg-[#000000] text-black dark:text-white font-sans sm:pb-0 overflow-hidden transition-colors duration-300 relative">
         <AnimatePresence>
@@ -117,5 +119,6 @@ export default function App() {
         </nav>
       </div>
     </PlayerProvider>
+    </DownloadProvider>
   );
 }

@@ -2,11 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Music, AlertCircle, Play, Disc } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
+import { useDownloads } from '../lib/DownloadContext';
+import { Download } from 'lucide-react';
 
 export default function LibraryTab() {
   const [offlineTracks, setOfflineTracks] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const { playTrack } = usePlayer();
+  const { activeDownloads } = useDownloads();
+  const activeDownloadList = Object.values(activeDownloads);
 
   useEffect(() => {
     const loadOfflineLibrary = async () => {
@@ -47,6 +51,35 @@ export default function LibraryTab() {
         <h1 className="text-3xl font-bold text-black dark:text-white">Tu Librería</h1>
         <p className="text-gray-500 mt-2 font-medium">Música descargada disponible offline</p>
       </div>
+
+      {activeDownloadList.length > 0 && (
+        <div className="px-6 mb-6">
+          <h2 className="text-lg font-bold text-black dark:text-white mb-3">Descargas Activas</h2>
+          <div className="space-y-3">
+            {activeDownloadList.map(dl => (
+              <div key={dl.trackId} className="bg-white dark:bg-[#1C1C1E] p-4 rounded-2xl shadow-sm border border-black/5 dark:border-white/5">
+                <div className="flex justify-between items-center mb-2">
+                  <div className="flex items-center gap-2">
+                    <Download className="w-4 h-4 text-[#007AFF] animate-pulse" />
+                    <span className="font-semibold text-sm truncate max-w-[200px] text-black dark:text-white">
+                      {dl.trackMetadata?.title || 'Descargando...'}
+                    </span>
+                  </div>
+                  <span className="text-xs font-bold text-[#007AFF]">
+                    {dl.status === 'completed' ? 'Completado' : `${Math.round(dl.progress * 100)}%`}
+                  </span>
+                </div>
+                <div className="h-1.5 w-full bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-[#007AFF] transition-all duration-300" 
+                    style={{ width: `${dl.progress * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="px-6">
         {!Capacitor.isNativePlatform() ? (
