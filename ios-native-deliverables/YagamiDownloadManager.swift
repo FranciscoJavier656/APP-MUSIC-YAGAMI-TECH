@@ -57,8 +57,16 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
     
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
         
-        let progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
         guard let trackId = activeDownloads[downloadTask.taskIdentifier] else { return }
+        
+        var progress: Double = 0.0
+        // FIX: Qobuz a veces no envía Content-Length, lo que da -1 y congela la UI en 0%
+        if totalBytesExpectedToWrite > 0 {
+            progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
+        } else {
+            // Si el tamaño es desconocido, calculamos un progreso simulado asumiendo un tamaño promedio de 35MB para FLAC
+            progress = min(Double(totalBytesWritten) / 35_000_000.0, 0.95)
+        }
         
         // Notify React (Capacitor) about progress
         self.notifyListeners("onDownloadProgress", data: [
@@ -90,13 +98,35 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
             }
             try fileManager.moveItem(at: location, to: destinationURL)
             
-            // TODO: Inyectar metadatos usando AVAssetExportSession o librerías de C para FLAC
-            // processMetadata(for: destinationURL, with: metadata)
+            // ---------------------------------------------------------
+            // FASE DE PROCESAMIENTO (SIMULADA CON DELAYS PARA LA UI)
+            // ---------------------------------------------------------
             
-            self.notifyListeners("onDownloadCompleted", data: [
-                "trackId": trackId,
-                "path": destinationURL.path
-            ])
+            // 1. Incrustando Metadatos (ID3 / Vorbis)
+            self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "processing_metadata"])
+            
+            DispatchQueue.global().asyncAfter(deadline: .now() + 1.2) {
+                // TODO: Aquí va la inyección real usando AVAssetExportSession o C-Library
+                
+                // 2. Importando a Librería Offline (SQLite)
+                self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "importing_library"])
+                
+                DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
+                    // TODO: Aquí va el INSERT a SQLite
+                    
+                    // 3. Organizando Categorías (Géneros, Álbumes)
+                    self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "organizing"])
+                    
+                    DispatchQueue.global().asyncAfter(deadline: .now() + 0.8) {
+                        
+                        // 4. Completado Total
+                        self.notifyListeners("onDownloadCompleted", data: [
+                            "trackId": trackId,
+                            "path": destinationURL.path
+                        ])
+                    }
+                }
+            }
             
         } catch {
             self.notifyListeners("onDownloadError", data: [

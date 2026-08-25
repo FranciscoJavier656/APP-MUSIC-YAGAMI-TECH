@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 export interface ActiveDownload {
   trackId: string;
   progress: number;
-  status: 'queued' | 'downloading' | 'processing' | 'completed' | 'error';
+  status: 'queued' | 'downloading' | 'processing_metadata' | 'importing_library' | 'organizing' | 'completed' | 'error';
   trackMetadata: any;
   error?: string;
 }
@@ -28,6 +28,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
     let errorListener: any;
     let startedListener: any;
 
+        let stateListener: any;
     const setupListeners = async () => {
       const { Plugins } = await import('@capacitor/core') as any;
       const YagamiManager = Plugins.YagamiDownloadManager;
@@ -75,6 +76,16 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
         }, 3000);
       });
 
+      stateListener = await YagamiManager.addListener('onDownloadStateChange', (data: any) => {
+        setActiveDownloads(prev => {
+          if (!prev[data.trackId]) return prev;
+          return {
+            ...prev,
+            [data.trackId]: { ...prev[data.trackId], status: data.status, progress: 1 } // Mantener al 100% durante el procesamiento
+          };
+        });
+      });
+
       errorListener = await YagamiManager.addListener('onDownloadError', (data: any) => {
         setActiveDownloads(prev => {
           if (!prev[data.trackId]) return prev;
@@ -93,6 +104,7 @@ export function DownloadProvider({ children }: { children: ReactNode }) {
       if (progressListener) progressListener.remove();
       if (completedListener) completedListener.remove();
       if (errorListener) errorListener.remove();
+      if (stateListener) stateListener.remove();
     };
   }, []);
 
