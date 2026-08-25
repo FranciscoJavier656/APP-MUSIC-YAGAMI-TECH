@@ -15,6 +15,7 @@ import DownloadModal from './DownloadModal';
 
 export interface Track {
   local_path?: string;
+  streamUrl?: string;
   id: string;
   title: string;
   artist: string;
@@ -195,10 +196,10 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     setDuration(track.duration || 0); // initial guess from metadata
 
     try {
-      let streamUrl = "";
-      if (track.local_path && Capacitor.isNativePlatform()) {
+      let streamUrl = track.streamUrl || "";
+      if (!streamUrl && track.local_path && Capacitor.isNativePlatform()) {
         streamUrl = track.local_path.startsWith('file://') ? track.local_path : `file://${track.local_path}`;
-      } else {
+      } else if (!streamUrl) {
         streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
       }
 

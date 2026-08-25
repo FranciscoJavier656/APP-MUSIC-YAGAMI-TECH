@@ -77,8 +77,8 @@ export default function DownloadsTab() {
     const errors = downloads.filter(d => d.status === 'error');
     
     // Calculate total size (mock for now since we don't store file size in offline_tracks yet)
-    // Assuming ~30MB per FLAC track for UI purposes if unknown
-    const totalSize = completed.length * (30 * 1024 * 1024);
+    // Use actual bytes if possible, else just 0
+    const totalSize = completed.reduce((acc, item) => acc + (item.progress?.bytes || 0), 0);
 
     return {
       totalDownloads: downloads.length,
