@@ -14,7 +14,7 @@ interface DownloadModalProps {
 }
 
 export default function DownloadModal({ item, type, onClose }: DownloadModalProps) {
-  const [format, setFormat] = useState('5'); // 5=MP3 320, 6=FLAC 16-Bit, 7=FLAC 24-Bit 96kHz, 27=FLAC 24-Bit 192kHz
+  const [format, setFormat] = useState('5');
   const [status, setStatus] = useState<'idle' | 'fetching' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const { addDownload } = useDownloads();

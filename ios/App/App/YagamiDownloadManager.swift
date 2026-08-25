@@ -9,9 +9,7 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
     private var activeDownloads: [Int: String] = [:] // TaskID -> TrackID
     
     override public func load() {
-        // CORRECCIÓN: Usamos .default en lugar de .background para evitar bloqueos
-        // si el AppDelegate no tiene implementado handleEventsForBackgroundURLSession.
-        // Esto asegura que la descarga inicie instantáneamente.
+        // Use default configuration instead of background to avoid background session conflicts during hot reloads
         let config = URLSessionConfiguration.default
         self.downloadSession = URLSession(configuration: config, delegate: self, delegateQueue: nil)
     }
@@ -52,19 +50,13 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
         ])
     }
     
-    // MARK: - URLSessionDownloadDelegate
-    
     public func urlSession(_ session: URLSession, downloadTask: URLSessionDownloadTask, didWriteData bytesWritten: Int64, totalBytesWritten: Int64, totalBytesExpectedToWrite: Int64) {
-        
         guard let trackId = activeDownloads[downloadTask.taskIdentifier] else { return }
         
         var progress: Double = 0.0
-        
-        // FIX: Qobuz a veces no envía Content-Length (da -1), lo que congela la UI en 0%.
         if totalBytesExpectedToWrite > 0 {
             progress = Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)
         } else {
-            // Tamaño desconocido: progreso simulado (asumiendo ~35MB por archivo FLAC)
             progress = min(Double(totalBytesWritten) / 35_000_000.0, 0.95)
         }
         
@@ -97,19 +89,15 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
             }
             try fileManager.moveItem(at: location, to: destinationURL)
             
-            // Log detallado de estados
             self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "processing_metadata"])
             
             DispatchQueue.global().asyncAfter(deadline: .now() + 1.2) {
-                
                 self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "importing_library"])
                 
                 DispatchQueue.global().asyncAfter(deadline: .now() + 1.0) {
-                    
                     self.notifyListeners("onDownloadStateChange", data: ["trackId": trackId, "status": "organizing"])
                     
                     DispatchQueue.global().asyncAfter(deadline: .now() + 0.8) {
-                        
                         self.notifyListeners("onDownloadCompleted", data: [
                             "trackId": trackId,
                             "path": destinationURL.path
@@ -117,14 +105,12 @@ public class YagamiDownloadManager: CAPPlugin, URLSessionDownloadDelegate {
                     }
                 }
             }
-            
         } catch {
             self.notifyListeners("onDownloadError", data: [
                 "trackId": trackId,
                 "error": error.localizedDescription
             ])
         }
-        
         activeDownloads.removeValue(forKey: downloadTask.taskIdentifier)
     }
     
