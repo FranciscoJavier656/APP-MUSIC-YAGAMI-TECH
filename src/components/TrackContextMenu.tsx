@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from 'motion/react';
-import { Download, Disc, Mic2, X } from 'lucide-react';
+import { Download, Disc, Mic2, X, Music } from 'lucide-react';
 
 interface TrackContextMenuProps {
   track: any | null;

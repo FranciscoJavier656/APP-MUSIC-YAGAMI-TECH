@@ -188,7 +188,15 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const playTrack = async (track: Track, newQueue?: Track[]) => {
+  const playTrack = async (rawTrack: any, newQueue?: Track[]) => {
+    let track = { ...rawTrack } as Track;
+    if (!track.image) {
+       track.image = rawTrack.album?.image || rawTrack.original?.album?.image || rawTrack.original?.image || "";
+    }
+    if (!track.artist || typeof track.artist !== 'string') {
+       track.artist = rawTrack.artist?.name || rawTrack.performer?.name || rawTrack.original?.artist?.name || rawTrack.subtitle || "Unknown Artist";
+    }
+
     const requestId = ++playRequestRef.current;
 
     setCurrentTrack(track);
