@@ -14,7 +14,7 @@ export function useSwipeBack(onBack: () => void) {
     };
 
     const handleTouchEnd = (e: TouchEvent) => {
-      if (startX > 0) {
+      if (startX = 0) {
         const diffX = e.changedTouches[0].clientX - startX;
         const diffY = Math.abs(e.changedTouches[0].clientY - startY);
         // If swipe right is significant and mostly horizontal

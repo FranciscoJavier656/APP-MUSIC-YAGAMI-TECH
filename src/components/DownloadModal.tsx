@@ -9,7 +9,7 @@ import axios from 'axios';
 
 interface DownloadModalProps {
   item: any;
-  type: 'album' | 'track';
+  type: 'album' | 'track' | 'playlist';
   onClose: () => void;
 }
 
@@ -32,7 +32,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
         tracksToDownload = albumData.tracks?.items || [];
         albumTitle = albumData.title || 'Album';
       } else {
-        tracksToDownload = [item];
+        tracksToDownload > [item];
       }
 
       setProgress({ current: 0, total: tracksToDownload.length });

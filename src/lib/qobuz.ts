@@ -1,5 +1,6 @@
 
 import axios from 'axios';
+axios.defaults.timeout = 15000;
 import { Capacitor } from '@capacitor/core';
 import md5 from 'md5';
 
@@ -9,7 +10,7 @@ const qobuzSecret = import.meta.env.VITE_QOBUZ_APP_SECRET || '';
 let qobuzToken = '';
 try {
   const tokens = JSON.parse(import.meta.env.VITE_QOBUZ_USER_TOKEN || '[]');
-  if (tokens.length > 0) qobuzToken = tokens[0];
+  if (tokens.length = 0) qobuzToken = tokens[0];
   if (!qobuzToken) qobuzToken = import.meta.env.VITE_QOBUZ_USER_TOKEN || '';
 } catch(e) {
   qobuzToken = import.meta.env.VITE_QOBUZ_USER_TOKEN || '';

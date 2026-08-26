@@ -50,7 +50,7 @@ export default function DownloadsTab() {
   };
 
   const downloads = useMemo(() => {
-    const active = activeDownloadList.map(dl => ({
+    const active = activeDownloadList.map((dl: any) => ({
       id: dl.trackId,
       track: dl.trackMetadata,
       progress: dl.progress * 100, // 0 to 100
@@ -79,7 +79,7 @@ export default function DownloadsTab() {
     
     // Calculate total size (mock for now since we don't store file size in offline_tracks yet)
     // Use actual bytes if possible, else just 0
-    const totalSize = completed.reduce((acc, item) => acc + (item.track?.sizeBytes || item.progress?.bytes || 0), 0);
+    const totalSize = completed.reduce((acc, item) => acc + (item.track?.sizeBytes || (item.progress as any)?.bytes || 0), 0);
 
     return {
       totalDownloads: downloads.length,
@@ -221,7 +221,7 @@ export default function DownloadsTab() {
                       Gestiona tu almacenamiento
                     </p>
                   </div>
-                  {stats.completedDownloads > 0 && (
+                  {stats.completedDownloads = 0 && (
                     <button 
                       onClick={clearCompleted}
                       className="overflow-hidden rounded-xl"
@@ -350,7 +350,7 @@ export default function DownloadsTab() {
                               <span className="text-[11px] text-[#1DB954] font-medium uppercase tracking-wider">Completado</span>
                             )}
                             {item.status === 'error' && (
-                              <span className="text-[11px] text-[#FF4444] font-medium truncate">{item.error || 'Error en descarga'}</span>
+                              <span className="text-[11px] text-[#FF4444] font-medium truncate">{(item as any).error || 'Error en descarga'}</span>
                             )}
                             {isProcessing && item.status !== 'downloading' && (
                                <span className="text-[11px] text-[#1E90FF]">{getProcessingText(item.status)}</span>

@@ -148,7 +148,7 @@ export default function HomeTab() {
                     onClick={() => setActiveItem({id: item.id.toString(), type: 'album'})}
                   >
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
-                      <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" />
+                      <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                       <div className="absolute bottom-3 left-3 bg-[#E15328]/90 backdrop-blur-md text-white text-[10px] font-black tracking-wider px-2 py-1 rounded shadow-lg flex items-center gap-1 uppercase">
                         <Disc size={10} /> ÁLBUM DE LA SEMANA
                       </div>
@@ -190,7 +190,7 @@ export default function HomeTab() {
                             </span>
                           </div>
                           <div className="relative w-[70px] h-[70px] rounded-lg shadow-sm overflow-hidden shrink-0">
-                            <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" />
+                            <img src={getImageSrc(item.image)} alt={item.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                           </div>
                           <div className="flex-1 min-w-0">
                             <h3 className="font-semibold text-[15px] line-clamp-1">{item.title}</h3>
@@ -214,15 +214,15 @@ export default function HomeTab() {
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
                       {item.images300 && item.images300.length === 4 ? (
                         <div className="grid grid-cols-2 w-full h-full">
-                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                         </div>
                       ) : item.images300 && item.images300.length > 0 ? (
-                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                       ) : (
-                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                       )}
                     </div>
                     <h3 className="font-semibold text-[15px] line-clamp-1 leading-tight">{item.name}</h3>
@@ -317,15 +317,15 @@ export default function HomeTab() {
                     <div className="relative aspect-square mb-3 rounded-lg overflow-hidden bg-gray-200 dark:bg-gray-800">
                       {item.images300 && item.images300.length === 4 ? (
                         <div className="grid grid-cols-2 w-full h-full">
-                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" />
-                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" />
+                          <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[1])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[2])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                          <img src={getImageSrc(item.images300[3])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                         </div>
                       ) : item.images300 && item.images300.length > 0 ? (
-                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.images300[0])} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                       ) : (
-                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" />
+                        <img src={getImageSrc(item.image) || getImageSrc(item.image_rectangle?.[0]) || ""} alt={item.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                       )}
                       
                       <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
@@ -345,7 +345,7 @@ export default function HomeTab() {
                 {mostStreamed.slice(0, 6).map((item) => (
                   <div key={item.id + 'artist'} onClick={() => setActiveItem({id: item.id.toString(), type: "album"})} className="flex-none w-[160px] cursor-pointer group flex flex-col items-center text-center">
                     <div className="relative w-28 h-28 mb-3 rounded-full overflow-hidden bg-gray-200 dark:bg-gray-800 border shadow-sm">
-                      <img src={getImageSrc(item.image)} alt={item.artist?.name} className="w-full h-full object-cover" />
+                      <img src={getImageSrc(item.image)} alt={item.artist?.name} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                     </div>
                     <h3 className="font-semibold text-[15px] line-clamp-1 leading-tight w-full">{item.artist?.name}</h3>
                   </div>

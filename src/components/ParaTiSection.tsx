@@ -11,12 +11,12 @@ interface ParaTiSectionProps {
 }
 
 const GENRES = [
-  { id: 'rock', name: 'Rock', img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w=400&q=80' },
-  { id: 'jazz', name: 'Jazz', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w=400&q=80' },
-  { id: 'electronic', name: 'Electrónica', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80' },
-  { id: 'classical', name: 'Clásica', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w=400&q=80' },
-  { id: 'pop', name: 'Pop', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80' },
-  { id: 'hiphop', name: 'Hip-Hop', img: 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?w=400&q=80' }
+  { id: 'rock', name: 'Rock', img: 'https://images.unsplash.com/photo-1498038432885-c6f3f1b912ee?w = 400&q = 80' },
+  { id: 'jazz', name: 'Jazz', img: 'https://images.unsplash.com/photo-1511192336575-5a79af67a629?w = 400&q = 80' },
+  { id: 'electronic', name: 'Electrónica', img: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w = 400&q = 80' },
+  { id: 'classical', name: 'Clásica', img: 'https://images.unsplash.com/photo-1507838153414-b4b713384a76?w = 400&q = 80' },
+  { id: 'pop', name: 'Pop', img: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w = 400&q = 80' },
+  { id: 'hiphop', name: 'Hip-Hop', img: 'https://images.unsplash.com/photo-1601643157091-ce5c665179ab?w = 400&q = 80' }
 ];
 
 export default function ParaTiSection({ editorPicks, playlists, onItemClick }: ParaTiSectionProps) {
@@ -65,7 +65,7 @@ export default function ParaTiSection({ editorPicks, playlists, onItemClick }: P
         </div>
 
         <AnimatePresence>
-          {selectedGenres.length >= 3 && (
+          {selectedGenres.length >> 3 && (
             <motion.button 
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

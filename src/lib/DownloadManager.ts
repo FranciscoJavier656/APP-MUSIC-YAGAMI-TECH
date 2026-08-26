@@ -58,7 +58,7 @@ if (Capacitor.isNativePlatform()) {
     const trackId = downloadMap[progress.url];
     if (trackId) {
       let percent = 0;
-      if (progress.contentLength > 0) {
+      if (progress.contentLength = 0) {
         percent = progress.bytes / progress.contentLength;
       } else {
         percent = Math.min(progress.bytes / 35_000_000, 0.95);
@@ -154,22 +154,39 @@ export const downloadFileWeb = async (url: string, filename: string) => {
 };
 
 // Logica interna del proceso de descarga
+const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
+  try {
+    return await fn();
+  } catch (error) {
+    if (retries <= 0) throw error;
+    console.warn(`Retrying... (${retries} left) due to:`, error);
+    await new Promise(res => setTimeout(res, delay));
+    return withRetry(fn, retries - 1, delay * 1.5);
+  }
+};
+
 const processSingleDownload = async (track: any, formatId: string, ext: string): Promise<void> => {
-  const url = await getQobuzTrackUrl(track.id.toString(), formatId);
-  if (!url) throw new Error("No URL");
+  const trackId = track.id.toString();
+  
+  const url = await withRetry(async () => {
+    const res = await getQobuzTrackUrl(trackId, formatId);
+    if (!res) throw new Error("No URL");
+    return res;
+  });
   
   if (Capacitor.isNativePlatform()) {
-    const trackId = track.id.toString();
     downloadMap[url] = trackId;
     const filename = `${trackId}.${ext}`;
     
     try {
-      await Filesystem.downloadFile({
-        url: url,
-        path: `Downloads/${filename}`,
-        directory: Directory.Data,
-        progress: true
-      });
+      await withRetry(async () => {
+         await Filesystem.downloadFile({
+           url: url,
+           path: `Downloads/${filename}`,
+           directory: Directory.Data,
+           progress: true
+         });
+      }, 3, 3000);
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'processing_metadata' } }));
       
@@ -178,9 +195,31 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
       
       
       // Organizar metadatos en las 3 secciones (Albums, Artistas, Tracks)
+      
+      let localCoverPath = null;
+      try {
+        const coverUrlObj = track.album?.image || track.image;
+        let coverUrl = coverUrlObj?.large || coverUrlObj?.medium || coverUrlObj?.small || (typeof coverUrlObj === 'string' ? coverUrlObj : null);
+        if (coverUrl) {
+           if (coverUrl.startsWith('//')) coverUrl = 'https:' + coverUrl;
+           const coverFilename = `${trackId}_cover.jpg`;
+           await withRetry(async () => {
+             await Filesystem.downloadFile({
+               url: coverUrl,
+               path: `Downloads/${coverFilename}`,
+               directory: Directory.Data
+             });
+           }, 3, 2000);
+           localCoverPath = `Downloads/${coverFilename}`;
+        }
+      } catch (ce) {
+         console.warn("Could not download cover", ce);
+      }
+
       const trackWithLocalPath = {
         ...track,
         localPath: `Downloads/${filename}`,
+        localCoverPath: localCoverPath,
         downloadedAt: Date.now()
       };
       
@@ -192,7 +231,12 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
       delete downloadMap[url];
     } catch (e: any) {
-      window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId, error: e.message || 'Error nativo' } }));
+      let errorMsg = e.message || 'Error nativo';
+      const msgLower = errorMsg.toLowerCase();
+      if (msgLower.includes('space') || msgLower.includes('quota') || msgLower.includes('full')) {
+        errorMsg = "Almacenamiento lleno. Por favor, libera espacio.";
+      }
+      window.dispatchEvent(new CustomEvent('download_error', { detail: { trackId, error: errorMsg } }));
       delete downloadMap[url];
       throw e;
     }

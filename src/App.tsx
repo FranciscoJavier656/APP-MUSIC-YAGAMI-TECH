@@ -9,10 +9,24 @@ import LibraryTab from './components/LibraryTab';
 import DownloadsTab from './components/DownloadsTab';
 import { PlayerProvider } from './components/PlayerContext';
 import { DownloadProvider } from './lib/DownloadContext';
+import { WifiOff } from 'lucide-react';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import MiniPlayer from './components/MiniPlayer';
 
 export default function App() {
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
@@ -56,6 +70,21 @@ export default function App() {
         </AnimatePresence>
         
         {/* Main Content Area */}
+        
+        <AnimatePresence>
+          {isOffline && (
+            <motion.div
+              initial={{ opacity: 0, y: -50 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -50 }}
+              className="absolute top-12 left-1/2 -translate-x-1/2 z-[90] bg-red-500/90 backdrop-blur-md text-white px-4 py-2 rounded-full text-xs font-semibold flex items-center gap-2 shadow-lg"
+            >
+              <WifiOff size={14} />
+              Sin Conexión
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <ErrorBoundary>
         <main className="flex-1 overflow-y-auto pb-[88px] relative">
           <div className={activeTab === 'home' ? 'block h-full' : 'hidden'}>
             <HomeTab />
@@ -73,6 +102,7 @@ export default function App() {
             <SettingsTab isDarkMode={isDarkMode} setIsDarkMode={setIsDarkMode} />
           </div>
         </main>
+        </ErrorBoundary>
 
         {/* Mini Player */}
         <MiniPlayer />

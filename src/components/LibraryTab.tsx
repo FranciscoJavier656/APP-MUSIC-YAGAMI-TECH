@@ -268,7 +268,7 @@ export default function LibraryTab() {
                           src={item.image} 
                           alt="" 
                           className={`w-20 h-20 bg-white/5 ${item.type === 'artist' ? 'rounded-full' : 'rounded-xl'} object-cover`}
-                        />
+                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                         {/* Type Badge */}
                         <div className="absolute -bottom-1 -right-1 overflow-hidden rounded-xl">
                           <div className="p-1.5 backdrop-blur-md bg-black/50 border border-white/10">
