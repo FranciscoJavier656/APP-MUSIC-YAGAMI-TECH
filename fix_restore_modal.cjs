@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+const code = `import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Loader2, Music, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -6,44 +7,41 @@ import { downloadTrackRouted } from '../lib/DownloadManager';
 import { useDownloads } from '../lib/DownloadContext';
 
 interface DownloadModalProps {
-  item: any;
-  type: 'album' | 'track' | 'playlist';
+  isOpen: boolean;
   onClose: () => void;
+  track?: any;
+  album?: any;
 }
 
-export default function DownloadModal({ item, type, onClose }: DownloadModalProps) {
+export default function DownloadModal({ isOpen, onClose, track, album }: DownloadModalProps) {
   const [format, setFormat] = useState('5');
   const [status, setStatus] = useState<'idle' | 'downloading' | 'done' | 'error'>('idle');
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const { addDownload } = useDownloads();
 
-  const getTracks = () => {
-    if (type === 'track') return [item];
-    if (type === 'album') return item.tracks?.items || [];
-    if (type === 'playlist') return item.tracks?.items || [];
-    return [];
-  };
-
   useEffect(() => {
-    setStatus('idle');
-    setProgress({ current: 0, total: getTracks().length });
-  }, [item, type]);
+    if (isOpen) {
+      setStatus('idle');
+      setProgress({ current: 0, total: album ? album.tracks?.items?.length || 0 : 1 });
+    }
+  }, [isOpen, track, album]);
+
+  if (!isOpen) return null;
 
   const handleDownload = async () => {
     setStatus('downloading');
     
     try {
-      const tracksToDownload = getTracks();
+      const tracksToDownload = album ? album.tracks?.items : [track];
       const ext = format === '5' ? 'mp3' : 'flac';
 
       for (let i = 0; i < tracksToDownload.length; i++) {
         const track = tracksToDownload[i];
-        // Enforce track to have album obj if it's an album download
-        const trackWithAlbum = (type === 'album' && !track.album) ? { ...track, album: item } : track;
-
         try {
-          addDownload(track.id.toString(), trackWithAlbum);
-          const success = await downloadTrackRouted(trackWithAlbum, format, ext);
+          if (Capacitor.isNativePlatform()) {
+            addDownload(track.id.toString(), track);
+          }
+          const success = await downloadTrackRouted(track, format, ext);
           if (!success) {
             console.warn("Skipped or failed download for track:", track.id);
           }
@@ -87,7 +85,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
             </button>
           </div>
           <p className="text-white/60 text-sm mt-1">
-            {type === 'track' ? item?.title : (type === 'album' ? `Álbum: ${item?.title}` : `Playlist: ${item?.title}`)}
+            {album ? \`Álbum: \${album.title}\` : track?.title}
           </p>
         </div>
 
@@ -98,25 +96,25 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setFormat('5')}
-                className={`flex flex-col items-center p-4 rounded-2xl border transition-all ${
+                className={\`flex flex-col items-center p-4 rounded-2xl border transition-all \${
                   format === '5' 
                     ? 'bg-blue-500/20 border-blue-500 text-blue-500' 
                     : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                }`}
+                }\`}
               >
                 <span className="font-bold mb-1">MP3</span>
                 <span className="text-xs opacity-60">320 kbps</span>
               </button>
               <button
-                onClick={() => setFormat('27')}
-                className={`flex flex-col items-center p-4 rounded-2xl border transition-all ${
-                  format === '27' 
+                onClick={() => setFormat('6')}
+                className={\`flex flex-col items-center p-4 rounded-2xl border transition-all \${
+                  format === '6' 
                     ? 'bg-blue-500/20 border-blue-500 text-blue-500' 
                     : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                }`}
+                }\`}
               >
                 <span className="font-bold mb-1">FLAC</span>
-                <span className="text-xs opacity-60">Hi-Res 24-bit</span>
+                <span className="text-xs opacity-60">Lossless 16-bit</span>
               </button>
             </div>
           </div>
@@ -127,7 +125,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
               className="w-full py-4 rounded-2xl bg-white text-black font-bold flex items-center justify-center space-x-2 active:scale-95 transition-transform"
             >
               <Music size={20} />
-              <span>Descargar {type === 'track' ? 'Track' : (type === 'album' ? 'Álbum' : 'Playlist')}</span>
+              <span>Descargar {album ? 'Álbum' : 'Track'}</span>
             </button>
           )}
 
@@ -165,3 +163,6 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
     </div>
   );
 }
+`;
+fs.writeFileSync('src/components/DownloadModal.tsx', code);
+console.log('done');

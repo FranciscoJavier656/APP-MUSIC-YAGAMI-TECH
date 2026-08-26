@@ -1,4 +1,6 @@
-import { Capacitor } from '@capacitor/core';
+const fs = require('fs');
+
+const code = `import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import axios from 'axios';
 import { getQobuzTrackUrl } from './qobuz';
@@ -145,8 +147,7 @@ const addMetadataToLibrary = (trackWithLocalPath: any) => {
 };
 
 export const downloadFileWeb = async (url: string, filename: string) => {
-  // Override global timeout to 0 (no timeout) for large file downloads
-  const res = await axios.get(url, { responseType: 'blob', timeout: 0 });
+  const res = await axios.get(url, { responseType: 'blob' });
   const blobUrl = URL.createObjectURL(res.data);
   const a = document.createElement('a');
   a.href = blobUrl;
@@ -163,7 +164,7 @@ const withRetry = async <T>(fn: () => Promise<T>, retries = 3, delay = 2000): Pr
     return await fn();
   } catch (error) {
     if (retries <= 0) throw error;
-    console.warn(`Retrying... (${retries} left) due to:`, error);
+    console.warn(\`Retrying... (\${retries} left) due to:\`, error);
     await new Promise(res => setTimeout(res, delay));
     return withRetry(fn, retries - 1, delay * 1.5);
   }
@@ -180,13 +181,13 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
   
   if (Capacitor.isNativePlatform()) {
     downloadMap[url] = trackId;
-    const filename = `${trackId}.${ext}`;
+    const filename = \`\${trackId}.\${ext}\`;
     
     try {
       await withRetry(async () => {
          await Filesystem.downloadFile({
            url: url,
-           path: `Downloads/${filename}`,
+           path: \`Downloads/\${filename}\`,
            directory: Directory.Data,
            progress: true
          });
@@ -203,15 +204,15 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
         let coverUrl = coverUrlObj?.large || coverUrlObj?.medium || coverUrlObj?.small || (typeof coverUrlObj === 'string' ? coverUrlObj : null);
         if (coverUrl) {
            if (coverUrl.startsWith('//')) coverUrl = 'https:' + coverUrl;
-           const coverFilename = `${trackId}_cover.jpg`;
+           const coverFilename = \`\${trackId}_cover.jpg\`;
            await withRetry(async () => {
              await Filesystem.downloadFile({
                url: coverUrl,
-               path: `Downloads/${coverFilename}`,
+               path: \`Downloads/\${coverFilename}\`,
                directory: Directory.Data
              });
            }, 3, 2000);
-           localCoverPath = `Downloads/${coverFilename}`;
+           localCoverPath = \`Downloads/\${coverFilename}\`;
         }
       } catch (ce) {
          console.warn("Could not download cover", ce);
@@ -219,7 +220,7 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
 
       const trackWithLocalPath = {
         ...track,
-        localPath: `Downloads/${filename}`,
+        localPath: \`Downloads/\${filename}\`,
         localCoverPath: localCoverPath,
         downloadedAt: Date.now()
       };
@@ -242,17 +243,8 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
     }
   } else {
     // Web mock
-    const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?+%*:_|"<>]/g, '-')}.${ext}`;
+    const filename = \`\${track.track_number?.toString().padStart(2, '0') || '01'} - \${(track.title || 'Track').replace(/[/\\\\?+%*:_|"<>]/g, '-')}.\${ext}\`;
     await downloadFileWeb(url, filename);
-    
-    // Añadimos metadatos también en Web para que aparezca en la pestaña de descargas
-    const trackWithLocalPath = {
-      ...track,
-      localPath: '',
-      downloadedAt: Date.now()
-    };
-    addMetadataToLibrary(trackWithLocalPath);
-    window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId: track.id.toString(), status: 'completed' } }));
   }
 };
 
@@ -269,7 +261,7 @@ export const downloadTrackRouted = async (
       queueManager.enqueue(track, formatId, ext);
       return true;
     } else {
-      console.log(`[Web] Procesando descarga web: ${track.title}`);
+      console.log(\`[Web] Procesando descarga web: \${track.title}\`);
       await processSingleDownload(track, formatId, ext);
       return true;
     }
@@ -279,3 +271,7 @@ export const downloadTrackRouted = async (
     return false;
   }
 };
+`;
+
+fs.writeFileSync('src/lib/DownloadManager.ts', code);
+console.log('done');

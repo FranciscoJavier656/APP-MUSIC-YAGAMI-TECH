@@ -1,6 +1,6 @@
 
 import axios from 'axios';
-axios.defaults.timeout = 15000;
+axios.defaults.timeout = 30000; // Increased base timeout to 30s
 import { Capacitor } from '@capacitor/core';
 import md5 from 'md5';
 

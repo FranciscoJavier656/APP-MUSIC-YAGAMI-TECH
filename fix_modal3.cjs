@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+const fs = require('fs');
+const code = `import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Loader2, Music, AlertCircle } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
@@ -87,7 +88,7 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
             </button>
           </div>
           <p className="text-white/60 text-sm mt-1">
-            {type === 'track' ? item?.title : (type === 'album' ? `Álbum: ${item?.title}` : `Playlist: ${item?.title}`)}
+            {type === 'track' ? item?.title : (type === 'album' ? \`Álbum: \${item?.title}\` : \`Playlist: \${item?.title}\`)}
           </p>
         </div>
 
@@ -98,25 +99,25 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
             <div className="grid grid-cols-2 gap-3">
               <button
                 onClick={() => setFormat('5')}
-                className={`flex flex-col items-center p-4 rounded-2xl border transition-all ${
+                className={\`flex flex-col items-center p-4 rounded-2xl border transition-all \${
                   format === '5' 
                     ? 'bg-blue-500/20 border-blue-500 text-blue-500' 
                     : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                }`}
+                }\`}
               >
                 <span className="font-bold mb-1">MP3</span>
                 <span className="text-xs opacity-60">320 kbps</span>
               </button>
               <button
-                onClick={() => setFormat('27')}
-                className={`flex flex-col items-center p-4 rounded-2xl border transition-all ${
-                  format === '27' 
+                onClick={() => setFormat('6')}
+                className={\`flex flex-col items-center p-4 rounded-2xl border transition-all \${
+                  format === '6' 
                     ? 'bg-blue-500/20 border-blue-500 text-blue-500' 
                     : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
-                }`}
+                }\`}
               >
                 <span className="font-bold mb-1">FLAC</span>
-                <span className="text-xs opacity-60">Hi-Res 24-bit</span>
+                <span className="text-xs opacity-60">Lossless 16-bit</span>
               </button>
             </div>
           </div>
@@ -165,3 +166,6 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
     </div>
   );
 }
+`;
+fs.writeFileSync('src/components/DownloadModal.tsx', code);
+console.log('done');
