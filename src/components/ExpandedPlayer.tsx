@@ -3,7 +3,9 @@ import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListM
 import { usePlayer } from './PlayerContext';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
 import { getImageSrc } from '../lib/image';
+import { OfflineImage } from './OfflineImage';
 
 
 export default function ExpandedPlayer() {
@@ -229,11 +231,36 @@ export default function ExpandedPlayer() {
     };
   }, [audioRef, isExpanded, duration]);
 
+
+  const [resolvedImageSrc, setResolvedImageSrc] = useState<string | undefined>();
+
   useEffect(() => {
-    if (currentTrack?.image) {
+    let mounted = true;
+    const remoteUrl = getImageSrc(currentTrack?.album?.image || currentTrack?.image);
+    const localPath = currentTrack?.localCoverPath || currentTrack?.original?.localCoverPath;
+    
+    if (Capacitor.isNativePlatform() && localPath) {
+      Filesystem.getUri({
+        directory: Directory.Data,
+        path: localPath.replace('file://', '')
+      }).then(res => {
+        if (mounted) setResolvedImageSrc(Capacitor.convertFileSrc(res.uri));
+      }).catch(e => {
+        if (mounted) setResolvedImageSrc(remoteUrl);
+      });
+    } else {
+      setResolvedImageSrc(remoteUrl);
+    }
+    return () => { mounted = false; };
+  }, [currentTrack]);
+
+  useEffect(() => {
+    if (resolvedImageSrc) {
       const img = new Image();
-      img.crossOrigin = 'Anonymous';
-      img.src = getImageSrc(currentTrack.image) || '';
+      if (resolvedImageSrc.startsWith('http')) {
+         img.crossOrigin = 'Anonymous';
+      }
+      img.src = resolvedImageSrc;
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 1;
@@ -249,7 +276,8 @@ export default function ExpandedPlayer() {
     } else {
       setDominantColor(null);
     }
-  }, [currentTrack?.image]);
+  }, [resolvedImageSrc]);
+
 
   useEffect(() => {
     if (currentTrack && showLyrics) {
@@ -379,7 +407,7 @@ export default function ExpandedPlayer() {
           {/* Front (Image) */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-inner" style={{ backfaceVisibility: 'hidden' }}>
             <img
-              src={getImageSrc(currentTrack.image)}
+              src={resolvedImageSrc || getImageSrc(currentTrack?.image)}
               alt={currentTrack.albumTitle}
               className={`w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] ${isPlaying && !showLyrics ? 'scale-105' : 'scale-100'}`}
             />
@@ -578,7 +606,7 @@ export default function ExpandedPlayer() {
               const isPlayingQueue = currentTrack?.id === track.id;
               return (
                 <div key={idx} className={`flex items-center gap-4 p-3 rounded-2xl ${isPlayingQueue ? 'bg-black/5 dark:bg-white/10' : ''}`}>
-                  <img src={getImageSrc(track.image)} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
+                  <OfflineImage localPath={track.localCoverPath || track.original?.localCoverPath} remoteUrl={getImageSrc(track?.album?.image || track?.image)} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
                   <div className="flex-1 min-w-0">
                     <p className={`font-bold truncate ${isPlayingQueue ? 'text-black dark:text-white' : 'text-black/80 dark:text-white/80'}`}>
                       {track.title}

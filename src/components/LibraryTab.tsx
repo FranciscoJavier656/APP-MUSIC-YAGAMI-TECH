@@ -1,5 +1,7 @@
 import OfflineDetailView from './OfflineDetailView';
 import React, { useState, useEffect, useMemo } from 'react';
+import { OfflineImage } from './OfflineImage';
+import { getImageSrc } from '../lib/image';
 import { Capacitor } from '@capacitor/core';
 import { motion } from 'motion/react';
 import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter, ChevronLeft } from 'lucide-react';
@@ -264,11 +266,12 @@ export default function LibraryTab() {
                   <div className="overflow-hidden rounded-2xl backdrop-blur-[15px] bg-white/5 border border-white/5">
                     <div className="flex items-center p-3 gap-3">
                       <div className="relative">
-                        <img 
-                          src={item.image} 
+                        <OfflineImage 
+                          localPath={item.localCoverPath || item.original?.localCoverPath} 
+                          remoteUrl={getImageSrc(item.image) || getImageSrc(item.original?.album?.image || item.original?.image)} 
                           alt="" 
                           className={`w-20 h-20 bg-white/5 ${item.type === 'artist' ? 'rounded-full' : 'rounded-xl'} object-cover`}
-                        onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                        />
                         {/* Type Badge */}
                         <div className="absolute -bottom-1 -right-1 overflow-hidden rounded-xl">
                           <div className="p-1.5 backdrop-blur-md bg-black/50 border border-white/10">

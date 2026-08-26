@@ -312,7 +312,7 @@ export default function DownloadsTab() {
                         {/* Album Art */}
                         <div className="w-20 h-20 bg-white/10 rounded-xl overflow-hidden flex-shrink-0">
                           {item.track?.album?.image?.small || item.track?.image?.small || item.track?.image ? (
-                            <img src={item.track?.album?.image?.small || item.track?.image?.small || item.track?.image} alt="" className="w-full h-full object-cover" />
+                            <OfflineImage localPath={item.track?.localCoverPath} remoteUrl={getImageSrc(item.track?.album?.image || item.track?.image)} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-white/40">
                               <Music className="w-8 h-8" />

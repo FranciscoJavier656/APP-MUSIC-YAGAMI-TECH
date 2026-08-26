@@ -4,6 +4,7 @@ import { Play, Pause, Loader2, SkipForward, SkipBack } from 'lucide-react';
 import ExpandedPlayer from './ExpandedPlayer';
 import { motion, AnimatePresence } from 'motion/react';
 import { getImageSrc } from '../lib/image';
+import { OfflineImage } from './OfflineImage';
 
 
 export default function MiniPlayer() {
@@ -54,7 +55,7 @@ export default function MiniPlayer() {
               {/* Animated ambient background */}
               <div className="absolute inset-0 z-0 pointer-events-none">
                 {currentTrack.image && (
-                  <img src={getImageSrc(currentTrack.image)} alt="" className="absolute inset-0 w-full h-full object-cover blur-[20px] opacity-60 dark:opacity-40 transform scale-125 saturate-150" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                  <OfflineImage localPath={currentTrack.localCoverPath || currentTrack.original?.localCoverPath} remoteUrl={getImageSrc(currentTrack.album?.image || currentTrack.image)} alt="" className="absolute inset-0 w-full h-full object-cover blur-[20px] opacity-60 dark:opacity-40 transform scale-125 saturate-150" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                 )}
                 {/* Material overlay - adapts to light/dark mode */}
                 <div className="absolute inset-0 bg-white/60 dark:bg-black/50 backdrop-blur-2xl" />
@@ -67,7 +68,7 @@ export default function MiniPlayer() {
                 {/* Artwork */}
                 <div className="w-12 h-12 rounded-[12px] overflow-hidden shadow-md flex-shrink-0 relative bg-gray-200 dark:bg-gray-800">
                   {currentTrack.image ? (
-                    <img src={getImageSrc(currentTrack.image)} alt={currentTrack.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
+                    <OfflineImage localPath={currentTrack.localCoverPath || currentTrack.original?.localCoverPath} remoteUrl={getImageSrc(currentTrack.album?.image || currentTrack.image)} alt={currentTrack.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center bg-black/10 dark:bg-white/10 text-gray-500">?</div>
                   )}
