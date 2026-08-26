@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { OfflineImage } from './OfflineImage';
+import { getImageSrc } from '../lib/image';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { motion } from 'motion/react';
@@ -349,7 +351,7 @@ export default function DownloadsTab() {
                               <span className="text-[11px] text-white/50">Descargando...</span>
                             )}
                             {item.status === 'completed' && (
-                              <span className="text-[11px] text-[#1DB954] font-medium uppercase tracking-wider">Completado</span>
+                              <span className="text-[11px] text-[#1DB954] font-medium uppercase tracking-wider">Completado {item.track?.sizeBytes ? `• ${formatBytes(item.track.sizeBytes)}` : ''}</span>
                             )}
                             {item.status === 'error' && (
                               <span className="text-[11px] text-[#FF4444] font-medium truncate">{(item as any).error || 'Error en descarga'}</span>

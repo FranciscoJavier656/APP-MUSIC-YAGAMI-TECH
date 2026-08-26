@@ -217,10 +217,17 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
          console.warn("Could not download cover", ce);
       }
 
+      let sizeBytes = 0;
+      try {
+         const stat = await Filesystem.stat({ directory: Directory.Data, path: `Downloads/${filename}` });
+         sizeBytes = stat.size;
+      } catch(e) {}
+
       const trackWithLocalPath = {
         ...track,
         localPath: `Downloads/${filename}`,
         localCoverPath: localCoverPath,
+        sizeBytes: sizeBytes,
         downloadedAt: Date.now()
       };
       

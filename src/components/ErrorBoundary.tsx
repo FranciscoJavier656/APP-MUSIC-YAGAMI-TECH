@@ -7,15 +7,17 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  errorMsg?: string;
 }
 
 export class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
-    hasError: false
+    hasError: false,
+    errorMsg: undefined
   };
 
   public static getDerivedStateFromError(_: Error): State {
-    return { hasError: true };
+    return { hasError: true, errorMsg: _?.message || String(_) };
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
@@ -30,6 +32,7 @@ export class ErrorBoundary extends React.Component<Props, State> {
             <AlertTriangle className="text-red-500" size={32} />
           </div>
           <h2 className="text-lg font-semibold mb-2">Algo salió mal</h2>
+          <p className="text-xs text-red-400 mb-2 font-mono">{this.state.errorMsg}</p>
           <p className="text-gray-500 dark:text-gray-400 text-sm mb-6 max-w-xs">
             Hubo un error al cargar esta sección. Por favor, intenta de nuevo.
           </p>

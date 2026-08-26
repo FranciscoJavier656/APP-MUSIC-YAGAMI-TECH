@@ -236,7 +236,7 @@ export default function ExpandedPlayer() {
 
   useEffect(() => {
     let mounted = true;
-    const remoteUrl = getImageSrc(currentTrack?.album?.image || currentTrack?.image);
+    const remoteUrl = getImageSrc(currentTrack?.album?.image || currentTrack?.image || currentTrack?.original?.album?.image || currentTrack?.original?.image);
     const localPath = currentTrack?.localCoverPath || currentTrack?.original?.localCoverPath;
     
     if (Capacitor.isNativePlatform() && localPath) {
@@ -407,7 +407,7 @@ export default function ExpandedPlayer() {
           {/* Front (Image) */}
           <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-inner" style={{ backfaceVisibility: 'hidden' }}>
             <img
-              src={resolvedImageSrc || getImageSrc(currentTrack?.image)}
+              src={resolvedImageSrc || getImageSrc(currentTrack?.album?.image || currentTrack?.image || currentTrack?.original?.album?.image || currentTrack?.original?.image)}
               alt={currentTrack.albumTitle}
               className={`w-full h-full object-cover transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] ${isPlaying && !showLyrics ? 'scale-105' : 'scale-100'}`}
             />
