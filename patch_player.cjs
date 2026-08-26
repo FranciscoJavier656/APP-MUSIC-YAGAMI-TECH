@@ -1,25 +1,35 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/components/PlayerContext.tsx', 'utf8');
 
-const target = `    try {
-      let streamUrl = "";
-      if (track.local_path && Capacitor.isNativePlatform()) {
-        streamUrl = track.local_path.startsWith('file://') ? track.local_path : \`file://\${track.local_path}\`;
-      } else {
-        streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
-      }`;
+code = code.replace(
+  /export interface Track \{\n\s*local_path\?: string;\n\s*streamUrl\?: string;\n\s*id: string;\n\s*title: string;\n\s*artist: string;\n\s*image: string;/g,
+  `export interface Track {
+  localPath?: string;
+  original?: any;
+  local_path?: string;
+  streamUrl?: string;
+  id: string;
+  title: string;
+  artist: string;
+  image: any;`
+);
 
-const replacement = `    try {
-      let streamUrl = track.streamUrl || "";
-      if (!streamUrl && track.local_path && Capacitor.isNativePlatform()) {
-        streamUrl = track.local_path.startsWith('file://') ? track.local_path : \`file://\${track.local_path}\`;
-      } else if (!streamUrl) {
-        streamUrl = await getQobuzTrackUrl(track.id.toString(), "5");
-      }`;
+const playTrackTarget = `  const playTrack = async (track: Track, newQueue?: Track[]) => {
+    const requestId = ++playRequestRef.current;
+    setCurrentTrack(track);`;
 
-if (code.includes(target)) {
-  fs.writeFileSync('src/components/PlayerContext.tsx', code.replace(target, replacement));
-  console.log("Patched PlayerContext.tsx");
-} else {
-  console.log("Target not found in PlayerContext.tsx");
-}
+const playTrackReplacement = `  const playTrack = async (rawTrack: any, newQueue?: Track[]) => {
+    let track = { ...rawTrack } as Track;
+    if (!track.image) {
+       track.image = rawTrack.album?.image || rawTrack.original?.album?.image || rawTrack.original?.image || "";
+    }
+    if (!track.artist || typeof track.artist !== 'string') {
+       track.artist = rawTrack.artist?.name || rawTrack.performer?.name || rawTrack.original?.artist?.name || rawTrack.subtitle || "Unknown Artist";
+    }
+    const requestId = ++playRequestRef.current;
+    setCurrentTrack(track);`;
+
+code = code.replace(playTrackTarget, playTrackReplacement);
+
+fs.writeFileSync('src/components/PlayerContext.tsx', code);
+console.log("Patched PlayerContext.tsx");

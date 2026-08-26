@@ -223,7 +223,7 @@ export default function ExpandedPlayer() {
     if (currentTrack?.image) {
       const img = new Image();
       img.crossOrigin = 'Anonymous';
-      img.src = currentTrack.image;
+      img.src = getImageSrc(currentTrack.image) || '';
       img.onload = () => {
         const canvas = document.createElement('canvas');
         canvas.width = 1;

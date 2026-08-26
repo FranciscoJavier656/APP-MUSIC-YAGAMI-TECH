@@ -16,12 +16,14 @@ import TrackContextMenu from './TrackContextMenu';
 import DownloadModal from './DownloadModal';
 
 export interface Track {
+  localPath?: string;
+  original?: any;
   local_path?: string;
   streamUrl?: string;
   id: string;
   title: string;
   artist: string;
-  image: string;
+  image: any;
   hires?: boolean;
   duration?: number;
   bitDepth?: number;
