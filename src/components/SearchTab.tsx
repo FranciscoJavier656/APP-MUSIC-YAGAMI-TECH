@@ -105,7 +105,7 @@ export default function SearchTab() {
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col min-h-full pb-24 overflow-y-auto">
+      <div className="flex flex-col h-full pb-[180px] overflow-y-auto">
         {/* Header and Search Bar */}
         <header className="sticky top-0 z-40 bg-[#F2F2F7]/90 dark:bg-[#000000]/90 backdrop-blur-2xl px-5 pt-14 pb-4 border-b border-black/5 dark:border-white/5">
           {!isFocused && !query && (

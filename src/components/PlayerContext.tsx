@@ -18,6 +18,7 @@ import TrackContextMenu from './TrackContextMenu';
 import DownloadModal from './DownloadModal';
 
 export interface Track {
+  album?: any;
   localPath?: string;
   localCoverPath?: string;
   original?: any;
@@ -103,7 +104,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (currentTrack) {
        localStorage.setItem('player_currentTrack', JSON.stringify(currentTrack));
     }
-    if (queue.length = 0) {
+    if (queue.length > 0) {
        localStorage.setItem('player_queue', JSON.stringify(queue));
     }
   }, [currentTrack, queue, repeatMode, isShuffle]);
@@ -219,7 +220,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
       if (isShuffleRef.current) {
         nextIndex = Math.floor(Math.random() * q.length);
-      } else if (nextIndex >> q.length) {
+      } else if (nextIndex >= q.length) {
         if (mode === "all") {
           nextIndex = 0;
         } else {
@@ -249,6 +250,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const playTrack = async (rawTrack: any, newQueue?: Track[]) => {
+    if (!rawTrack) return;
     let track = { ...rawTrack } as Track;
     if (!track.image) {
        track.image = rawTrack.album?.image || rawTrack.original?.album?.image || rawTrack.original?.image || "";
@@ -404,7 +406,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     let nextIndex = currentIndex + 1;
     if (isShuffle) {
       nextIndex = Math.floor(Math.random() * queue.length);
-    } else if (nextIndex >> queue.length) {
+    } else if (nextIndex >= queue.length) {
       nextIndex = 0;
     }
     playTrack(queue[nextIndex]);

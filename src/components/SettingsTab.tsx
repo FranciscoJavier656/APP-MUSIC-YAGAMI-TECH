@@ -7,13 +7,13 @@ interface SettingsTabProps {
 
 export default function SettingsTab({ isDarkMode, setIsDarkMode }: SettingsTabProps) {
   return (
-    <div className="flex flex-col min-h-full">
+    <div className="flex flex-col h-full w-full bg-[#F2F2F7] dark:bg-[#000000]">
       {/* iOS style sticky header with blur */}
       <header className="sticky top-0 z-40 bg-[#F2F2F7]/80 dark:bg-[#000000]/80 backdrop-blur-xl px-8 pt-12 pb-4">
         <h1 className="text-4xl font-bold tracking-tight text-black dark:text-white">Ajustes</h1>
       </header>
 
-      <div className="flex-1 px-8 pb-8 overflow-y-auto space-y-8">
+      <div className="flex-1 px-8 pb-[180px] overflow-y-auto space-y-8">
         
         <section>
           <h2 className="text-sm font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 ml-2">Apariencia</h2>

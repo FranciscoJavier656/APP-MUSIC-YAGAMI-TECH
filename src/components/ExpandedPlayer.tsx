@@ -10,7 +10,7 @@ import { OfflineImage } from './OfflineImage';
 
 export default function ExpandedPlayer() {
   const { 
-    currentTrack, isPlaying, togglePlay, 
+    currentTrack, isPlaying, togglePlay, playTrack, 
     duration, isExpanded, setIsExpanded,
     seekTo, nextTrack, prevTrack,
     isShuffle, toggleShuffle, repeatMode, toggleRepeat,
@@ -605,7 +605,7 @@ export default function ExpandedPlayer() {
             {queue.map((track, idx) => {
               const isPlayingQueue = currentTrack?.id === track.id;
               return (
-                <div key={idx} className={`flex items-center gap-4 p-3 rounded-2xl ${isPlayingQueue ? 'bg-black/5 dark:bg-white/10' : ''}`}>
+                <div key={idx} onClick={() => playTrack(track)} className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer hover:bg-black/5 dark:hover:bg-white/10 transition-colors ${isPlayingQueue ? 'bg-black/5 dark:bg-white/10' : ''}`}>
                   <OfflineImage localPath={track.localCoverPath || track.original?.localCoverPath} remoteUrl={getImageSrc(track?.album?.image || track?.image)} alt={track.title} className="w-14 h-14 rounded-xl object-cover shadow-sm" />
                   <div className="flex-1 min-w-0">
                     <p className={`font-bold truncate ${isPlayingQueue ? 'text-black dark:text-white' : 'text-black/80 dark:text-white/80'}`}>

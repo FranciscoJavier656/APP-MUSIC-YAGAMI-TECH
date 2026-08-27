@@ -205,7 +205,7 @@ export default function DownloadsTab() {
   );
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-black pb-24">
+    <div className="h-full w-full overflow-y-auto bg-black pb-[180px]">
       <div className="fixed inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black pointer-events-none" />
       
       <div className="relative pt-[10px] flex flex-col min-h-full">
@@ -293,7 +293,7 @@ export default function DownloadsTab() {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="px-4 pb-24 space-y-3"
+              className="px-4 pb-[180px] space-y-3"
             >
               {filteredDownloads.map((item, idx) => {
                 const StatusIcon = getStatusIcon(item.status);

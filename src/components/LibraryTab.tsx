@@ -180,7 +180,7 @@ export default function LibraryTab() {
   };
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-black pb-24">
+    <div className="h-full w-full overflow-y-auto bg-black pb-[180px]">
       {/* Background Gradient */}
       <div className="fixed inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black pointer-events-none" />
       
@@ -260,7 +260,7 @@ export default function LibraryTab() {
           {(selectedAlbum || selectedArtist) ? renderDrillDown() : items.length === 0 ? (
             renderEmptyState()
           ) : (
-            <div className="px-4 pb-24 space-y-3">
+            <div className="px-4 pb-[180px] space-y-3">
               {items.map((item, idx) => (
                 <div key={item.id || idx} className="mb-3">
                   <div className="overflow-hidden rounded-2xl backdrop-blur-[15px] bg-white/5 border border-white/5">

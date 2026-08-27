@@ -85,7 +85,7 @@ export default function App() {
           )}
         </AnimatePresence>
         <ErrorBoundary>
-        <main className="flex-1 overflow-y-auto pb-[88px] relative">
+        <main className="flex-1 relative overflow-hidden">
           <div className={activeTab === 'home' ? 'block h-full' : 'hidden'}>
             <HomeTab />
           </div>
@@ -107,58 +107,49 @@ export default function App() {
         {/* Mini Player */}
         <MiniPlayer />
 
-        {/* iOS Style Bottom Tab Bar */}
-        <nav className="absolute bottom-0 w-full h-[88px] bg-[#F9F9F9]/95 dark:bg-[#1C1C1E]/95 backdrop-blur-md border-t border-gray-300 dark:border-gray-800 flex justify-around items-start pt-3 z-50 transition-colors duration-300">
-          <div className="flex justify-around items-start w-full max-w-md mx-auto px-4">
-            <button
-              onClick={() => setActiveTab('home')}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === 'home' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <Home size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium uppercase tracking-tighter">Inicio</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('search')}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === 'search' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <Search size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium uppercase tracking-tighter">Buscar</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('library')}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === 'library' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <Library size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium uppercase tracking-tighter">Librería</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab('downloads')}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === 'downloads' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <Download size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium uppercase tracking-tighter">Descargas</span>
-            </button>
-            
-            <button
-              onClick={() => setActiveTab('settings')}
-              className={`flex flex-col items-center gap-1 transition-colors ${
-                activeTab === 'settings' ? 'text-[#007AFF]' : 'text-gray-400 dark:text-gray-500'
-              }`}
-            >
-              <SettingsIcon size={24} strokeWidth={2} />
-              <span className="text-[10px] font-medium uppercase tracking-tighter">Ajustes</span>
-            </button>
+        {/* Docked Modern Tab Bar with Pills */}
+        <nav className="absolute bottom-0 left-0 w-full h-[72px] bg-[#F2F2F7]/95 dark:bg-[#000000]/95 backdrop-blur-3xl border-t border-black/5 dark:border-white/10 flex justify-center z-50 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-between w-full max-w-[450px] px-3 h-full">
+            {[
+              { id: 'home', icon: Home, label: 'Inicio' },
+              { id: 'search', icon: Search, label: 'Buscar' },
+              { id: 'library', icon: Library, label: 'Librería' },
+              { id: 'downloads', icon: Download, label: 'Descargas' },
+              { id: 'settings', icon: SettingsIcon, label: 'Ajustes' },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-full transition-all duration-300 ease-out ${
+                    isActive 
+                      ? 'text-white' 
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-tab-indicator"
+                      className="absolute inset-0 bg-[#007AFF] rounded-full z-0 shadow-md"
+                      transition={{ type: "spring", stiffness: 350, damping: 30 }}
+                    />
+                  )}
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className="relative z-10" />
+                  {isActive && (
+                    <motion.span 
+                      initial={{ opacity: 0, width: 0 }}
+                      animate={{ opacity: 1, width: 'auto' }}
+                      exit={{ opacity: 0, width: 0 }}
+                      className="relative z-10 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap overflow-hidden"
+                    >
+                      {tab.label}
+                    </motion.span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </nav>
       </div>
