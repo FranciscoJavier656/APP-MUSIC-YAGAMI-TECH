@@ -372,10 +372,15 @@ export default function DownloadsTab() {
                           {item.status === 'completed' && (
                             <button 
                               onClick={() => {
-                                playTrack({ 
+                                const trackToPlay = { 
                                   ...item.track, 
                                   localPath: item.track.localPath 
-                                });
+                                };
+                                const queueToPlay = downloads.filter((d: any) => d.status === 'completed' && d.track).map((d: any) => ({
+                                  ...d.track,
+                                  localPath: d.track.localPath
+                                }));
+                                playTrack(trackToPlay, queueToPlay);
                               }}
                               className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#1DB954] group transition-colors"
                             >

@@ -1,48 +1,11 @@
-import React, { useRef } from 'react';
-import { ChevronLeft, Play, MoreHorizontal } from 'lucide-react';
-import { motion, useScroll, useTransform } from 'motion/react';
-import { usePlayer } from './PlayerContext';
-import { getImageSrc } from '../lib/image';
+const fs = require('fs');
+let code = fs.readFileSync('src/components/OfflineDetailView.tsx', 'utf8');
 
-interface OfflineDetailProps {
-  item: any;
-  tracks: any[];
-  onBack: () => void;
-  type: 'album' | 'artist';
-}
+const splitToken = `  const heroImage = typeof item.image === 'string' ? item.image : (item.image?.large || item.image?.small || '');`;
+const parts = code.split(splitToken);
 
-export default function OfflineDetailView({ item, tracks, onBack, type }: OfflineDetailProps) {
-  const { playTrack, currentTrack, isPlaying } = usePlayer();
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { scrollY } = useScroll({ container: containerRef });
-
-  const headerOpacity = useTransform(scrollY, [100, 250], [0, 1]);
-  const titleOpacity = useTransform(scrollY, [200, 300], [0, 1]);
-  const imageScale = useTransform(scrollY, [0, 300], [1, 0.8]);
-  const imageOpacity = useTransform(scrollY, [0, 250], [1, 0.2]);
-
-  const handlePlay = (trackItem: any) => {
-    if (!trackItem) return;
-    const queue = tracks.map(t => {
-      const orig = t.original || t;
-      const artistName = orig.artist?.name || orig.performer?.name || t.subtitle || 'Unknown Artist';
-      const albumImg = typeof orig.album?.image === 'string' ? orig.album.image : (orig.album?.image?.large || orig.album?.image?.small || t.image);
-      return {
-        id: orig.id ? orig.id.toString() : t.id,
-        title: orig.title || t.title,
-        artist: artistName,
-        image: albumImg,
-        hires: orig.hires || orig.maximum_bit_depth > 16 || false,
-        duration: orig.duration || 0,
-        localPath: orig.localPath || t.localPath
-      };
-    });
-    
-    const trackToPlay = queue.find(q => q.id === (trackItem.original?.id?.toString() || trackItem.id)) || queue[0];
-    playTrack(trackToPlay, queue);
-  };
-
-  const heroImage = typeof item.image === 'string' ? item.image : (item.image?.large || item.image?.small || '');
+if (parts.length === 2) {
+  const newBottom = `  const heroImage = typeof item.image === 'string' ? item.image : (item.image?.large || item.image?.small || '');
   return (
     <div ref={containerRef} className="h-full w-full overflow-y-auto bg-[#F2F2F7] dark:bg-[#000000] relative pb-[180px]">
       <div className="absolute top-0 left-0 w-full h-[500px] overflow-hidden -z-10 pointer-events-none">
@@ -63,7 +26,7 @@ export default function OfflineDetailView({ item, tracks, onBack, type }: Offlin
 
       <div className="px-5 md:px-8 pt-4">
         <div className="flex flex-col items-center text-center mt-2 md:mt-8 mb-8">
-          <motion.div style={{ scale: imageScale, opacity: imageOpacity }} className={`w-56 md:w-72 aspect-square relative ${type === 'artist' ? 'rounded-full' : 'rounded-3xl'} overflow-hidden shadow-2xl mb-6`}>
+          <motion.div style={{ scale: imageScale, opacity: imageOpacity }} className={\`w-56 md:w-72 aspect-square relative \${type === 'artist' ? 'rounded-full' : 'rounded-3xl'} overflow-hidden shadow-2xl mb-6\`}>
             <img src={heroImage} alt={item.title} className="w-full h-full object-cover" />
           </motion.div>
           <h1 className="text-3xl md:text-5xl font-black tracking-tighter text-black dark:text-white leading-tight mb-2 max-w-[90%]">{item.title}</h1>
@@ -99,7 +62,7 @@ export default function OfflineDetailView({ item, tracks, onBack, type }: Offlin
                     <img src={getImageSrc(track.image)} alt="" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className={`font-bold text-[15px] leading-snug truncate ${isCurrent ? 'text-[#007AFF]' : 'text-black dark:text-white'}`}>{track.title}</p>
+                    <p className={\`font-bold text-[15px] leading-snug truncate \${isCurrent ? 'text-[#007AFF]' : 'text-black dark:text-white'}\`}>{track.title}</p>
                     <p className="text-gray-500 text-[13px] font-medium truncate mt-0.5">{track.subtitle || 'Unknown'}</p>
                   </div>
                 </div>
@@ -110,4 +73,10 @@ export default function OfflineDetailView({ item, tracks, onBack, type }: Offlin
       </div>
     </div>
   );
+}
+`;
+  fs.writeFileSync('src/components/OfflineDetailView.tsx', parts[0] + newBottom);
+  console.log("Rewrote OfflineDetailView");
+} else {
+  console.log("Could not split OfflineDetailView");
 }

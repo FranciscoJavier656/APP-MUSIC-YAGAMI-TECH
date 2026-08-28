@@ -17,7 +17,7 @@ export default function ExpandedPlayer() {
     audioRef, queue, setContextMenuTrack, setDownloadItem
   } = usePlayer();
 
-  const [isScrubbing, _setIsScrubbing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
   const isScrubbingRef = useRef(false);
   const isPlayingRef = useRef(isPlaying);
   useEffect(() => {
@@ -26,7 +26,24 @@ export default function ExpandedPlayer() {
 
   const setIsScrubbing = (val: boolean) => {
     isScrubbingRef.current = val;
-    _setIsScrubbing(val);
+    if (!containerRef.current) return;
+    
+    // Direct DOM manipulation to avoid React re-renders breaking native iOS range sliders
+    const trackBg = containerRef.current.querySelector('.track-bg');
+    const trackFill = containerRef.current.querySelector('.track-fill');
+    const thumb = containerRef.current.querySelector('.track-thumb');
+    
+    if (val) {
+        trackBg?.classList.replace('h-1.5', 'h-2.5');
+        trackFill?.classList.remove('transition-all', 'duration-100');
+        thumb?.classList.remove('scale-0', 'group-hover:scale-100');
+        thumb?.classList.add('scale-150');
+    } else {
+        trackBg?.classList.replace('h-2.5', 'h-1.5');
+        trackFill?.classList.add('transition-all', 'duration-100');
+        thumb?.classList.remove('scale-150');
+        thumb?.classList.add('scale-0', 'group-hover:scale-100');
+    }
   };
 
   const progressRef = useRef<HTMLDivElement>(null);
@@ -263,13 +280,60 @@ export default function ExpandedPlayer() {
       img.src = resolvedImageSrc;
       img.onload = () => {
         const canvas = document.createElement('canvas');
-        canvas.width = 1;
-        canvas.height = 1;
+        const sampleSize = 32; // Extract from a 32x32 grid
+        canvas.width = sampleSize;
+        canvas.height = sampleSize;
         const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, 1, 1);
-          const [r, g, b] = ctx.getImageData(0, 0, 1, 1).data;
-          setDominantColor(`rgb(${r}, ${g}, ${b})`);
+        if (!ctx) return;
+        
+        ctx.drawImage(img, 0, 0, sampleSize, sampleSize);
+        const data = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
+        
+        let bestColor = null;
+        let maxScore = -1;
+        let avgR = 0, avgG = 0, avgB = 0;
+        
+        for (let i = 0; i < data.length; i += 4) {
+           const r = data[i], g = data[i+1], b = data[i+2];
+           avgR += r; avgG += g; avgB += b;
+           
+           const luma = 0.299 * r + 0.587 * g + 0.114 * b;
+           const max = Math.max(r, g, b);
+           const min = Math.min(r, g, b);
+           const saturation = max === 0 ? 0 : (max - min) / max;
+           
+           // Ignore colors that are too dark (black) or too bright (white)
+           if (luma > 30 && luma < 225) {
+               // Prioritize vibrant colors (high saturation) that aren't too dark
+               const score = (saturation * 200) + (luma < 128 ? luma : 255 - luma);
+               if (score > maxScore) {
+                   maxScore = score;
+                   bestColor = [r, g, b];
+               }
+           }
+        }
+        
+        const count = data.length / 4;
+        avgR = Math.floor(avgR / count);
+        avgG = Math.floor(avgG / count);
+        avgB = Math.floor(avgB / count);
+        
+        if (bestColor) {
+           setDominantColor(`rgb(${bestColor[0]}, ${bestColor[1]}, ${bestColor[2]})`);
+        } else {
+           // If no vibrant/good color found (e.g. image is completely black/white)
+           // Ensure it has a minimum lightness so it doesn't disappear in dark backgrounds
+           const luma = 0.299 * avgR + 0.587 * avgG + 0.114 * avgB;
+           if (luma < 50) {
+               avgR = Math.max(avgR, 120); 
+               avgG = Math.max(avgG, 120); 
+               avgB = Math.max(avgB, 120);
+           } else if (luma > 220) {
+               avgR = Math.min(avgR, 150); 
+               avgG = Math.min(avgG, 150); 
+               avgB = Math.min(avgB, 150);
+           }
+           setDominantColor(`rgb(${avgR}, ${avgG}, ${avgB})`);
         }
       };
       img.onerror = () => setDominantColor(null);
@@ -466,13 +530,38 @@ export default function ExpandedPlayer() {
 
       {/* Track Info & Controls */}
       <div className="mt-2 mb-8 relative z-10">
-        <div className="flex justify-between items-end mb-6">
-          <div className="overflow-hidden pr-4">
+        <div className="flex items-center justify-between mb-6">
+          {/* Left: Title, Artist and Badge */}
+          <div className="overflow-hidden pr-4 flex-1">
             <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white truncate tracking-tight">{currentTrack.title}</h2>
-            <p className="text-lg text-black/60 dark:text-white/60 truncate mt-1">{currentTrack.artist}</p>
+            <div className="flex items-center gap-3 mt-1.5">
+              <p className="text-lg text-black/60 dark:text-white/60 truncate">{currentTrack.artist}</p>
+              
+              <div className="relative flex-shrink-0">
+                <button 
+                  onClick={() => setShowMetadata(!showMetadata)}
+                  className="px-2 py-0.5 bg-black/5 dark:bg-white/10 rounded-sm text-[9px] font-bold tracking-widest text-black/80 dark:text-white/80 border border-black/10 dark:border-white/10 uppercase hover:bg-black/10 dark:hover:bg-white/20 transition-colors flex items-center"
+                >
+                  Lossless
+                </button>
+                {showMetadata && (
+                  <div className="absolute bottom-full left-0 mb-3 p-4 bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-black/5 dark:border-white/5 w-56 text-left z-50">
+                     <h4 className="font-bold text-sm mb-3 text-black dark:text-white flex items-center gap-2">
+                       <Info className="w-4 h-4" /> Calidad
+                     </h4>
+                     <div className="space-y-2 text-xs text-black/70 dark:text-white/70">
+                       <p className="flex justify-between"><span>Formato:</span> <span className="font-mono font-medium">FLAC</span></p>
+                       <p className="flex justify-between"><span>Frecuencia:</span> <span className="font-mono font-medium">44.1 kHz</span></p>
+                       <p className="flex justify-between"><span>Prof:</span> <span className="font-mono font-medium">16-Bit</span></p>
+                     </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           
-          <div className="flex items-center gap-3 relative">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             <button 
               onClick={(e) => { e.stopPropagation(); setDownloadItem({item: currentTrack, type: 'track'}); }}
               className="w-10 h-10 flex-shrink-0 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
@@ -486,55 +575,35 @@ export default function ExpandedPlayer() {
               <MoreHorizontal className="w-5 h-5" />
             </button>
           </div>
-            
-          <div className="flex-shrink-0 flex flex-col items-end gap-2 relative">
-            <button 
-              onClick={() => setShowMetadata(!showMetadata)}
-              className="px-2.5 py-1 bg-black/5 dark:bg-white/10 rounded-md text-[10px] font-bold tracking-widest text-black/80 dark:text-white/80 border border-black/10 dark:border-white/10 uppercase hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
-            >
-              Lossless
-            </button>
-            <span className="text-[10px] font-medium tracking-wide text-black/40 dark:text-white/40 uppercase">
-              FLAC • 16-Bit / 44.1 kHz
-            </span>
-            
-            {showMetadata && (
-              <div className="absolute bottom-full right-0 mb-4 p-4 bg-white/95 dark:bg-[#1a1a1a]/95 backdrop-blur-xl shadow-2xl rounded-2xl border border-black/5 dark:border-white/5 w-64 text-left z-50">
-                 <h4 className="font-bold text-sm mb-3 text-black dark:text-white flex items-center gap-2">
-                   <Info className="w-4 h-4" /> Calidad de Audio
-                 </h4>
-                 <div className="space-y-2 text-xs text-black/70 dark:text-white/70">
-                   <p className="flex justify-between"><span>Formato:</span> <span className="font-mono font-medium">FLAC</span></p>
-                   <p className="flex justify-between"><span>Frecuencia:</span> <span className="font-mono font-medium">44.1 kHz</span></p>
-                   <p className="flex justify-between"><span>Profundidad:</span> <span className="font-mono font-medium">16-Bit</span></p>
-                   <p className="flex justify-between"><span>Bitrate:</span> <span className="font-mono font-medium">1032 kbps</span></p>
-                 </div>
-              </div>
-            )}
-          </div>
         </div>
 
         {/* Progress */}
-        <div className="mb-8 relative group">
+        <div ref={containerRef} className="mb-8 relative group cursor-pointer">
           <input
             type="range"
             min="0"
             max="100"
+            step="0.01"
             defaultValue="0"
             ref={seekInputRef}
             onChange={handleSeekChange}
-            onMouseUp={handleSeekCommit}
-            onTouchEnd={handleSeekCommit}
-            onTouchStart={(e) => e.stopPropagation()}
-            onTouchMove={(e) => e.stopPropagation()}
-            className="absolute top-1/2 -translate-y-1/2 w-full h-8 z-10 opacity-0 cursor-pointer touch-none"
+            onMouseDown={() => setIsScrubbing(true)}
+            onMouseUp={(e) => handleSeekCommit(e)}
+            onTouchStart={() => setIsScrubbing(true)}
+            onTouchEnd={(e) => handleSeekCommit(e)}
+            onTouchCancel={(e) => handleSeekCommit(e)}
+            className="scrubber-input absolute top-1/2 -translate-y-1/2 w-full h-10 z-20 opacity-0 cursor-pointer"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           />
-          <div className="h-1.5 bg-black/10 dark:bg-white/10 rounded-full overflow-hidden pointer-events-none">
+          <div className="track-bg relative flex items-center bg-black/10 dark:bg-white/10 rounded-full pointer-events-none transition-all duration-300 ease-out h-1.5">
             <div
               ref={progressRef}
-              className="h-full relative transition-all duration-100"
+              className="track-fill absolute top-0 left-0 h-full rounded-full pointer-events-none transition-all duration-100"
               style={{ width: '0%', backgroundColor: dominantColor || 'rgba(120, 120, 120, 0.8)' }}
             >
+              <div 
+                className="track-thumb absolute top-1/2 -translate-y-1/2 -right-1.5 w-3 h-3 bg-white rounded-full shadow-[0_2px_4px_rgba(0,0,0,0.3)] transition-transform duration-300 ease-out scale-0 group-hover:scale-100"
+              />
             </div>
           </div>
           <div className="flex justify-between mt-3 text-[12px] font-semibold text-black/50 dark:text-white/50 tabular-nums tracking-wide">

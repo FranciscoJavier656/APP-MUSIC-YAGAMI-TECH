@@ -1,5 +1,7 @@
-@import "tailwindcss";
+const fs = require('fs');
+let code = fs.readFileSync('src/index.css', 'utf8');
 
+const cssToAdd = `
 .scrubber-input {
   -webkit-appearance: none;
   appearance: none;
@@ -22,4 +24,10 @@
   background: transparent;
   cursor: pointer;
   border: none;
+}
+`;
+
+if (!code.includes('.scrubber-input')) {
+  fs.writeFileSync('src/index.css', code + cssToAdd);
+  console.log("CSS fixed");
 }

@@ -1,5 +1,5 @@
-export function getImageSrc(imageObj: any): string | undefined {
-  if (!imageObj) return undefined;
+export function getImageSrc(imageObj: any): string {
+  if (!imageObj) return "";
   
   let url: string | undefined;
 
@@ -17,5 +17,5 @@ export function getImageSrc(imageObj: any): string | undefined {
     return 'https:' + url;
   }
   
-  return url;
+  return url || "";
 }

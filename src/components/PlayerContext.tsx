@@ -93,6 +93,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     ((track: Track, newQueue?: Track[]) => void) | null
   >(null);
   const playRequestRef = useRef(0);
+  const trackInitializedRef = useRef(false);
 
   // Keep refs in sync for event listeners
   useEffect(() => {
@@ -361,6 +362,11 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const togglePlay = () => {
     if (!audioRef.current || !currentTrack) return;
+
+    if (!trackInitializedRef.current) {
+        playTrack(currentTrack);
+        return;
+    }
 
     if (isPlaying) {
       if (Capacitor.isNativePlatform()) {

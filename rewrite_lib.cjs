@@ -1,160 +1,11 @@
-import OfflineDetailView from './OfflineDetailView';
-import React, { useState, useEffect, useMemo } from 'react';
-import { OfflineImage } from './OfflineImage';
-import { getImageSrc } from '../lib/image';
-import { Capacitor } from '@capacitor/core';
-import { motion } from 'motion/react';
-import { Music, Play, Disc, Trash2, Heart, ListMusic, User, Search, Filter, ChevronLeft } from 'lucide-react';
-import { usePlayer } from './PlayerContext';
+const fs = require('fs');
+let code = fs.readFileSync('src/components/LibraryTab.tsx', 'utf8');
 
-export default function LibraryTab() {
-  const [offlineTracks, setOfflineTracks] = useState<any[]>([]);
-  const [offlineAlbums, setOfflineAlbums] = useState<any[]>([]);
-  const [offlineArtists, setOfflineArtists] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'playlists' | 'albums' | 'artists' | 'favorites'>('favorites');
-  const [favoriteFilter, setFavoriteFilter] = useState<'all' | 'local'>('local');
-  const [selectedAlbum, setSelectedAlbum] = useState<any>(null);
-  const [selectedArtist, setSelectedArtist] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  
-  const { playTrack } = usePlayer();
+const splitToken = '  const renderEmptyState = () => {';
+const parts = code.split(splitToken);
 
-  const loadOfflineLibrary = () => {
-    try {
-      // Tracks (favorites)
-      const tracksStr = localStorage.getItem('offline_library_tracks');
-      if (tracksStr) {
-        const tracksObj = JSON.parse(tracksStr);
-        const tracks = Object.values(tracksObj).sort((a: any, b: any) => {
-          return (b.downloadedAt || 0) - (a.downloadedAt || 0);
-        });
-        setOfflineTracks(tracks);
-      } else {
-        // Fallback backward compatibility
-        const oldStr = localStorage.getItem('offline_tracks');
-        if (oldStr) {
-           const oldObj = JSON.parse(oldStr);
-           setOfflineTracks(Object.values(oldObj));
-        } else {
-           setOfflineTracks([]);
-        }
-      }
-
-      // Albums
-      const albumsStr = localStorage.getItem('offline_library_albums');
-      if (albumsStr) {
-        setOfflineAlbums(Object.values(JSON.parse(albumsStr)));
-      } else {
-        setOfflineAlbums([]);
-      }
-
-      // Artists
-      const artistsStr = localStorage.getItem('offline_library_artists');
-      if (artistsStr) {
-        setOfflineArtists(Object.values(JSON.parse(artistsStr)));
-      } else {
-        setOfflineArtists([]);
-      }
-
-    } catch (e) {
-      console.error("Error loading offline library:", e);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadOfflineLibrary();
-    const handleUpdate = () => loadOfflineLibrary();
-    window.addEventListener('offline-library-updated', handleUpdate);
-    return () => window.removeEventListener('offline-library-updated', handleUpdate);
-  }, []);
-
-  const tabs = [
-    { id: 'playlists', title: 'Playlists', icon: ListMusic },
-    { id: 'albums', title: 'Álbumes', icon: Disc },
-    { id: 'artists', title: 'Artistas', icon: User },
-    { id: 'favorites', title: 'Favoritos', icon: Heart }
-  ];
-
-  // Process data for the views
-  const items = useMemo(() => {
-    if (activeTab === 'favorites') {
-      return offlineTracks.map(track => {
-        if (track.type === 'track') return track; // Ya viene formateado
-        // Fallback viejo formato
-        return {
-          id: track.id,
-          title: track.title,
-          subtitle: track.artist?.name || track.performer?.name,
-          image: track.album?.image?.small || track.image?.small || track.image,
-          type: 'track',
-          original: track
-        };
-      });
-    }
-    if (activeTab === 'albums') {
-      return offlineAlbums;
-    }
-    if (activeTab === 'artists') {
-      return offlineArtists;
-    }
-    return [];
-  }, [offlineTracks, offlineAlbums, offlineArtists, activeTab]);
-
-  const handleFilterToggle = () => {
-    setFavoriteFilter(prev => prev === 'all' ? 'local' : 'all');
-  };
-
-  const removeTrack = (trackId: string) => {
-     if(window.confirm("¿Estás seguro de eliminar este elemento?")) {
-        try {
-           const tracksStr = localStorage.getItem('offline_tracks');
-           if(tracksStr) {
-              const tracksObj = JSON.parse(tracksStr);
-              delete tracksObj[trackId];
-              localStorage.setItem('offline_tracks', JSON.stringify(tracksObj));
-              loadOfflineLibrary();
-           }
-        } catch(e){}
-     }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="h-full w-full flex items-center justify-center bg-[#000] pt-12">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1DB954]"></div>
-      </div>
-    );
-  }
-
-
-  
-  const renderDrillDown = () => {
-    const parent = selectedAlbum || selectedArtist;
-    if (!parent) return null;
-
-    const tracks = offlineTracks.filter(t => {
-      const orig = t.original || t;
-      if (selectedAlbum) {
-         return (orig.album?.id?.toString() === selectedAlbum.id) || (orig.album?.title === selectedAlbum.title);
-      }
-      if (selectedArtist) {
-         const aId = orig.artist?.id?.toString() || orig.artist?.name || orig.performer?.name;
-         return aId === selectedArtist.id || orig.artist?.name === selectedArtist.title;
-      }
-      return false;
-    });
-
-    return <OfflineDetailView 
-             item={parent} 
-             tracks={tracks} 
-             type={selectedAlbum ? 'album' : 'artist'} 
-             onBack={() => { setSelectedAlbum(null); setSelectedArtist(null); }} 
-           />;
-  };
-
-  const renderEmptyState = () => {
+if (parts.length === 2) {
+  const newBottom = `  const renderEmptyState = () => {
     const activeTabInfo = tabs.find(t => t.id === activeTab);
     const IconComponent = activeTabInfo?.icon || Music;
     
@@ -191,7 +42,7 @@ export default function LibraryTab() {
           <button 
              onClick={handleFilterToggle}
              disabled={activeTab !== 'favorites'}
-             className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${activeTab !== 'favorites' ? 'opacity-50' : 'bg-gray-200 dark:bg-[#1C1C1E] text-[#007AFF]'}`}
+             className={\`w-10 h-10 rounded-full flex items-center justify-center transition-colors \${activeTab !== 'favorites' ? 'opacity-50' : 'bg-gray-200 dark:bg-[#1C1C1E] text-[#007AFF]'}\`}
            >
              <Filter size={20} className={favoriteFilter === 'local' ? 'text-[#FFB800]' : 'text-[#007AFF]'} />
            </button>
@@ -215,11 +66,11 @@ export default function LibraryTab() {
               <button
                 key={tab.id}
                 onClick={() => { setActiveTab(tab.id as any); setSelectedAlbum(null); setSelectedArtist(null); }}
-                className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold transition-all ${
+                className={\`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold transition-all \${
                   isActive 
                     ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' 
                     : 'bg-gray-200 text-gray-600 dark:bg-[#1C1C1E] dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-800'
-                }`}
+                }\`}
               >
                 <Icon size={16} />
                 <span>{tab.title}</span>
@@ -241,7 +92,7 @@ export default function LibraryTab() {
             {items.map((item, idx) => (
               <div key={item.id || idx} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
                 <div 
-                  className={`w-14 h-14 bg-gray-200 dark:bg-gray-800 ${item.type === 'artist' ? 'rounded-full' : 'rounded-lg'} overflow-hidden flex-shrink-0 relative`}
+                  className={\`w-14 h-14 bg-gray-200 dark:bg-gray-800 \${item.type === 'artist' ? 'rounded-full' : 'rounded-lg'} overflow-hidden flex-shrink-0 relative\`}
                   onClick={() => {
                     if (item.type === 'album') setSelectedAlbum(item);
                     if (item.type === 'artist') setSelectedArtist(item);
@@ -312,4 +163,10 @@ export default function LibraryTab() {
       </motion.div>
     </div>
   );
+}
+`;
+  fs.writeFileSync('src/components/LibraryTab.tsx', parts[0] + newBottom);
+  console.log("Rewrote LibraryTab");
+} else {
+  console.log("Could not split!");
 }
