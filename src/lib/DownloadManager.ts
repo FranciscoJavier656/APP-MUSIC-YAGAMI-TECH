@@ -1,4 +1,6 @@
 import { Capacitor } from '@capacitor/core';
+import axios from 'axios';
+import { QobuzAudio } from './QobuzAudioPlugin';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import axios from 'axios';
 import { getQobuzTrackUrl } from './qobuz';
@@ -236,6 +238,23 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'organizing' } }));
       
       window.dispatchEvent(new CustomEvent('download_state', { detail: { trackId, status: 'completed' } }));
+            try {
+        const trackTitle = track.title || '';
+        const trackArtist = track.artist?.name || track.performer?.name || '';
+        const lrclibUrl = `https://lrclib.net/api/search?track_name=${encodeURIComponent(trackTitle)}&artist_name=${encodeURIComponent(trackArtist)}`;
+        const lrclibRes = await axios.get(lrclibUrl, { timeout: 5000 });
+        if (lrclibRes.data && lrclibRes.data.length > 0) {
+          const bestMatch = lrclibRes.data[0];
+          const lyricsText = bestMatch.syncedLyrics || bestMatch.plainLyrics;
+          if (lyricsText) {
+            const fileUri = await Filesystem.getUri({ directory: Directory.Data, path: `Downloads/${filename}` });
+            await QobuzAudio.embedLyrics({ path: fileUri.uri, lyrics: lyricsText });
+          }
+        }
+      } catch (e) {
+        console.log("Lyrics embedding failed or skipped", e);
+      }
+      
       delete downloadMap[url];
     } catch (e: any) {
       let errorMsg = e.message || 'Error nativo';

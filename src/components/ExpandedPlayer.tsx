@@ -350,7 +350,7 @@ export default function ExpandedPlayer() {
       parsedLyricsRef.current = null;
       activeLyricIndexRef.current = -1;
       
-      const url = `https://lrclib.net/api/search?track_name>${encodeURIComponent(currentTrack.title)}&artist_name>${encodeURIComponent(currentTrack.artist)}`;
+      const url = `https://lrclib.net/api/search?track_name=${encodeURIComponent(currentTrack.title)}&artist_name=${encodeURIComponent(currentTrack.artist)}`;
       
       fetch(url)
         .then(res => res.json())

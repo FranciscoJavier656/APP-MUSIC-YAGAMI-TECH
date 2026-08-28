@@ -35,6 +35,7 @@
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"seek" returnType:CAPPluginReturnPromise]];
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"updateMetadata" returnType:CAPPluginReturnPromise]];
     [methods addObject:[[CAPPluginMethod alloc] initWithName:@"setupRemoteControls" returnType:CAPPluginReturnPromise]];
+    [methods addObject:[[CAPPluginMethod alloc] initWithName:@"embedLyrics" returnType:CAPPluginReturnPromise]];
     return methods;
 }
 @end
@@ -478,6 +479,41 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
         [self updateNowPlayingState];
         [call resolve];
     });
+}
+
+
+- (void)embedLyrics:(CAPPluginCall *)call {
+    NSString *path = call.options[@"path"];
+    NSString *lyrics = call.options[@"lyrics"];
+    
+    if (!path || !lyrics) {
+        [call reject:@"Missing path or lyrics"];
+        return;
+    }
+    
+    NSURL *url;
+    if ([path hasPrefix:@"file://"]) {
+        url = [NSURL fileURLWithPath:[path substringFromIndex:7]];
+    } else {
+        url = [NSURL fileURLWithPath:path];
+    }
+    
+    // 1. Escribir como archivo .lrc sidecar para compatibilidad
+    NSString *lrcPath = [[url.path stringByDeletingPathExtension] stringByAppendingPathExtension:@"lrc"];
+    NSError *error = nil;
+    [lyrics writeToFile:lrcPath atomically:YES encoding:NSUTF8StringEncoding error:&error];
+    
+    // 2. Intentar escribir como xattr (Metadata extendida de APFS nativa)
+    #include <sys/xattr.h>
+    const char *filePath = [url.path UTF8String];
+    const char *attrName = "com.apple.metadata:kMDItemLyricist";
+    NSData *data = [lyrics dataUsingEncoding:NSUTF8StringEncoding];
+    
+    setxattr(filePath, attrName, data.bytes, data.length, 0, 0);
+    
+    [self logMessage:[NSString stringWithFormat:@"✅ Letras incrustadas exitosamente en ObjC para: %@", url.lastPathComponent]];
+    
+    [call resolve];
 }
 
 @end

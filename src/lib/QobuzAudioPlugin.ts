@@ -3,6 +3,7 @@ import { registerPlugin } from '@capacitor/core';
 export interface QobuzAudioPlugin {
   play(options: { url: string }): Promise<void>;
   pause(): Promise<void>;
+  embedLyrics(options: { path: string, lyrics: string }): Promise<void>;
   setupRemoteControls(): Promise<void>;
   updateMetadata(options: { title: string, artist?: string, album?: string, coverUrl?: string, duration?: number }): Promise<void>;
   resume(): Promise<void>;
