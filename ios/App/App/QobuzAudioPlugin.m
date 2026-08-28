@@ -8,6 +8,7 @@
 #import <MediaPlayer/MediaPlayer.h>
 #import <MediaToolbox/MediaToolbox.h>
 #import <Accelerate/Accelerate.h>
+#include <sys/xattr.h>
 
 #define FFT_SIZE 1024
 #define NUM_BINS 64
@@ -504,7 +505,6 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     [lyrics writeToFile:lrcPath atomically:YES encoding:NSUTF8StringEncoding error:&error];
     
     // 2. Intentar escribir como xattr (Metadata extendida de APFS nativa)
-    #include <sys/xattr.h>
     const char *filePath = [url.path UTF8String];
     const char *attrName = "com.apple.metadata:kMDItemLyricist";
     NSData *data = [lyrics dataUsingEncoding:NSUTF8StringEncoding];
