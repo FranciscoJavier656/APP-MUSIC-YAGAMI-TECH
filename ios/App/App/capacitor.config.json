@@ -2,5 +2,12 @@
 	"appId": "com.audiophile.player",
 	"appName": "Audiophile Player",
 	"webDir": "dist",
-	"packageClassList": []
+	"plugins": {
+		"CapacitorHttp": {
+			"enabled": true
+		}
+	},
+	"packageClassList": [
+		"FilesystemPlugin"
+	]
 }

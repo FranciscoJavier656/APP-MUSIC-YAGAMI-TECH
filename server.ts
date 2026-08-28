@@ -46,11 +46,15 @@ try {
 const qobuzApiBase = 'https://www.qobuz.com/api.json/0.2/';
 
 // Helper to interact with Qobuz API
-async function qobuzSearch(query: string, limit = 50, offset = 0) {
+async function qobuzSearch(query: string, limit = 50, offset = 0, type?: string) {
   if (!qobuzAppId) return { error: 'QOBUZ_APP_ID not configured.' };
   
   try {
-    const url = `${qobuzApiBase}catalog/search`;
+    let url = `${qobuzApiBase}catalog/search`;
+    if (type === 'tracks') url = `${qobuzApiBase}track/search`;
+    if (type === 'albums') url = `${qobuzApiBase}album/search`;
+    if (type === 'artists') url = `${qobuzApiBase}artist/search`;
+    if (type === 'playlists') url = `${qobuzApiBase}playlist/search`;
     const response = await axios.get(url, {
       params: { query, limit, offset },
       headers: {
@@ -70,7 +74,7 @@ app.get('/api/featured', async (req, res) => {
   const type = req.query.type || 'new-releases';
   try {
     const response = await axios.get(`${qobuzApiBase}album/getFeatured`, {
-      params: { type, limit: 15 },
+      params: { type, limit: req.query.limit || 50, genre_id: req.query.genre_id },
       headers: {
         'x-app-id': qobuzAppId,
         'x-user-auth-token': qobuzToken || undefined,
@@ -84,12 +88,74 @@ app.get('/api/featured', async (req, res) => {
 });
 
 
+
+app.get('/api/favorites', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  try {
+    const type = req.query.type || 'albums'; // albums, artists, tracks
+    const limit = req.query.limit || 50;
+    const offset = req.query.offset || 0;
+    const response = await axios.get(`${qobuzApiBase}favorite/getUserFavorites`, {
+      params: { type, limit, offset },
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('Qobuz favorites error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get favorites', details: error?.response?.data });
+  }
+});
+
+app.get('/api/user/playlists', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  try {
+    const limit = req.query.limit || 50;
+    const offset = req.query.offset || 0;
+    const response = await axios.get(`${qobuzApiBase}playlist/getUserPlaylists`, {
+      params: { limit, offset },
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('Qobuz user playlists error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get user playlists', details: error?.response?.data });
+  }
+});
+
+
+app.get('/api/artist', async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
+  const { artist_id, limit, offset } = req.query;
+  try {
+    const response = await axios.get(`${qobuzApiBase}artist/get`, {
+      params: { artist_id, extra: 'albums,tracks', limit: 200, offset: 0 }, // Fetch all we can
+      headers: {
+        'x-app-id': qobuzAppId,
+        'x-user-auth-token': qobuzToken || undefined,
+      },
+    });
+    res.json(response.data);
+  } catch (error: any) {
+    console.error('Qobuz artist error:', error?.response?.data || error.message);
+    res.status(500).json({ error: 'Failed to get artist', details: error?.response?.data });
+  }
+});
+
 app.get('/api/playlist', async (req, res) => {
   if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
-  const { playlist_id } = req.query;
+  const { playlist_id, limit, offset } = req.query;
   try {
+    const params: any = { playlist_id, extra: 'tracks' };
+    if (limit) params.limit = limit;
+    if (offset) params.offset = offset;
     const response = await axios.get(`${qobuzApiBase}playlist/get`, {
-      params: { playlist_id, extra: 'tracks' },
+      params,
       headers: {
         'x-app-id': qobuzAppId,
         'x-user-auth-token': qobuzToken || undefined,
@@ -106,7 +172,7 @@ app.get('/api/playlists', async (req, res) => {
   if (!qobuzAppId) return res.status(400).json({ error: 'QOBUZ_APP_ID not configured.' });
   try {
     const response = await axios.get(`${qobuzApiBase}playlist/getFeatured`, {
-      params: { type: 'editor-picks', limit: 15 },
+      params: { type: 'editor-picks', limit: req.query.limit || 50 },
       headers: {
         'x-app-id': qobuzAppId,
         'x-user-auth-token': qobuzToken || undefined,
@@ -120,11 +186,11 @@ app.get('/api/playlists', async (req, res) => {
 });
 
 app.get('/api/search', async (req, res) => {
-  const { q } = req.query;
+  const { q, limit, offset, type } = req.query;
   if (!q) {
     return res.status(400).json({ error: 'Query is required' });
   }
-  const results = await qobuzSearch(q as string, parseInt(req.query.limit as string) || 50);
+  const results = await qobuzSearch(q as string, parseInt(limit as string) || 50, parseInt(offset as string) || 0, type as string);
   res.json(results);
 });
 

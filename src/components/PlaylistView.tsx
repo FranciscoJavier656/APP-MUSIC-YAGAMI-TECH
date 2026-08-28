@@ -5,6 +5,7 @@ import { usePlayer } from './PlayerContext';
 import { useSwipeBack } from '../lib/useSwipeBack';
 import { AnimatePresence, motion, useScroll, useTransform } from 'motion/react';
 import { getImageSrc } from '../lib/image';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 
 
 interface PlaylistViewProps {
@@ -16,6 +17,9 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
   const [playlist, setPlaylist] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const { targetRef, isIntersecting } = useIntersectionObserver({ threshold: 0.1 });
   const { playTrack, currentTrack, isPlaying, setContextMenuTrack, setDownloadItem } = usePlayer();
   
   
@@ -36,6 +40,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
       try {
         const data = await getQobuzPlaylist(playlistId);
         setPlaylist(data);
+        setHasMore((data.tracks?.items?.length || 0) < data.tracks_count);
       } catch (err: any) {
         setError(err.response?.data?.error || err.message || 'Failed to load playlist');
       } finally {
@@ -44,6 +49,45 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
     };
     fetchPlaylist();
   }, [playlistId]);
+
+  
+  useEffect(() => {
+    if (isIntersecting && hasMore && !loading && !loadingMore) {
+      loadMoreTracks();
+    }
+  }, [isIntersecting, hasMore, loading, loadingMore]);
+
+  const loadMoreTracks = async () => {
+    if (!playlist || !playlist.tracks || !playlist.tracks.items) return;
+    const currentCount = playlist.tracks.items.length;
+    if (currentCount >= playlist.tracks_count) {
+      setHasMore(false);
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const data = await getQobuzPlaylist(playlistId, 50, currentCount);
+      const newItems = data.tracks?.items || [];
+      if (newItems.length === 0) {
+        setHasMore(false);
+      } else {
+        setPlaylist((prev: any) => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            items: [...prev.tracks.items, ...newItems]
+          }
+        }));
+        if (currentCount + newItems.length >= playlist.tracks_count) {
+          setHasMore(false);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handlePlay = (track: any) => {
     const queue = playlist.tracks?.items?.map((t: any) => ({
@@ -208,7 +252,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
                     <Download className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); setContextMenuTrack(track); }}
+                    onClick={(e) => { e.stopPropagation(); setContextMenuTrack({ item: track, type: 'track' }); }}
                     className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors"
                   >
                     <MoreHorizontal className="w-4 h-4" />
@@ -217,6 +261,11 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
               </div>
             ))}
           </div>
+          {hasMore && (
+            <div ref={targetRef} className="py-6 flex justify-center">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          )}
         </div>
       </div>
 

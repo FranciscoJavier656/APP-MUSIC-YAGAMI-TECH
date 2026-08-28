@@ -2,7 +2,6 @@ import { Capacitor } from '@capacitor/core';
 import axios from 'axios';
 import { QobuzAudio } from './QobuzAudioPlugin';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import axios from 'axios';
 import { getQobuzTrackUrl } from './qobuz';
 
 // --- TIPO DE DATOS ---

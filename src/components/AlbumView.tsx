@@ -193,7 +193,7 @@ export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
                     <Download className="w-4 h-4" />
                   </button>
                   <button 
-                    onClick={(e) => { e.stopPropagation(); setContextMenuTrack({...track, album}); }}
+                    onClick={(e) => { e.stopPropagation(); setContextMenuTrack({ item: {...track, album}, type: 'track' }); }}
                     className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors"
                   >
                     <MoreHorizontal className="w-4 h-4" />

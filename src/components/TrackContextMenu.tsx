@@ -3,13 +3,14 @@ import { Download, Disc, Mic2, X, Music } from 'lucide-react';
 
 interface TrackContextMenuProps {
   track: any | null;
+  itemType?: 'album' | 'track' | 'playlist' | 'artist';
   onClose: () => void;
   onDownload: () => void;
   onGoToAlbum?: () => void;
   onGoToArtist?: () => void;
 }
 
-export default function TrackContextMenu({ track, onClose, onDownload, onGoToAlbum, onGoToArtist }: TrackContextMenuProps) {
+export default function TrackContextMenu({ track, itemType = 'track', onClose, onDownload, onGoToAlbum, onGoToArtist }: TrackContextMenuProps) {
   if (!track) return null;
 
   return (
@@ -60,7 +61,7 @@ export default function TrackContextMenu({ track, onClose, onDownload, onGoToAlb
               <div className="w-10 h-10 rounded-full bg-[#007AFF]/10 flex items-center justify-center">
                 <Download className="w-5 h-5 text-[#007AFF]" />
               </div>
-              <span className="font-bold text-[17px] text-black dark:text-white">Descargar pista</span>
+              <span className="font-bold text-[17px] text-black dark:text-white">{itemType === 'album' ? 'Descargar álbum' : itemType === 'playlist' ? 'Descargar playlist' : 'Descargar pista'}</span>
             </button>
             
             <button 

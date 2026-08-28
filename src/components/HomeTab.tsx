@@ -29,28 +29,67 @@ export default function HomeTab() {
   
   
   const [activeSubTab, setActiveSubTab] = useState('editorial');
+  const [activeCategory, setActiveCategory] = useState('Lanzamientos');
+
+  
+  const [categoryLoading, setCategoryLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchPlaylists = async () => {
+      try {
+        const res = await getFeaturedPlaylists();
+        setPlaylists(res?.playlists?.items || []);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchPlaylists();
+  }, []);
 
   useEffect(() => {
     const fetchHomeData = async () => {
-      setLoading(true);
+      if (editorPicks.length === 0) setLoading(true);
+      else setCategoryLoading(true);
+
+      let genreId: string | undefined = undefined;
+      let limit = 15;
+      
+      if (activeCategory === 'Pop') genreId = '127';
+      else if (activeCategory === 'Jazz') genreId = '80';
+      else if (activeCategory === 'Clásica') genreId = '10';
+      else if (activeCategory === 'Electrónica') genreId = '14';
+      else if (activeCategory === 'Relajación') genreId = '94'; // World/New Age equivalent
+
+      if (activeCategory === 'Audio Hi-Res') {
+        limit = 50;
+      }
+
       try {
-        const [resEditor, resStreamed, resPlaylists] = await Promise.all([
-          getFeaturedAlbums('editor-picks'),
-          getFeaturedAlbums('most-streamed'),
-          getFeaturedPlaylists()
+        const [resEditor, resStreamed] = await Promise.all([
+          getFeaturedAlbums('editor-picks', genreId, limit),
+          getFeaturedAlbums('most-streamed', genreId, limit)
         ]);
         
-        setEditorPicks(resEditor?.albums?.items || []);
-        setMostStreamed(resStreamed?.albums?.items || []);
-        setPlaylists(resPlaylists?.playlists?.items || []);
+        let ep = resEditor?.albums?.items || [];
+        let ms = resStreamed?.albums?.items || [];
+
+        if (activeCategory === 'Audio Hi-Res') {
+          ep = ep.filter(a => a.hires);
+          ms = ms.filter(a => a.hires);
+        }
+
+        setEditorPicks(ep);
+        setMostStreamed(ms);
       } catch (err) {
         console.error(err);
       } finally {
         setLoading(false);
+        setCategoryLoading(false);
       }
     };
     fetchHomeData();
-  }, []);
+  }, [activeCategory]);
+
 
   
 
@@ -132,13 +171,22 @@ export default function HomeTab() {
               {/* Carrusel de Píldoras Editoriales */}
               <div className="flex overflow-x-auto px-5 py-4 gap-2 no-scrollbar border-b border-black/5 dark:border-white/5 mb-2">
                 {['Lanzamientos', 'Audio Hi-Res', 'Pop', 'Jazz', 'Clásica', 'Electrónica', 'Relajación'].map((tag, idx) => (
-                  <button key={tag} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap ${idx === 0 ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300'}`}>
+                  <button key={tag} onClick={() => setActiveCategory(tag)} className={`px-4 py-1.5 rounded-full text-[13px] font-bold whitespace-nowrap ${activeCategory === tag ? 'bg-black text-white dark:bg-white dark:text-black' : 'bg-black/5 dark:bg-white/10 text-gray-700 dark:text-gray-300'}`}>
                     {tag}
                   </button>
                 ))}
+
               </div>
-              
-              {/* Novedades / Álbumes de la semana */}
+
+              {categoryLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 opacity-50">
+                   <Loader2 className="w-8 h-8 animate-spin mb-4" />
+                   <p className="text-sm font-semibold">Cargando {activeCategory}...</p>
+                </div>
+              ) : (
+                <>
+                  {/* Novedades / Álbumes de la semana */}
+
               {renderSectionHeader("Álbumes de la semana", "Los álbumes más interesantes de la semana.")}
               <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {editorPicks.slice(0, 8).map((item) => (
@@ -241,7 +289,7 @@ export default function HomeTab() {
                   { title: 'Humores', color: 'from-[#D96B2F] to-[#E58D58]' },
                   { title: 'Relax', color: 'from-[#3381C4] to-[#5EA1E3]' }
                 ].map((cat, i) => (
-                  <div key={cat.title} onClick={() => setActiveItem({id: (playlists[i + 5]?.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[160px] aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer">
+                  <div key={cat.title} onClick={() => setActiveItem({id: (playlists[i + 5]?.id || playlists[0]?.id || "").toString(), type: "playlist"})} className="flex-none w-[160px] aspect-[4/3] rounded-lg overflow-hidden relative cursor-pointer">
                     <div className={`absolute inset-0 bg-gradient-to-br ${cat.color} opacity-90`} />
                     <h3 className="absolute bottom-3 left-3 text-white font-bold text-lg">{cat.title}</h3>
                   </div>
@@ -252,11 +300,11 @@ export default function HomeTab() {
               {renderSectionHeader("Canta al ritmo de la letra", "Vuelve a descubrir tus canciones favoritas con la letra ahora disponible en el reproductor.")}
               <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 {[
-                  { title: 'Karaoke - Reggaeton', bg: 'bg-[#B07348]', id: playlists[3]?.id || '1752421' },
-                  { title: 'Karaoke - Años 1980', bg: 'bg-[#8F3B55]', id: playlists[4]?.id || '1752421' },
-                  { title: 'Karaoke - Pop Español', bg: 'bg-[#B05B7C]', id: playlists[5]?.id || '1752421' }
+                  { title: 'Karaoke - Reggaeton', bg: 'bg-[#B07348]', id: playlists[3]?.id || playlists[0]?.id || "" },
+                  { title: 'Karaoke - Años 1980', bg: 'bg-[#8F3B55]', id: playlists[4]?.id || playlists[0]?.id || "" },
+                  { title: 'Karaoke - Pop Español', bg: 'bg-[#B05B7C]', id: playlists[5]?.id || playlists[0]?.id || "" }
                 ].map((karaoke) => (
-                  <div key={karaoke.title} onClick={() => setActiveItem({id: (karaoke.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[200px] cursor-pointer group">
+                  <div key={karaoke.title} onClick={() => setActiveItem({id: (karaoke.id || playlists[0]?.id || "").toString(), type: "playlist"})} className="flex-none w-[200px] cursor-pointer group">
                     <div className={`relative aspect-square mb-3 rounded-lg overflow-hidden ${karaoke.bg} flex items-center justify-center`}>
                       <div className="text-white text-3xl font-black italic shadow-sm tracking-tighter">
                         KARAOKE
@@ -267,7 +315,9 @@ export default function HomeTab() {
                   </div>
                 ))}
               </div>
-            </div>
+            </>
+          )}
+        </div>
           ) : (
             <div className="h-full">
               {/* Para ti Content */}
@@ -275,7 +325,7 @@ export default function HomeTab() {
               <div className="flex overflow-x-auto pb-8 px-5 gap-5 no-scrollbar">
                 
                 {/* My Weekly Q */}
-                <div onClick={() => setActiveItem({id: (playlists[0]?.id || "1752421").toString(), type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
+                <div onClick={() => setActiveItem({id: (playlists[0]?.id || "").toString(), type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-600 to-purple-800 opacity-95 transition-transform group-hover:scale-105 duration-500" />
                   <div className="absolute inset-0 p-5 flex flex-col justify-between">
                     <div>
@@ -292,7 +342,7 @@ export default function HomeTab() {
                 </div>
 
                 {/* Nuevos lanzamientos para ti */}
-                <div onClick={() => setActiveItem({id: "7802330", type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
+                <div onClick={() => setActiveItem({id: (playlists[1]?.id || "").toString(), type: "playlist"})} className="flex-none w-[280px] aspect-[16/9] rounded-xl overflow-hidden relative cursor-pointer group">
                   <div className="absolute inset-0 bg-gradient-to-br from-emerald-600 to-teal-800 opacity-95 transition-transform group-hover:scale-105 duration-500" />
                   <div className="absolute inset-0 p-5 flex flex-col justify-between">
                     <div>

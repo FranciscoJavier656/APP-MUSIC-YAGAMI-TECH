@@ -7,6 +7,10 @@ import SearchTab from './components/SearchTab';
 import SettingsTab from './components/SettingsTab';
 import LibraryTab from './components/LibraryTab';
 import DownloadsTab from './components/DownloadsTab';
+import AlbumView from './components/AlbumView';
+import PlaylistView from './components/PlaylistView';
+import ArtistView from './components/ArtistView';
+
 import { PlayerProvider } from './components/PlayerContext';
 import { DownloadProvider } from './lib/DownloadContext';
 import { WifiOff } from 'lucide-react';
@@ -27,7 +31,33 @@ export default function App() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+  
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
+  const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
+
+  useEffect(() => {
+    const handleGlobalOverlay = (e: any) => {
+      setGlobalOverlay(e.detail);
+    };
+    document.addEventListener('open-overlay', handleGlobalOverlay);
+    return () => document.removeEventListener('open-overlay', handleGlobalOverlay);
+  }, []);
+
+
+  useEffect(() => {
+    const handleNavigate = (e: any) => {
+      if (e.detail) {
+        setActiveTab(e.detail);
+      }
+    };
+    window.addEventListener('navigate', handleNavigate);
+    document.addEventListener('navigate', handleNavigate);
+    return () => {
+      window.removeEventListener('navigate', handleNavigate);
+      document.removeEventListener('navigate', handleNavigate);
+    };
+  }, []);
+
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -104,7 +134,39 @@ export default function App() {
         </main>
         </ErrorBoundary>
 
+        <MiniPlayer />
+        <AnimatePresence>
+          {globalOverlay && globalOverlay.type === 'album' && (
+            <motion.div 
+              key="global-album"
+              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
+            >
+              <AlbumView albumId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
+            </motion.div>
+          )}
+          {globalOverlay && globalOverlay.type === 'playlist' && (
+            <motion.div 
+              key="global-playlist"
+              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
+            >
+              <PlaylistView playlistId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
+            </motion.div>
+          )}
+          {globalOverlay && globalOverlay.type === 'artist' && (
+            <motion.div 
+              key="global-artist"
+              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
+            >
+              <ArtistView artistId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         {/* Mini Player */}
+
         <MiniPlayer />
 
         {/* Docked Modern Tab Bar with Pills */}

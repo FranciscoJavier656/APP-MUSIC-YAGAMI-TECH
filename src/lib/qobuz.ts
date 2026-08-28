@@ -18,15 +18,20 @@ try {
 
 const QOBUZ_API = 'https://www.qobuz.com/api.json/0.2/';
 
-export const searchQobuz = async (query: string) => {
+export const searchQobuz = async (query: string, limit: number = 50, offset: number = 0, type?: string) => {
   if (Capacitor.isNativePlatform()) {
-    const res = await axios.get(`${QOBUZ_API}catalog/search`, {
-      params: { query, limit: 50, offset: 0 },
+    let endpoint = 'catalog/search';
+    if (type === 'tracks') endpoint = 'track/search';
+    if (type === 'albums') endpoint = 'album/search';
+    if (type === 'artists') endpoint = 'artist/search';
+    if (type === 'playlists') endpoint = 'playlist/search';
+    const res = await axios.get(`${QOBUZ_API}${endpoint}`, {
+      params: { query, limit, offset },
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;
   }
-  const res = await axios.get(`/api/search`, { params: { q: query, limit: 50 } });
+  const res = await axios.get(`/api/search`, { params: { q: query, limit, offset, type } });
   if (res.data.error) throw new Error(res.data.error);
   return res.data;
 };
@@ -34,7 +39,7 @@ export const searchQobuz = async (query: string) => {
 export const getQobuzAlbum = async (albumId: string) => {
   if (Capacitor.isNativePlatform()) {
     const res = await axios.get(`${QOBUZ_API}album/get`, {
-      params: { album_id: albumId },
+      params: { album_id: albumId, limit: 500 },
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;
@@ -44,15 +49,21 @@ export const getQobuzAlbum = async (albumId: string) => {
   return res.data;
 };
 
-export const getQobuzPlaylist = async (playlistId: string) => {
+export const getQobuzPlaylist = async (playlistId: string, limit?: number, offset?: number) => {
   if (Capacitor.isNativePlatform()) {
+    const params: any = { playlist_id: playlistId, extra: 'tracks' };
+    if (limit) params.limit = limit;
+    if (offset) params.offset = offset;
     const res = await axios.get(`${QOBUZ_API}playlist/get`, {
-      params: { playlist_id: playlistId, extra: 'tracks' },
+      params,
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;
   }
-  const res = await axios.get(`/api/playlist`, { params: { playlist_id: playlistId } });
+  const params: any = { playlist_id: playlistId };
+  if (limit) params.limit = limit;
+  if (offset) params.offset = offset;
+  const res = await axios.get(`/api/playlist`, { params });
   if (res.data.error) throw new Error(res.data.error);
   return res.data;
 };
@@ -74,15 +85,15 @@ export const getQobuzTrackUrl = async (trackId: string, formatId: string = '5') 
   return res.data.url;
 };
 
-export const getFeaturedAlbums = async (type: string = 'new-releases') => {
+export const getFeaturedAlbums = async (type: string = 'new-releases', genre_id?: string, limit?: number) => {
   if (Capacitor.isNativePlatform()) {
     const res = await axios.get(`${QOBUZ_API}album/getFeatured`, {
-      params: { type, limit: 15 },
+      params: { type, limit: limit || 15, ...(genre_id ? { genre_id } : {}) },
       headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
     });
     return res.data;
   }
-  const res = await axios.get(`/api/featured`, { params: { type } });
+  const res = await axios.get(`/api/featured`, { params: { type, limit: limit || 15, ...(genre_id ? { genre_id } : {}) } });
   if (res.data.error) throw new Error(res.data.error);
   return res.data;
 };
@@ -96,6 +107,45 @@ export const getFeaturedPlaylists = async () => {
     return res.data;
   }
   const res = await axios.get(`/api/playlists`);
+  if (res.data.error) throw new Error(res.data.error);
+  return res.data;
+};
+
+export const getUserFavorites = async (type: string = 'albums', limit: number = 50, offset: number = 0) => {
+  if (Capacitor.isNativePlatform()) {
+    const res = await axios.get(`${QOBUZ_API}favorite/getUserFavorites`, {
+      params: { type, limit, offset },
+      headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
+    });
+    return res.data;
+  }
+  const res = await axios.get(`/api/favorites`, { params: { type, limit, offset } });
+  if (res.data.error) throw new Error(res.data.error);
+  return res.data;
+};
+
+export const getUserPlaylists = async (limit: number = 50, offset: number = 0) => {
+  if (Capacitor.isNativePlatform()) {
+    const res = await axios.get(`${QOBUZ_API}playlist/getUserPlaylists`, {
+      params: { limit, offset },
+      headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
+    });
+    return res.data;
+  }
+  const res = await axios.get(`/api/user/playlists`, { params: { limit, offset } });
+  if (res.data.error) throw new Error(res.data.error);
+  return res.data;
+};
+
+export const getQobuzArtist = async (artistId: string, limit: number = 50, offset: number = 0) => {
+  if (Capacitor.isNativePlatform()) {
+    const res = await axios.get(`${QOBUZ_API}artist/get`, {
+      params: { artist_id: artistId, extra: 'albums,tracks', limit, offset },
+      headers: { 'x-app-id': qobuzAppId, 'x-user-auth-token': qobuzToken || undefined }
+    });
+    return res.data;
+  }
+  const res = await axios.get(`/api/artist`, { params: { artist_id: artistId, limit, offset } });
   if (res.data.error) throw new Error(res.data.error);
   return res.data;
 };

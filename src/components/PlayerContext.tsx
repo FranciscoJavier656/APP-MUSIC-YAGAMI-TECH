@@ -40,10 +40,10 @@ export interface Track {
 }
 
 interface PlayerContextType {
-  contextMenuTrack: any | null;
-  setContextMenuTrack: (track: any | null) => void;
-  downloadItem: {item: any, type: 'album'|'track'|'playlist'} | null;
-  setDownloadItem: (item: {item: any, type: 'album'|'track'|'playlist'} | null) => void;
+  contextMenuTrack: { item: any, type: 'album'|'track'|'playlist'|'artist' } | null;
+  setContextMenuTrack: (track: { item: any, type: 'album'|'track'|'playlist'|'artist' } | null) => void;
+  downloadItem: {item: any, type: 'album'|'track'|'playlist'|'artist'} | null;
+  setDownloadItem: (item: {item: any, type: 'album'|'track'|'playlist'|'artist'} | null) => void;
   currentTrack: Track | null;
   isPlaying: boolean;
   isLoading: boolean;
@@ -70,8 +70,8 @@ interface PlayerContextType {
 const PlayerContext = createContext<PlayerContextType | undefined>(undefined);
 
 export function PlayerProvider({ children }: { children: ReactNode }) {
-  const [contextMenuTrack, setContextMenuTrack] = useState<any | null>(null);
-  const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'|'playlist'} | null>(null);
+  const [contextMenuTrack, setContextMenuTrack] = useState<{ item: any, type: 'album'|'track'|'playlist'|'artist' } | null>(null);
+  const [downloadItem, setDownloadItem] = useState<{item: any, type: 'album'|'track'|'playlist'|'artist'} | null>(null);
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const [queue, setQueue] = useState<Track[]>([]);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -252,6 +252,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
   const playTrack = async (rawTrack: any, newQueue?: Track[]) => {
     if (!rawTrack) return;
+    trackInitializedRef.current = true;
     let track = { ...rawTrack } as Track;
     if (!track.image) {
        track.image = rawTrack.album?.image || rawTrack.original?.album?.image || rawTrack.original?.image || "";
@@ -538,11 +539,30 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
       >
         {children}
         <TrackContextMenu 
-          track={contextMenuTrack} 
+          track={contextMenuTrack?.item}
+          itemType={contextMenuTrack?.type} 
+          
           onClose={() => setContextMenuTrack(null)}
+          onGoToAlbum={() => {
+            const track = contextMenuTrack?.item;
+            const albumId = track?.album?.id || track?.album?.qobuz_id || (contextMenuTrack?.type === 'album' ? (track?.id || track?.qobuz_id) : null);
+            if (albumId) {
+              setContextMenuTrack(null);
+              document.dispatchEvent(new CustomEvent('open-overlay', { detail: { type: 'album', id: albumId } }));
+            }
+          }}
+          onGoToArtist={() => {
+            const track = contextMenuTrack?.item;
+            const artistId = track?.artist?.id || track?.performer?.id || (contextMenuTrack?.type === 'artist' ? (track?.id || track?.qobuz_id) : null);
+            if (artistId) {
+              setContextMenuTrack(null);
+              document.dispatchEvent(new CustomEvent('open-overlay', { detail: { type: 'artist', id: artistId } }));
+            }
+          }}
           onDownload={() => {
+
             if (contextMenuTrack) {
-              setDownloadItem({item: contextMenuTrack, type: 'track'});
+              setDownloadItem({item: contextMenuTrack.item, type: contextMenuTrack.type});
             }
           }}
         />

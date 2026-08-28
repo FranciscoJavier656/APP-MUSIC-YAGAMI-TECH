@@ -1,13 +1,6 @@
 const fs = require('fs');
+let code = fs.readFileSync('src/components/PlayerContext.tsx', 'utf8');
 
-const file = 'src/components/DownloadModal.tsx';
-let content = fs.readFileSync(file, 'utf8');
-content = content.replace(/type: 'album' \| 'track';/g, "type: 'album' | 'track' | 'playlist';");
-fs.writeFileSync(file, content);
+code = code.replace(/'album'\|'track'\|'playlist'/g, "'album'|'track'|'playlist'|'artist'");
 
-const ctx = 'src/components/PlayerContext.tsx';
-let ctxContent = fs.readFileSync(ctx, 'utf8');
-ctxContent = ctxContent.replace(/type: 'album'\|'track'\|'playlist'\|'playlist'/g, "type: 'album'|'track'|'playlist'");
-fs.writeFileSync(ctx, ctxContent);
-
-console.log('done');
+fs.writeFileSync('src/components/PlayerContext.tsx', code);

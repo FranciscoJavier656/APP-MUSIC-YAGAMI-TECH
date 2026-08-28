@@ -7,7 +7,7 @@ import { useDownloads } from '../lib/DownloadContext';
 
 interface DownloadModalProps {
   item: any;
-  type: 'album' | 'track' | 'playlist';
+  type: 'album' | 'track' | 'playlist' | 'artist';
   onClose: () => void;
 }
 
@@ -17,16 +17,38 @@ export default function DownloadModal({ item, type, onClose }: DownloadModalProp
   const [progress, setProgress] = useState({ current: 0, total: 0 });
   const { addDownload } = useDownloads();
 
+  const [fullTracks, setFullTracks] = useState<any[] | null>(null);
   const getTracks = () => {
     if (type === 'track') return [item];
-    if (type === 'album') return item.tracks?.items || [];
-    if (type === 'playlist') return item.tracks?.items || [];
+    if (type === 'album') return fullTracks || item.tracks?.items || [];
+    if (type === 'playlist') return fullTracks || item.tracks?.items || [];
     return [];
   };
 
   useEffect(() => {
     setStatus('idle');
-    setProgress({ current: 0, total: getTracks().length });
+    setFullTracks(null);
+    if ((type === 'album' || type === 'playlist' || type === 'artist') && !item.tracks?.items) {
+      // Need to fetch full tracks
+      const fetchTracks = async () => {
+        try {
+          if (type === 'album') {
+             const res = await fetch(`/api/album?album_id=${item.id || item.qobuz_id}`).then(r => r.json());
+             setFullTracks(res.tracks?.items || []);
+             setProgress({ current: 0, total: (res.tracks?.items || []).length });
+          } else {
+             const res = await fetch(`/api/playlist?playlist_id=${item.id}`).then(r => r.json());
+             setFullTracks(res.tracks?.items || []);
+             setProgress({ current: 0, total: (res.tracks?.items || []).length });
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      };
+      fetchTracks();
+    } else {
+      setProgress({ current: 0, total: getTracks().length });
+    }
   }, [item, type]);
 
   const handleDownload = async () => {

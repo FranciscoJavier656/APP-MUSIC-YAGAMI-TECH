@@ -447,7 +447,7 @@ export default function ExpandedPlayer() {
           <span className="text-black/80 dark:text-white/80 block mt-0.5 tracking-widest text-center">Qobuz</span>
         </span>
         <div className="flex items-center gap-1 -mr-2">
-          <button onClick={() => setContextMenuTrack(currentTrack)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
+          <button onClick={() => setContextMenuTrack({ item: currentTrack, type: 'track' })} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
             <MoreHorizontal className="w-6 h-6 text-black dark:text-white" />
           </button>
           <button onClick={() => setShowQueue(true)} className="p-2 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
@@ -569,7 +569,7 @@ export default function ExpandedPlayer() {
               <Download className="w-5 h-5" />
             </button>
             <button 
-              onClick={(e) => { e.stopPropagation(); setContextMenuTrack(currentTrack); }}
+              onClick={(e) => { e.stopPropagation(); setContextMenuTrack({ item: currentTrack, type: 'track' }); }}
               className="w-10 h-10 flex-shrink-0 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center text-black dark:text-white hover:bg-black/10 dark:hover:bg-white/20 transition-colors"
             >
               <MoreHorizontal className="w-5 h-5" />

@@ -30,9 +30,10 @@ var import_crypto = __toESM(require("crypto"), 1);
 var import_vite = require("vite");
 var import_genai = require("@google/genai");
 var import_axios = __toESM(require("axios"), 1);
+var import_archiver = __toESM(require("archiver"), 1);
 var import_fs = __toESM(require("fs"), 1);
-var import_child_process = require("child_process");
 var import_util = __toESM(require("util"), 1);
+var import_child_process = require("child_process");
 import_dotenv.default.config();
 var app = (0, import_express.default)();
 var PORT = 3e3;
@@ -46,20 +47,25 @@ var ai = new import_genai.GoogleGenAI({
     }
   }
 });
-var qobuzAppId = process.env.QOBUZ_APP_ID || "";
-var qobuzSecret = process.env.QOBUZ_SECRET || "";
+var qobuzAppId = process.env.QOBUZ_APP_ID || process.env.VITE_QOBUZ_APP_ID || "";
+var qobuzSecret = process.env.QOBUZ_SECRET || process.env.VITE_QOBUZ_APP_SECRET || "";
 var qobuzToken = "";
 try {
   const tokens = JSON.parse(process.env.QOBUZ_AUTH_TOKENS || "[]");
   if (tokens.length > 0) qobuzToken = tokens[0];
+  if (!qobuzToken) qobuzToken = process.env.VITE_QOBUZ_USER_TOKEN || "";
 } catch (e) {
   console.error("Failed to parse QOBUZ_AUTH_TOKENS");
 }
 var qobuzApiBase = "https://www.qobuz.com/api.json/0.2/";
-async function qobuzSearch(query, limit = 10, offset = 0) {
+async function qobuzSearch(query, limit = 50, offset = 0, type) {
   if (!qobuzAppId) return { error: "QOBUZ_APP_ID not configured." };
   try {
-    const url = `${qobuzApiBase}catalog/search`;
+    let url = `${qobuzApiBase}catalog/search`;
+    if (type === "tracks") url = `${qobuzApiBase}track/search`;
+    if (type === "albums") url = `${qobuzApiBase}album/search`;
+    if (type === "artists") url = `${qobuzApiBase}artist/search`;
+    if (type === "playlists") url = `${qobuzApiBase}playlist/search`;
     const response = await import_axios.default.get(url, {
       params: { query, limit, offset },
       headers: {
@@ -73,26 +79,133 @@ async function qobuzSearch(query, limit = 10, offset = 0) {
     return { error: "Failed to search Qobuz" };
   }
 }
+app.get("/api/featured", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  const type = req.query.type || "new-releases";
+  try {
+    const response = await import_axios.default.get(`${qobuzApiBase}album/getFeatured`, {
+      params: { type, limit: req.query.limit || 50, genre_id: req.query.genre_id },
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz featured error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get featured albums", details: error?.response?.data });
+  }
+});
+app.get("/api/favorites", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  try {
+    const type = req.query.type || "albums";
+    const limit = req.query.limit || 50;
+    const offset = req.query.offset || 0;
+    const response = await import_axios.default.get(`${qobuzApiBase}favorite/getUserFavorites`, {
+      params: { type, limit, offset },
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz favorites error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get favorites", details: error?.response?.data });
+  }
+});
+app.get("/api/user/playlists", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  try {
+    const limit = req.query.limit || 50;
+    const offset = req.query.offset || 0;
+    const response = await import_axios.default.get(`${qobuzApiBase}playlist/getUserPlaylists`, {
+      params: { limit, offset },
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz user playlists error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get user playlists", details: error?.response?.data });
+  }
+});
+app.get("/api/artist", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  const { artist_id, limit, offset } = req.query;
+  try {
+    const response = await import_axios.default.get(`${qobuzApiBase}artist/get`, {
+      params: { artist_id, extra: "albums,tracks", limit: 200, offset: 0 },
+      // Fetch all we can
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz artist error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get artist", details: error?.response?.data });
+  }
+});
+app.get("/api/playlist", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  const { playlist_id, limit, offset } = req.query;
+  try {
+    const params = { playlist_id, extra: "tracks" };
+    if (limit) params.limit = limit;
+    if (offset) params.offset = offset;
+    const response = await import_axios.default.get(`${qobuzApiBase}playlist/get`, {
+      params,
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz playlist error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get playlist" });
+  }
+});
+app.get("/api/playlists", async (req, res) => {
+  if (!qobuzAppId) return res.status(400).json({ error: "QOBUZ_APP_ID not configured." });
+  try {
+    const response = await import_axios.default.get(`${qobuzApiBase}playlist/getFeatured`, {
+      params: { type: "editor-picks", limit: req.query.limit || 50 },
+      headers: {
+        "x-app-id": qobuzAppId,
+        "x-user-auth-token": qobuzToken || void 0
+      }
+    });
+    res.json(response.data);
+  } catch (error) {
+    console.error("Qobuz playlists error:", error?.response?.data || error.message);
+    res.status(500).json({ error: "Failed to get playlists", details: error?.response?.data });
+  }
+});
 app.get("/api/search", async (req, res) => {
-  const { q } = req.query;
+  const { q, limit, offset, type } = req.query;
   if (!q) {
     return res.status(400).json({ error: "Query is required" });
   }
-  const results = await qobuzSearch(q);
+  const results = await qobuzSearch(q, parseInt(limit) || 50, parseInt(offset) || 0, type);
   res.json(results);
 });
 app.get("/api/stream", async (req, res) => {
-  const { track_id } = req.query;
+  const { track_id, format_id = "5" } = req.query;
   if (!track_id) return res.status(400).json({ error: "track_id is required" });
   if (!qobuzAppId || !qobuzSecret) return res.status(400).json({ error: "Qobuz credentials not configured" });
   try {
-    const quality = "27";
     const timestamp = Math.floor(Date.now() / 1e3);
-    const r_sig = `trackgetFileUrlformat_id${5}intentstreamtrack_id${track_id}${timestamp}${qobuzSecret}`;
+    const r_sig = `trackgetFileUrlformat_id${format_id}intentstreamtrack_id${track_id}${timestamp}${qobuzSecret}`;
     const r_sig_hashed = import_crypto.default.createHash("md5").update(r_sig).digest("hex");
     const response = await import_axios.default.get(`${qobuzApiBase}track/getFileUrl`, {
       params: {
-        format_id: 5,
+        format_id,
         intent: "stream",
         track_id,
         request_ts: timestamp,
@@ -106,7 +219,7 @@ app.get("/api/stream", async (req, res) => {
     res.json(response.data);
   } catch (error) {
     console.error("Qobuz stream error:", error?.response?.data || error.message);
-    res.status(500).json({ error: "Failed to get stream URL" });
+    res.status(500).json({ error: "Failed to get stream URL", details: error?.response?.data });
   }
 });
 app.get("/api/album", async (req, res) => {
@@ -228,10 +341,15 @@ app.get("/api/downloadWithMetadata", async (req, res) => {
       }
     }
     await execPromise(ffmpegCmd);
-    res.download(finalPath, `${artist} - ${title}.${ext}`, (err) => {
-      if (err) console.error("Error sending file to client:", err);
+    res.setHeader("Content-Disposition", `attachment; filename="${artist.replace(/[/\\?%*:|"<>]/g, "-")} - ${title.replace(/[/\\?%*:|"<>]/g, "-")}.${ext}"`);
+    res.setHeader("Content-Type", ext === "mp3" ? "audio/mpeg" : "audio/flac");
+    const readStream = import_fs.default.createReadStream(finalPath);
+    readStream.on("close", cleanup);
+    readStream.on("error", (err) => {
+      console.error("Error sending file to client:", err);
       cleanup();
     });
+    readStream.pipe(res);
   } catch (error) {
     cleanup();
     console.error("Metadata download error:", error?.response?.data || error.message);
@@ -263,6 +381,111 @@ Recommend real albums and tracks that the user could search for.`
 });
 app.get("/api/health", (req, res) => {
   res.json({ status: "ok" });
+});
+app.get("/api/downloadAlbumZip", async (req, res) => {
+  const { album_id, format_id } = req.query;
+  if (!album_id || !format_id) return res.status(400).json({ error: "album_id and format_id are required" });
+  if (!qobuzAppId || !qobuzSecret) return res.status(400).json({ error: "Qobuz credentials not configured" });
+  const ext = format_id === "5" ? "mp3" : "flac";
+  try {
+    const albumRes = await import_axios.default.get(`${qobuzApiBase}album/get`, {
+      params: { album_id },
+      headers: { "x-app-id": qobuzAppId, "x-user-auth-token": qobuzToken || void 0 }
+    });
+    const albumData = albumRes.data;
+    const tracks = albumData.tracks?.items || [];
+    if (!tracks.length) throw new Error("No tracks found in album");
+    const safeAlbumTitle = (albumData.title || "Album").replace(/[/\\?%*:|"<>]/g, "-");
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${safeAlbumTitle}.zip"`);
+    const archive = (0, import_archiver.default)("zip", {
+      zlib: { level: 0 }
+    });
+    archive.on("error", (err) => {
+      throw err;
+    });
+    archive.pipe(res);
+    const tempFiles = [];
+    const cleanup = () => {
+      for (const file of tempFiles) {
+        if (import_fs.default.existsSync(file)) import_fs.default.unlinkSync(file);
+      }
+    };
+    res.on("finish", cleanup);
+    res.on("close", cleanup);
+    for (const track of tracks) {
+      const track_id = track.id;
+      const title = track.title || "Unknown Title";
+      const artist = track.performer?.name || track.artist?.name || "Unknown Artist";
+      const albumTitle = albumData.title || "Unknown Album";
+      const trackNum = track.track_number || "1";
+      let coverUrl = albumData.image?.large || albumData.image?.small || track.image?.large;
+      const rawPath = import_path.default.join("/tmp", `${track_id}_raw_${Date.now()}.${ext}`);
+      const coverPath = import_path.default.join("/tmp", `${track_id}_cover_${Date.now()}.jpg`);
+      const finalPath = import_path.default.join("/tmp", `${track_id}_final_${Date.now()}.${ext}`);
+      tempFiles.push(rawPath, coverPath, finalPath);
+      const timestamp = Math.floor(Date.now() / 1e3);
+      const r_sig = `trackgetFileUrlformat_id${format_id}intentstreamtrack_id${track_id}${timestamp}${qobuzSecret}`;
+      const r_sig_hashed = import_crypto.default.createHash("md5").update(r_sig).digest("hex");
+      const downloadUrlRes = await import_axios.default.get(`${qobuzApiBase}track/getFileUrl`, {
+        params: { format_id, intent: "stream", track_id, request_ts: timestamp, request_sig: r_sig_hashed },
+        headers: { "x-app-id": qobuzAppId, "x-user-auth-token": qobuzToken || void 0 }
+      });
+      const streamUrl = downloadUrlRes.data.url;
+      if (!streamUrl) continue;
+      const audioRes = await (0, import_axios.default)({ method: "get", url: streamUrl, responseType: "stream" });
+      const audioWriter = import_fs.default.createWriteStream(rawPath);
+      audioRes.data.pipe(audioWriter);
+      await new Promise((resolve, reject) => {
+        audioWriter.on("finish", () => resolve());
+        audioWriter.on("error", reject);
+      });
+      let hasCover = false;
+      if (coverUrl) {
+        try {
+          const coverRes = await (0, import_axios.default)({ method: "get", url: coverUrl, responseType: "stream" });
+          const coverWriter = import_fs.default.createWriteStream(coverPath);
+          coverRes.data.pipe(coverWriter);
+          await new Promise((resolve, reject) => {
+            coverWriter.on("finish", () => resolve());
+            coverWriter.on("error", reject);
+          });
+          hasCover = true;
+        } catch (err) {
+        }
+      }
+      const safeTitleMetadata = title.replace(/"/g, '\\"');
+      const safeArtistMetadata = artist.replace(/"/g, '\\"');
+      const safeAlbumMetadata = albumTitle.replace(/"/g, '\\"');
+      let ffmpegCmd = "";
+      if (ext === "mp3") {
+        if (hasCover) {
+          ffmpegCmd = `ffmpeg -y -i "${rawPath}" -i "${coverPath}" -map 0:a -map 1:v -c copy -id3v2_version 3 -metadata title="${safeTitleMetadata}" -metadata artist="${safeArtistMetadata}" -metadata album="${safeAlbumMetadata}" -metadata track="${trackNum}" "${finalPath}"`;
+        } else {
+          ffmpegCmd = `ffmpeg -y -i "${rawPath}" -c copy -id3v2_version 3 -metadata title="${safeTitleMetadata}" -metadata artist="${safeArtistMetadata}" -metadata album="${safeAlbumMetadata}" -metadata track="${trackNum}" "${finalPath}"`;
+        }
+      } else {
+        if (hasCover) {
+          ffmpegCmd = `ffmpeg -y -i "${rawPath}" -i "${coverPath}" -map 0:a -map 1:v -c copy -disposition:v attached_pic -metadata title="${safeTitleMetadata}" -metadata artist="${safeArtistMetadata}" -metadata album="${safeAlbumMetadata}" -metadata track="${trackNum}" "${finalPath}"`;
+        } else {
+          ffmpegCmd = `ffmpeg -y -i "${rawPath}" -c copy -metadata title="${safeTitleMetadata}" -metadata artist="${safeArtistMetadata}" -metadata album="${safeAlbumMetadata}" -metadata track="${trackNum}" "${finalPath}"`;
+        }
+      }
+      try {
+        await execPromise(ffmpegCmd);
+        const fileName = `${trackNum.toString().padStart(2, "0")} - ${title.replace(/[/\\?%*:|"<>]/g, "-")}.${ext}`;
+        archive.append(import_fs.default.createReadStream(finalPath), { name: fileName });
+      } catch (err) {
+        console.error("FFmpeg failed for track", track_id, err);
+      }
+    }
+    archive.finalize();
+  } catch (error) {
+    console.error("Album Zip error:", error?.response?.data || error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Failed to process album download" });
+    }
+  }
 });
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

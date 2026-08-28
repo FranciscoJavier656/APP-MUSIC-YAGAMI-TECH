@@ -65,7 +65,7 @@ export default function ParaTiSection({ editorPicks, playlists, onItemClick }: P
         </div>
 
         <AnimatePresence>
-          {selectedGenres.length >> 3 && (
+          {selectedGenres.length >= 3 && (
             <motion.button 
               initial={{ y: 50, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

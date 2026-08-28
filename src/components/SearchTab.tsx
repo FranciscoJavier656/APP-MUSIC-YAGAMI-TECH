@@ -6,6 +6,7 @@ import { usePlayer } from './PlayerContext';
 import AlbumView from './AlbumView';
 import PlaylistView from './PlaylistView';
 import { AnimatePresence, motion } from 'motion/react';
+import { useIntersectionObserver } from '../hooks/useIntersectionObserver';
 import { getImageSrc } from '../lib/image';
 
 
@@ -36,6 +37,10 @@ export default function SearchTab() {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [error, setError] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
+  const [offset, setOffset] = useState(0);
+  const { targetRef, isIntersecting } = useIntersectionObserver({ threshold: 0.1 });
   const { playTrack, currentTrack, isPlaying, setContextMenuTrack, setDownloadItem } = usePlayer();
   
   const [activeItem, setActiveItem] = useState<{id: string, type: string} | null>(null);
@@ -56,18 +61,94 @@ export default function SearchTab() {
     return () => clearTimeout(delayDebounceFn);
   }, [query]);
 
-  const executeSearch = async (searchQuery: string) => {
-    setLoading(true);
+  const executeSearch = async (searchQuery: string, currentOffset = 0) => {
+    if (currentOffset === 0) {
+      setLoading(true);
+      setOffset(0);
+    } else {
+      setLoadingMore(true);
+    }
     setError('');
     try {
-      const data = await searchQobuz(searchQuery);
-      setResults(data);
+      let typeParam = undefined;
+      if (currentOffset > 0 && filterMode !== 'all') {
+        typeParam = filterMode;
+      }
+      
+      const data = await searchQobuz(searchQuery, 50, currentOffset, typeParam);
+      if (currentOffset === 0) {
+        setResults(data);
+      } else {
+        setResults((prev: any) => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            items: [...(prev.tracks?.items || []), ...(data.tracks?.items || [])]
+          },
+          albums: {
+            ...prev.albums,
+            items: [...(prev.albums?.items || []), ...(data.albums?.items || [])]
+          },
+          artists: {
+            ...prev.artists,
+            items: [...(prev.artists?.items || []), ...(data.artists?.items || [])]
+          }
+        }));
+      }
+      
+      let total = 0;
+      let loaded = 0;
+      if (filterMode === 'tracks') {
+        total = data.tracks?.total || 0;
+        loaded = currentOffset + (data.tracks?.items?.length || 0);
+        setHasMore(loaded < total);
+      } else if (filterMode === 'albums') {
+        total = data.albums?.total || 0;
+        loaded = currentOffset + (data.albums?.items?.length || 0);
+        setHasMore(loaded < total);
+      } else if (filterMode === 'artists') {
+        total = data.artists?.total || 0;
+        loaded = currentOffset + (data.artists?.items?.length || 0);
+        setHasMore(loaded < total);
+      } else {
+        setHasMore(false); // No pagination in 'all' view
+      }
+      
     } catch (err: any) {
       setError(err.response?.data?.error || err.message || 'Error occurred');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   };
+
+  useEffect(() => {
+    if (isIntersecting && hasMore && !loading && !loadingMore) {
+      executeSearch(query, offset);
+    }
+  }, [isIntersecting, hasMore, loading, loadingMore, filterMode, query, offset]);
+
+  useEffect(() => {
+    if (!results) return;
+    let total = 0;
+    let loaded = 0;
+    if (filterMode === 'tracks') {
+      total = results.tracks?.total || 0;
+      loaded = results.tracks?.items?.length || 0;
+      setHasMore(loaded < total);
+    } else if (filterMode === 'albums') {
+      total = results.albums?.total || 0;
+      loaded = results.albums?.items?.length || 0;
+      setHasMore(loaded < total);
+    } else if (filterMode === 'artists') {
+      total = results.artists?.total || 0;
+      loaded = results.artists?.items?.length || 0;
+      setHasMore(loaded < total);
+    } else {
+      setHasMore(false);
+    }
+    setOffset(loaded);
+  }, [filterMode, results]);
 
   const handleSearch = (e: FormEvent) => {
     e.preventDefault();
@@ -101,7 +182,7 @@ export default function SearchTab() {
             className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000]"
           >
             <AlbumView albumId={activeItem.id} onBack={() => setActiveItem(null)} />
-          </motion.div>
+            </motion.div>
         )}
       </AnimatePresence>
 
@@ -173,6 +254,11 @@ export default function SearchTab() {
                   </div>
                 ))}
               </div>
+              {hasMore && (
+                <div ref={targetRef} className="py-6 flex justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              )}
             </motion.div>
           )}
 
@@ -248,7 +334,7 @@ export default function SearchTab() {
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Álbumes</h2>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
-                    {results.albums.items.slice(0, filterMode === 'albums' ? 50 : 8).map((album: any) => (
+                    {results.albums.items.slice(0, filterMode === 'albums' ? undefined : 8).map((album: any) => (
                       <div key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
                         <div className="relative aspect-square rounded-xl bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden">
                           {album.image?.large ? (
@@ -273,7 +359,7 @@ export default function SearchTab() {
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Artistas</h2>
                   <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
-                    {results.artists.items.slice(0, filterMode === 'artists' ? 50 : 6).map((artist: any) => (
+                    {results.artists.items.slice(0, filterMode === 'artists' ? undefined : 6).map((artist: any) => (
                       <div 
                         key={artist.id} 
                         onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} 
@@ -300,7 +386,7 @@ export default function SearchTab() {
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Pistas</h2>
                   <div className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
-                    {results.tracks.items.slice(0, filterMode === 'tracks' ? 50 : 5).map((track: any) => (
+                    {results.tracks.items.slice(0, filterMode === 'tracks' ? undefined : 5).map((track: any) => (
                       <div key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
                         <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                           <img src={getImageSrc(track.album?.image) || getImageSrc(track.image) || ''} alt={track.title} className="w-full h-full object-cover" />
@@ -322,7 +408,7 @@ export default function SearchTab() {
                           <Download className="w-5 h-5" />
                         </button>
                         <button 
-                          onClick={(e) => { e.stopPropagation(); setContextMenuTrack(track); }}
+                          onClick={(e) => { e.stopPropagation(); setContextMenuTrack({ item: track, type: 'track' }); }}
                           className="p-2 text-gray-400 hover:text-black dark:hover:text-white rounded-full transition-colors opacity-100"
                         >
                           <MoreHorizontal className="w-5 h-5" />
@@ -333,6 +419,11 @@ export default function SearchTab() {
                 </section>
               )}
 
+              {hasMore && (
+                <div ref={targetRef} className="py-6 flex justify-center">
+                  <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                </div>
+              )}
             </motion.div>
           )}
 

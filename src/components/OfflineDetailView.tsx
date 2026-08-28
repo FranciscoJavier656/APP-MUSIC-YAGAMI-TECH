@@ -9,9 +9,12 @@ interface OfflineDetailProps {
   tracks: any[];
   onBack: () => void;
   type: 'album' | 'artist';
+  onRemoveTrack?: (id: string) => void;
 }
 
-export default function OfflineDetailView({ item, tracks, onBack, type }: OfflineDetailProps) {
+import { Trash2 } from 'lucide-react';
+
+export default function OfflineDetailView({ item, tracks, onBack, type, onRemoveTrack }: OfflineDetailProps) {
   const { playTrack, currentTrack, isPlaying } = usePlayer();
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollY } = useScroll({ container: containerRef });
@@ -102,6 +105,17 @@ export default function OfflineDetailView({ item, tracks, onBack, type }: Offlin
                     <p className={`font-bold text-[15px] leading-snug truncate ${isCurrent ? 'text-[#007AFF]' : 'text-black dark:text-white'}`}>{track.title}</p>
                     <p className="text-gray-500 text-[13px] font-medium truncate mt-0.5">{track.subtitle || 'Unknown'}</p>
                   </div>
+                  {onRemoveTrack && (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onRemoveTrack(track.id);
+                      }}
+                      className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-red-500 transition-colors shrink-0"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
               );
             })}

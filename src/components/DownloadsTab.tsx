@@ -184,232 +184,198 @@ export default function DownloadsTab() {
     );
   }
 
+  
   const renderEmptyState = () => (
-    <div className="flex-1 mx-4 overflow-hidden rounded-[20px] mb-24 mt-4">
-      <div className="flex-1 h-full bg-[#1E90FF]/5 backdrop-blur-[20px] flex flex-col items-center justify-center p-10 border border-[#1E90FF]/10">
-        <Download className="w-20 h-20 text-[#1E90FF]/30" />
-        <h3 className="text-2xl font-bold text-white mt-5 mb-2 text-center">
-          Sin descargas
-        </h3>
-        <p className="text-white/60 text-sm text-center mb-6">
-          Descarga música para escucharla sin conexión
-        </p>
-        <button className="overflow-hidden rounded-2xl">
-          <div className="bg-gradient-to-r from-[#1DB954]/40 to-[#1DB954]/20 backdrop-blur-[40px] px-6 py-3.5 flex items-center gap-2">
-            <Search className="w-5 h-5 text-white" />
-            <span className="text-white text-base font-semibold">Explorar música</span>
-          </div>
-        </button>
+    <div className="flex-1 flex flex-col items-center justify-center p-8 mt-10">
+      <div className="w-24 h-24 mb-6 relative">
+        <div className="absolute inset-0 bg-[#007AFF]/10 rounded-full blur-2xl" />
+        <div className="relative w-full h-full rounded-full bg-gray-200 dark:bg-gray-800 flex items-center justify-center shadow-sm">
+          <Download className="w-10 h-10 text-gray-400" />
+        </div>
       </div>
+      <h3 className="text-xl font-black tracking-tighter text-black dark:text-white mb-2 text-center">
+        Sin descargas
+      </h3>
+      <p className="text-gray-500 text-[15px] font-medium text-center mb-6 max-w-[250px]">
+        Descarga música para escucharla sin conexión.
+      </p>
+      <button 
+         className="px-6 py-3 bg-[#007AFF] text-white rounded-full font-bold shadow-md hover:scale-105 active:scale-95 transition-transform flex items-center gap-2"
+         onClick={() => document.dispatchEvent(new CustomEvent('navigate', {detail: 'search'}))}
+      >
+        <Search className="w-5 h-5" />
+        <span>Explorar música</span>
+      </button>
     </div>
   );
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-black pb-[180px]">
-      <div className="fixed inset-0 bg-gradient-to-b from-[#0a0a0a] via-black to-black pointer-events-none" />
-      
-      <div className="relative pt-[10px] flex flex-col min-h-full">
-        {stats.totalDownloads > 0 ? (
-          <>
-            <motion.div 
-              initial={{ opacity: 0, y: -50 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="mt-2.5 mx-4 overflow-hidden rounded-[20px] backdrop-blur-[30px] mb-2"
-            >
-              <div className="bg-gradient-to-br from-white/5 to-black/80 p-5 border border-white/5">
-                
-                <div className="flex justify-between items-center mb-5">
-                  <div>
-                    <h1 className="text-[32px] font-bold text-white mb-1">Descargas</h1>
-                    <p className="text-sm text-white/60">
-                      Gestiona tu almacenamiento
-                    </p>
-                  </div>
-                  {stats.completedDownloads = 0 && (
-                    <button 
-                      onClick={clearCompleted}
-                      className="overflow-hidden rounded-xl"
-                    >
-                      <div className="flex items-center gap-1.5 p-3 backdrop-blur-[40px] bg-red-500/10 border border-red-500/20">
-                        <Trash2 size={20} color="#FF4444" />
-                        <span className="text-[#FF4444] text-sm font-semibold hidden sm:inline">Limpiar Completadas</span>
-                      </div>
-                    </button>
-                  )}
-                </div>
-
-                {/* Estadísticas */}
-                <div className="flex gap-3 mb-5">
-                  <div className="flex-1 overflow-hidden rounded-2xl">
-                    <div className="p-4 bg-white/5 backdrop-blur-[15px] flex flex-col items-center gap-2 border border-white/5">
-                      <Download size={24} color="#1E90FF" />
-                      <span className="text-xl font-bold text-white">{stats.activeDownloads}</span>
-                      <span className="text-[11px] text-white/60 uppercase tracking-wider font-semibold">Activas</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-hidden rounded-2xl">
-                    <div className="p-4 bg-white/5 backdrop-blur-[15px] flex flex-col items-center gap-2 border border-white/5">
-                      <CheckCircle size={24} color="#1DB954" />
-                      <span className="text-xl font-bold text-white">{stats.completedDownloads}</span>
-                      <span className="text-[11px] text-white/60 uppercase tracking-wider font-semibold">Completadas</span>
-                    </div>
-                  </div>
-                  <div className="flex-1 overflow-hidden rounded-2xl">
-                    <div className="p-4 bg-white/5 backdrop-blur-[15px] flex flex-col items-center gap-2 border border-white/5">
-                      <Database size={24} color="#FFA500" />
-                      <span className="text-xl font-bold text-white">{formatBytes(stats.totalSize)}</span>
-                      <span className="text-[11px] text-white/60 uppercase tracking-wider font-semibold">Total</span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Filtros */}
-                <div className="flex gap-2 overflow-x-auto scrollbar-hide">
-                  <button onClick={() => setFilter('all')} className={`overflow-hidden rounded-full ${filter === 'all' ? 'bg-[#1DB954]' : 'bg-white/10'}`}>
-                    <div className="px-4 py-2 flex items-center justify-center">
-                      <span className={`text-[13px] font-semibold ${filter === 'all' ? 'text-white' : 'text-white/60'}`}>Todas</span>
-                    </div>
-                  </button>
-                  <button onClick={() => setFilter('downloading')} className={`overflow-hidden rounded-full ${filter === 'downloading' ? 'bg-[#1DB954]' : 'bg-white/10'}`}>
-                    <div className="px-4 py-2 flex items-center justify-center">
-                      <span className={`text-[13px] font-semibold ${filter === 'downloading' ? 'text-white' : 'text-white/60'}`}>Descargando</span>
-                    </div>
-                  </button>
-                  <button onClick={() => setFilter('completed')} className={`overflow-hidden rounded-full ${filter === 'completed' ? 'bg-[#1DB954]' : 'bg-white/10'}`}>
-                    <div className="px-4 py-2 flex items-center justify-center">
-                      <span className={`text-[13px] font-semibold ${filter === 'completed' ? 'text-white' : 'text-white/60'}`}>Completadas</span>
-                    </div>
-                  </button>
-                  <button onClick={() => setFilter('error')} className={`overflow-hidden rounded-full ${filter === 'error' ? 'bg-[#1DB954]' : 'bg-white/10'}`}>
-                    <div className="px-4 py-2 flex items-center justify-center">
-                      <span className={`text-[13px] font-semibold ${filter === 'error' ? 'text-white' : 'text-white/60'}`}>Errores</span>
-                    </div>
-                  </button>
-                </div>
-
-              </div>
-            </motion.div>
-
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="px-4 pb-[180px] space-y-3"
-            >
-              {filteredDownloads.map((item, idx) => {
-                const StatusIcon = getStatusIcon(item.status);
-                const statusColor = getStatusColor(item.status);
-                const isProcessing = ['downloading', 'processing_metadata', 'importing_library', 'organizing'].includes(item.status);
-
-                const getProcessingText = (s: string) => {
-                   if(s === 'processing_metadata') return 'Escribiendo metadatos...';
-                   if(s === 'importing_library') return 'Importando...';
-                   if(s === 'organizing') return 'Organizando...';
-                   return '';
-                };
-
-                return (
-                  <div key={item.id || idx} className="mb-3">
-                    <div className="overflow-hidden rounded-2xl backdrop-blur-[15px] bg-white/5 border border-white/5">
-                      <div className="flex p-3 gap-3">
-                        {/* Album Art */}
-                        <div className="w-20 h-20 bg-white/10 rounded-xl overflow-hidden flex-shrink-0">
-                          {item.track?.album?.image?.small || item.track?.image?.small || item.track?.image ? (
-                            <OfflineImage localPath={item.track?.localCoverPath} remoteUrl={getImageSrc(item.track?.album?.image || item.track?.image)} alt="" className="w-full h-full object-cover" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-white/40">
-                              <Music className="w-8 h-8" />
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Info */}
-                        <div className="flex-1 flex flex-col justify-center min-w-0">
-                          <h4 className="text-base font-bold text-white truncate">{item.track?.title || 'Unknown'}</h4>
-                          <p className="text-[13px] text-white/60 truncate">{item.track?.artist?.name || item.track?.performer?.name || 'Unknown Artist'}</p>
-                          
-                          {/* Barra de progreso */}
-                          {(isProcessing || item.status === 'queued') && (
-                            <div className="flex items-center gap-2 mt-1.5">
-                              <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
-                                <div 
-                                  className={`h-full rounded-full transition-all duration-300 ${item.status === 'queued' ? 'bg-[#9B59B6]' : 'bg-[#1E90FF]'}`}
-                                  style={{ width: `${Math.round(item.progress)}%` }}
-                                />
-                              </div>
-                              <span className="text-[11px] font-semibold text-white/60 min-w-[35px] text-right">
-                                {item.status === 'queued' ? 'Cola' : `${Math.round(item.progress)}%`}
-                              </span>
-                            </div>
-                          )}
-
-                          {/* Info Adicional */}
-                          <div className="flex items-center gap-1.5 mt-1">
-                            {item.status === 'queued' && (
-                              <span className="text-[11px] text-white/50">Esperando para descargar...</span>
-                            )}
-                            {item.status === 'downloading' && (
-                              <span className="text-[11px] text-white/50">Descargando...</span>
-                            )}
-                            {item.status === 'completed' && (
-                              <span className="text-[11px] text-[#1DB954] font-medium uppercase tracking-wider">Completado {item.track?.sizeBytes ? `• ${formatBytes(item.track.sizeBytes)}` : ''}</span>
-                            )}
-                            {item.status === 'error' && (
-                              <span className="text-[11px] text-[#FF4444] font-medium truncate">{(item as any).error || 'Error en descarga'}</span>
-                            )}
-                            {isProcessing && item.status !== 'downloading' && (
-                               <span className="text-[11px] text-[#1E90FF]">{getProcessingText(item.status)}</span>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Controles */}
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          {/* Status Badge */}
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}20` }}>
-                            <StatusIcon size={16} color={statusColor} />
-                          </div>
-
-                          {item.status === 'completed' && (
-                            <button 
-                              onClick={() => {
-                                const trackToPlay = { 
-                                  ...item.track, 
-                                  localPath: item.track.localPath 
-                                };
-                                const queueToPlay = downloads.filter((d: any) => d.status === 'completed' && d.track).map((d: any) => ({
-                                  ...d.track,
-                                  localPath: d.track.localPath
-                                }));
-                                playTrack(trackToPlay, queueToPlay);
-                              }}
-                              className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-[#1DB954] group transition-colors"
-                            >
-                              <Play size={16} className="text-[#1DB954] group-hover:text-white fill-current ml-0.5" />
-                            </button>
-                          )}
-
-                          <button 
-                            onClick={() => {
-                               if (item.status === 'completed') {
-                                  removeTrack(item.id);
-                               }
-                            }}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-colors ${item.status === 'completed' ? 'bg-white/10 hover:bg-red-500 group' : 'opacity-0 pointer-events-none'}`}
-                          >
-                            <Trash2 size={16} className="text-white/60 group-hover:text-white" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </motion.div>
-          </>
-        ) : (
-          renderEmptyState()
-        )}
+    <div className="h-full w-full overflow-y-auto bg-[#F2F2F7] dark:bg-[#000000] pb-[180px]">
+      <div className="pt-12 px-6 pb-2">
+        <div className="flex justify-between items-center">
+          <h1 className="text-3xl font-black tracking-tighter text-black dark:text-white">Descargas</h1>
+        </div>
+        <p className="text-[13px] text-gray-500 font-medium mt-1">
+          {stats.totalDownloads} {stats.totalDownloads === 1 ? 'elemento' : 'elementos'}
+          {stats.totalSize > 0 && (
+             <span className="text-gray-400">
+               {' '}• {formatBytes(stats.totalSize)}
+             </span>
+          )}
+        </p>
       </div>
+
+      <div className="px-6 mb-4 mt-2">
+        <div className="flex gap-2 overflow-x-auto no-scrollbar py-2">
+          {[
+            { id: 'all', title: 'Todos' },
+            { id: 'downloading', title: 'Descargando' },
+            { id: 'completed', title: 'Completadas' },
+            { id: 'error', title: 'Errores' }
+          ].map((tab) => {
+            const isActive = filter === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setFilter(tab.id as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-full text-[13px] font-bold transition-all ${
+                  isActive 
+                     ? 'bg-black text-white dark:bg-white dark:text-black shadow-md' 
+                     : 'bg-gray-200 text-gray-600 dark:bg-[#1C1C1E] dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-800'
+                }`}
+              >
+                <span>{tab.title}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <motion.div 
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        className="flex-1 flex flex-col"
+      >
+        {filteredDownloads.length === 0 ? (
+          renderEmptyState()
+        ) : (
+          <div className="px-4 space-y-1">
+            {filteredDownloads.map((item, idx) => {
+              const StatusIcon = getStatusIcon(item.status);
+              const statusColor = getStatusColor(item.status);
+              const isProcessing = ['downloading', 'processing_metadata', 'importing_library', 'organizing'].includes(item.status);
+              const getProcessingText = (s: string) => {
+                 if(s === 'processing_metadata') return 'Escribiendo metadatos...';
+                 if(s === 'importing_library') return 'Importando...';
+                 if(s === 'organizing') return 'Organizando...';
+                 return '';
+              };
+
+              return (
+                <div key={item.id || idx} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
+                  <div className="w-14 h-14 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
+                    {item.track?.album?.image?.small || item.track?.image?.small || item.track?.image ? (
+                      <OfflineImage 
+                        localPath={item.track?.localCoverPath} 
+                        remoteUrl={getImageSrc(item.track?.album?.image || item.track?.image)} 
+                        alt="" 
+                        className="w-full h-full object-cover" 
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-gray-400">
+                        <Music className="w-6 h-6" />
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-[15px] leading-tight truncate text-black dark:text-white">{item.track?.title || 'Unknown'}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                       <p className="text-gray-500 text-[13px] truncate font-medium">
+                         {item.track?.artist?.name || item.track?.performer?.name || 'Unknown Artist'}
+                       </p>
+                    </div>
+                    
+                    {(isProcessing || item.status === 'queued') && (
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="flex-1 h-1 bg-gray-300 dark:bg-[#1C1C1E] rounded-full overflow-hidden">
+                          <div 
+                             className={`h-full rounded-full transition-all duration-300 ${item.status === 'queued' ? 'bg-[#9B59B6]' : 'bg-[#007AFF]'}`}
+                            style={{ width: `${Math.round(item.progress)}%` }}
+                          />
+                        </div>
+                        <span className="text-[11px] font-semibold text-gray-500 min-w-[35px] text-right">
+                          {item.status === 'queued' ? 'Cola' : `${Math.round(item.progress)}%`}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      {item.status === 'queued' && (
+                        <span className="text-[11px] text-gray-400">Esperando...</span>
+                      )}
+                      {item.status === 'downloading' && (
+                        <span className="text-[11px] text-[#007AFF]">Descargando...</span>
+                      )}
+                      {item.status === 'completed' && (
+                        <span className="text-[11px] text-[#34C759] font-medium uppercase tracking-wider">
+                          Completado {item.track?.sizeBytes ? `• ${formatBytes(item.track.sizeBytes)}` : ''}
+                        </span>
+                      )}
+                      {item.status === 'error' && (
+                        <span className="text-[11px] text-[#FF3B30] font-medium truncate">
+                          {(item as any).error || 'Error'}
+                        </span>
+                      )}
+                      {isProcessing && item.status !== 'downloading' && (
+                         <span className="text-[11px] text-[#007AFF]">{getProcessingText(item.status)}</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-1">
+                    {item.status !== 'completed' && (
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: `${statusColor}20` }}>
+                         <StatusIcon size={16} color={statusColor} />
+                      </div>
+                    )}
+
+                    {item.status === 'completed' && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const trackToPlay = {
+                             ...item.track,
+                             localPath: item.track.localPath
+                           };
+                          const queueToPlay = downloads.filter((d: any) => d.status === 'completed' && d.track).map((d: any) => ({
+                            ...d.track,
+                            localPath: d.track.localPath
+                          }));
+                          playTrack(trackToPlay, queueToPlay);
+                        }}
+                        className="w-10 h-10 flex items-center justify-center bg-[#007AFF]/10 text-[#007AFF] hover:bg-[#007AFF] hover:text-white rounded-full transition-colors"
+                      >
+                        <Play className="w-5 h-5 fill-current ml-0.5" />
+                      </button>
+                    )}
+                    
+                    <button 
+                      onClick={(e) => {
+                         e.stopPropagation();
+                         if (item.status === 'completed') removeTrack(item.id);
+                      }}
+                      className={`w-10 h-10 flex items-center justify-center text-gray-400 hover:text-[#FF3B30] hover:bg-[#FF3B30]/10 rounded-full transition-colors ${item.status === 'completed' ? '' : 'opacity-0 pointer-events-none'}`}
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </motion.div>
     </div>
   );
 }
