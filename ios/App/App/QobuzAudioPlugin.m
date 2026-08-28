@@ -488,7 +488,8 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
     NSString *lyrics = call.options[@"lyrics"];
     
     if (!path || !lyrics) {
-        [call reject:@"Missing path or lyrics" code:nil error:nil data:nil];
+        [self logMessage:@"❌ Error: Missing path or lyrics"];
+        [call resolve];
         return;
     }
     
