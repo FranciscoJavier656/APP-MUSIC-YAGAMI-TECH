@@ -33,6 +33,9 @@ const BENTO_GENRES = [
 ];
 
 export default function SearchTab() {
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } } };
+
   const [query, setQuery] = useState('');
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
@@ -333,9 +336,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'albums') && results.albums?.items && results.albums.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Álbumes</h2>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
+                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
                     {results.albums.items.slice(0, filterMode === 'albums' ? undefined : 8).map((album: any) => (
-                      <div key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
+                      <motion.div variants={itemVariants} key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
                         <div className="relative aspect-square rounded-xl bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden">
                           {album.image?.large ? (
                             <img src={getImageSrc(album.image) || ''} alt={album.title} className="w-full h-full object-cover" />
@@ -348,9 +351,9 @@ export default function SearchTab() {
                           <p className="font-bold text-[14px] leading-tight truncate">{album.title}</p>
                           <p className="text-gray-500 text-[13px] truncate mt-0.5">{album.artist?.name}</p>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </section>
               )}
 
@@ -358,13 +361,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'artists') && results.artists?.items && results.artists.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Artistas</h2>
-                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
                     {results.artists.items.slice(0, filterMode === 'artists' ? undefined : 6).map((artist: any) => (
-                      <div 
-                        key={artist.id} 
-                        onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} 
-                        className="flex-none w-[100px] flex flex-col items-center gap-2 cursor-pointer group"
-                      >
+                      <motion.div variants={itemVariants} key={artist.id} onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} className="flex-none w-[100px] flex flex-col items-center gap-2 cursor-pointer group">
                         <div className="w-[90px] h-[90px] rounded-full bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden border border-black/5 dark:border-white/5 relative">
                           {(artist.picture || artist.image) ? (
                             <img src={getImageSrc(artist.picture) || getImageSrc(artist.image) || ''} alt={artist.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -375,9 +374,9 @@ export default function SearchTab() {
                           )}
                         </div>
                         <p className="font-bold text-[13px] leading-tight text-center line-clamp-2">{artist.name}</p>
-                      </div>
+                      </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </section>
               )}
 
@@ -385,9 +384,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'tracks') && results.tracks?.items && results.tracks.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Pistas</h2>
-                  <div className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
+                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
                     {results.tracks.items.slice(0, filterMode === 'tracks' ? undefined : 5).map((track: any) => (
-                      <div key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
+                      <motion.div variants={itemVariants} key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
                         <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                           <img src={getImageSrc(track.album?.image) || getImageSrc(track.image) || ''} alt={track.title} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-100 transition-opacity">
@@ -413,9 +412,9 @@ export default function SearchTab() {
                         >
                           <MoreHorizontal className="w-5 h-5" />
                         </button>
-                      </div>
+                      </motion.div>
                     ))}
-                  </div>
+                  </motion.div>
                 </section>
               )}
 

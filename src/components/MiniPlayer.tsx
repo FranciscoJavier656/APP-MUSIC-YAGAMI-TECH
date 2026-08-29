@@ -27,7 +27,7 @@ export default function MiniPlayer() {
   return (
     <>
       <AnimatePresence>
-        {currentTrack && (
+        {currentTrack && !isExpanded && (
           <motion.div 
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: isExpanded ? 50 : 0, opacity: isExpanded ? 0 : 1 }}
@@ -66,7 +66,7 @@ export default function MiniPlayer() {
               <div className="relative z-10 p-2.5 flex items-center gap-3">
                 
                 {/* Artwork */}
-                <div className="w-12 h-12 rounded-[12px] overflow-hidden shadow-md flex-shrink-0 relative bg-gray-200 dark:bg-gray-800">
+                <motion.div layoutId="player-artwork" className="w-12 h-12 rounded-[12px] overflow-hidden shadow-md flex-shrink-0 relative bg-gray-200 dark:bg-gray-800">
                   {currentTrack.image ? (
                     <OfflineImage localPath={currentTrack.localCoverPath || currentTrack.original?.localCoverPath} remoteUrl={getImageSrc(currentTrack.album?.image || currentTrack.image)} alt={currentTrack.title} className="w-full h-full object-cover" onError={(e) => { e.currentTarget.src = 'https://placehold.co/400x400/1C1C1E/FFFFFF/png?text = Audio' }} />
                   ) : (
@@ -82,8 +82,7 @@ export default function MiniPlayer() {
                       </div>
                     </div>
                   )}
-                </div>
-
+                </motion.div>
                 {/* Track Info */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
                   <p className="text-[15px] font-bold leading-tight truncate text-black dark:text-white mb-0.5">

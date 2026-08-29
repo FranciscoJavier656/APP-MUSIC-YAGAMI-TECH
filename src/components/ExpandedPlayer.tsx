@@ -1,3 +1,4 @@
+import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListMusic, Info, MoreHorizontal, Download } from 'lucide-react';
 import { usePlayer } from './PlayerContext';
@@ -166,15 +167,26 @@ export default function ExpandedPlayer() {
                 const children = container.children;
                 for (let i = 0; i < children.length; i++) {
                     const child = children[i] as HTMLElement;
+                    const distance = Math.abs(i - activeIdx);
+                    
                     if (i === activeIdx) {
                         child.style.opacity = '1';
-                        child.style.transform = 'scale(1.05)';
-                        child.style.color = '#fff';
+                        child.style.transform = 'scale(1.15)';
+                        child.style.color = '#ffffff';
+                        child.style.filter = 'blur(0px)';
+                        child.style.textShadow = '0 0 20px rgba(255,255,255,0.4)';
                         child.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } else {
-                        child.style.opacity = '0.4';
-                        child.style.transform = 'scale(1)';
+                        // Calculate cinematic blur and fade
+                        const blurAmount = Math.min(distance * 1.5, 6);
+                        const opacityAmount = Math.max(0.6 - (distance * 0.15), 0.1);
+                        const scaleAmount = Math.max(0.95 - (distance * 0.02), 0.85);
+                        
+                        child.style.opacity = opacityAmount.toString();
+                        child.style.transform = `scale(${scaleAmount})`;
                         child.style.color = 'rgba(255,255,255,0.7)';
+                        child.style.filter = `blur(${blurAmount}px)`;
+                        child.style.textShadow = 'none';
                     }
                 }
             }
@@ -418,13 +430,18 @@ export default function ExpandedPlayer() {
   };
 
   return (
-    <div
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-      className={`fixed inset-0 z-[60] bg-white dark:bg-black flex flex-col pt-12 pb-8 px-6 sm:px-12 transform ${touchOffsetY === 0 ? 'transition-transform duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]' : ''}`}
-      style={{ transform: isExpanded ? (touchOffsetY > 0 ? `translateY(${touchOffsetY}px)` : 'translateY(0px)') : 'translateY(100%)' }}
-    >
+    <AnimatePresence>
+      {isExpanded && (
+        <motion.div
+          initial={{ y: "100%", opacity: 0 }}
+          animate={{ y: touchOffsetY > 0 ? touchOffsetY : 0, opacity: 1 }}
+          exit={{ y: "100%", opacity: 0 }}
+          transition={{ type: "spring", damping: 25, stiffness: 250 }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+          className="fixed inset-0 z-[60] bg-[#F2F2F7] dark:bg-[#000000] flex flex-col pt-12 pb-8 px-6 sm:px-12"
+        >
       {dominantColor && (
         <div 
           className="absolute inset-0 opacity-20 dark:opacity-30 mix-blend-screen dark:mix-blend-lighten pointer-events-none transition-colors duration-1000"
@@ -458,7 +475,8 @@ export default function ExpandedPlayer() {
 
       {/* Artwork */}
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative z-10 w-full" style={{ perspective: '2000px' }}>
-        <div 
+        <motion.div 
+          layoutId="player-artwork"
           className="relative aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] cursor-pointer"
           style={{ 
             width: 'min(100%, 45vh, 380px)',
@@ -500,22 +518,30 @@ export default function ExpandedPlayer() {
                       parsedLyrics.map((line, idx) => (
                         <p 
                           key={idx} 
-                          className="text-white/60 text-[1.35rem] leading-[1.4] font-bold mb-7 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] origin-center"
-                          style={{ opacity: 0.3, transform: 'scale(0.95)' }}
+                          className="text-white/60 text-[1.35rem] leading-[1.4] font-bold mb-7 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] origin-center flex flex-col items-center gap-1.5"
+                          style={{ opacity: 0.3, transform: 'scale(0.95)', filter: 'blur(4px)' }}
                         >
-                          {line.text}
+                          {line.text.split('^').map((part, i) => (
+                            <span key={i} className={i > 0 ? "text-[0.75em] font-medium opacity-75 mt-0.5" : ""}>{part}</span>
+                          ))}
                         </p>
                       ))
                     ) : (
                       <div className="text-white/80 text-xl leading-relaxed font-semibold whitespace-pre-wrap">
-                        {lyrics}
+                        {lyrics.split('\n').map((line, i) => (
+                          <div key={i}>
+                            {line.split('^').map((part, j) => (
+                              <span key={j} className={j > 0 ? "block text-[0.8em] font-medium opacity-75 mt-1" : "block"}>{part}</span>
+                            ))}
+                          </div>
+                        ))}
                       </div>
                     )}
                   </div>
                 </div>
             </div>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Audio Visualizer Canvas */}
@@ -685,15 +711,17 @@ export default function ExpandedPlayer() {
                   {isPlayingQueue && (
                     <div className="w-4 h-4 flex items-end justify-between gap-[2px]">
                       <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite] h-2"></div>
-                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_100ms] h-4"></div>
-                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_200ms] h-3"></div>
+                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_0.2s] h-4"></div>
+                      <div className="w-[3px] bg-black dark:bg-white rounded-full animate-[bounce_1s_infinite_0.4s] h-3"></div>
                     </div>
                   )}
                 </div>
               );
             })}
-                        </div>
+          </div>
       </div>
-    </div>
+      </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

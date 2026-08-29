@@ -1,71 +1,50 @@
 const fs = require('fs');
-let code = fs.readFileSync('src/components/ArtistView.tsx', 'utf8');
 
-code = code.replace(
-  "import { getImageSrc } from '../lib/image';",
-  "import { getImageSrc } from '../lib/image';\nimport { useIntersectionObserver } from '../hooks/useIntersectionObserver';"
-);
-
-code = code.replace(
-  "const [error, setError] = useState('');",
-  "const [error, setError] = useState('');\n  const [loadingMoreTracks, setLoadingMoreTracks] = useState(false);\n  const [hasMoreTracks, setHasMoreTracks] = useState(true);\n  const { targetRef, isIntersecting } = useIntersectionObserver({ threshold: 0.1 });"
-);
-
-code = code.replace(
-  "setArtist(data);",
-  "setArtist(data);\n        setHasMoreTracks((data.tracks?.items?.length || 0) < (data.tracks?.total || 100)); // Default fallback for total"
-);
-
-const loadMoreFn = `
-  useEffect(() => {
-    if (isIntersecting && hasMoreTracks && !loading && !loadingMoreTracks && artist) {
-      loadMoreTracks();
-    }
-  }, [isIntersecting, hasMoreTracks, loading, loadingMoreTracks, artist]);
-
-  const loadMoreTracks = async () => {
-    if (!artist || !artist.tracks || !artist.tracks.items) return;
-    const currentCount = artist.tracks.items.length;
-    const total = artist.tracks.total || 9999;
-    if (currentCount >= total) {
-      setHasMoreTracks(false);
-      return;
-    }
-    setLoadingMoreTracks(true);
-    try {
-      const data = await getQobuzArtist(artistId, 50, currentCount);
-      const newItems = data.tracks?.items || [];
-      if (newItems.length === 0) {
-        setHasMoreTracks(false);
-      } else {
-        setArtist((prev: any) => ({
-          ...prev,
-          tracks: {
-            ...prev.tracks,
-            items: [...prev.tracks.items, ...newItems]
-          }
-        }));
-        if (currentCount + newItems.length >= total) {
-          setHasMoreTracks(false);
-        }
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingMoreTracks(false);
-    }
-  };
+const staggerVariants = `
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } } };
 `;
 
+let code = fs.readFileSync('src/components/ArtistView.tsx', 'utf8');
+
+if (!code.includes('containerVariants')) {
+  code = code.replace(
+    /export default function ArtistView\(\{ artistId, onBack \}: \{ artistId: string, onBack: \(\) => void \}\) \{/,
+    match => match + staggerVariants
+  );
+}
+
+if (!code.includes('import { motion }')) {
+  code = code.replace("import React,", "import { motion } from 'motion/react';\nimport React,");
+}
+
+// 1. Top Canciones list
 code = code.replace(
-  "const handlePlay = (track: any) => {",
-  `${loadMoreFn}\n  const handlePlay = (track: any) => {`
+  /<div className="space-y-1">\s*\{topTracks\.map\(\(track: any, idx: number\) => \{/,
+  '<motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1">\n              {topTracks.map((track: any, idx: number) => {'
+);
+code = code.replace(
+  /<div \s*key=\{track\.id\}\s*onClick=\{\(\) => handlePlay\(track\)\}/g,
+  '<motion.div variants={itemVariants} \n                    key={track.id}\n                    onClick={() => handlePlay(track)}'
+);
+code = code.replace(
+  /<\/div>\s*\);\s*\}\)\}\s*<\/div>/g,
+  '</div>\n                  </motion.div>\n                );\n              })}\n            </motion.div>'
 );
 
-// We need to add the targetRef at the end of the topTracks list
+// 2. Álbumes list
 code = code.replace(
-  "              </div>\n            ))}\n          </div>\n        </div>",
-  "              </div>\n            ))}\n            {hasMoreTracks && (\n              <div ref={targetRef} className=\"py-6 flex justify-center\">\n                <Loader2 className=\"w-6 h-6 animate-spin text-gray-400\" />\n              </div>\n            )}\n          </div>\n        </div>"
+  /<div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">\s*\{albums\.map\(\(album: any\) => \(/,
+  '<motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">\n              {albums.map((album: any) => ('
+);
+code = code.replace(
+  /<div \s*key=\{album\.id\}\s*onClick/g,
+  '<motion.div variants={itemVariants} \n                  key={album.id}\n                  onClick'
+);
+// replace closing tag for albums
+code = code.replace(
+  /<\/div>\s*<\/div>\s*\)\)\}\s*<\/div>/g,
+  '</div>\n                </motion.div>\n              ))}\n            </motion.div>'
 );
 
 fs.writeFileSync('src/components/ArtistView.tsx', code);

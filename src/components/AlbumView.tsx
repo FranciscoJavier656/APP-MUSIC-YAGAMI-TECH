@@ -13,6 +13,9 @@ interface AlbumViewProps {
 }
 
 export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
+  const containerVariants = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.05 } } };
+  const itemVariants = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } } };
+
   const [album, setAlbum] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -157,13 +160,9 @@ export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
 
         {/* Tracks List */}
         <div className="mt-8">
-          <div className="space-y-1">
+          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1">
             {album.tracks?.items?.map((track: any) => (
-              <div 
-                key={track.id} 
-                onClick={() => handlePlay(track)} 
-                className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
-              >
+              <motion.div variants={itemVariants} key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer">
                 <div className="w-6 text-center">
                   {currentTrack?.id === track.id.toString() && isPlaying ? (
                     <div className="flex gap-0.5 justify-center h-4 items-end">
@@ -199,9 +198,9 @@ export default function AlbumView({ albumId, onBack }: AlbumViewProps) {
                     <MoreHorizontal className="w-4 h-4" />
                   </button>
                 </div>
-              </div>
+              </motion.div>
             ))}
-          </div>
+          </motion.div>
         </div>
       </div>
 
