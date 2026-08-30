@@ -621,7 +621,7 @@ export default function ExpandedPlayer() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative z-10 w-full" style={{ perspective: '2000px' }}>
         <motion.div 
           layoutId="player-artwork"
-          className="relative aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] cursor-pointer"
+          className="relative aspect-square rounded-3xl shadow-[0_35px_60px_-15px_rgba(0,0,0,1),0_20px_30px_-5px_rgba(0,0,0,0.8)] cursor-pointer"
           style={{ 
             width: 'min(100%, 45vh, 380px)',
             height: 'min(100%, 45vh, 380px)',
