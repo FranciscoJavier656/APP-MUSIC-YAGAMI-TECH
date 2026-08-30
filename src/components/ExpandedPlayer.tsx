@@ -4,6 +4,7 @@ import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListM
 import { usePlayer } from './PlayerContext';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { getImageSrc } from '../lib/image';
 import { OfflineImage } from './OfflineImage';
@@ -62,11 +63,12 @@ export default function ExpandedPlayer() {
   const [showMetadata, setShowMetadata] = useState(false);
   const [showQueue, setShowQueue] = useState(false);
   const [lyrics, setLyrics] = useState<string>("Cargando letras...");
-  type LyricLine = { time: number; text: string };
+  type LyricLine = { time: number; text: string; duration: number };
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[] | null>(null);
   const parsedLyricsRef = useRef<LyricLine[] | null>(null);
   const activeLyricIndexRef = useRef<number>(-1);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
+  const lyricsBgRef = useRef<HTMLDivElement>(null);
   
   // Swipe gesture state
   const [touchStartY, setTouchStartY] = useState(0);
@@ -172,11 +174,28 @@ export default function ExpandedPlayer() {
                     if (i === activeIdx) {
                         child.style.opacity = '1';
                         child.style.transform = 'scale(1.15)';
-                        child.style.color = '#ffffff';
                         child.style.filter = 'blur(0px)';
                         child.style.textShadow = '0 0 20px rgba(255,255,255,0.4)';
                         child.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } else {
+                        // Reset fill styles for inactive lines
+                        child.style.background = 'none';
+                        child.style.WebkitBackgroundClip = 'initial';
+                        child.style.WebkitTextFillColor = 'initial';
+                        child.style.backgroundClip = 'initial';
+                        child.style.color = 'rgba(255,255,255,0.5)';
+                        
+                        const words = child.querySelectorAll('.word');
+                        words.forEach(w => {
+                            const htmlWord = w;
+                            htmlWord.style.background = 'none';
+                            htmlWord.style.WebkitBackgroundClip = 'initial';
+                            htmlWord.style.WebkitTextFillColor = 'initial';
+                            htmlWord.style.backgroundClip = 'initial';
+                            htmlWord.style.color = 'inherit';
+                            htmlWord.style.textShadow = 'none';
+                        });
+
                         // Calculate cinematic blur and fade
                         const blurAmount = Math.min(distance * 1.5, 6);
                         const opacityAmount = Math.max(0.6 - (distance * 0.15), 0.1);
@@ -184,9 +203,48 @@ export default function ExpandedPlayer() {
                         
                         child.style.opacity = opacityAmount.toString();
                         child.style.transform = `scale(${scaleAmount})`;
-                        child.style.color = 'rgba(255,255,255,0.7)';
                         child.style.filter = `blur(${blurAmount}px)`;
                         child.style.textShadow = 'none';
+                    }
+                }
+            }
+            
+            // Always update fill on active line
+            if (activeIdx >= 0 && activeIdx < lyricsArray.length) {
+                const activeLine = lyricsArray[activeIdx];
+                const activeChild = lyricsContainerRef.current.children[activeIdx];
+                if (activeChild) {
+                    let percent = ((current - activeLine.time) / activeLine.duration);
+                    if (percent < 0) percent = 0;
+                    if (percent > 1) percent = 1;
+                    
+                    const words = activeChild.querySelectorAll('.word');
+                    if (words.length > 0) {
+                        const totalWords = words.length;
+                        words.forEach((wordSpan, wIdx) => {
+                            const wordStart = wIdx / totalWords;
+                            const wordEnd = (wIdx + 1) / totalWords;
+                            const htmlWord = wordSpan;
+                            
+                            if (percent >= wordEnd) {
+                                htmlWord.style.background = 'none';
+                                htmlWord.style.color = '#ffffff';
+                                htmlWord.style.WebkitTextFillColor = 'initial';
+                                htmlWord.style.textShadow = '0 0 16px rgba(255,255,255,0.4)';
+                            } else if (percent <= wordStart) {
+                                htmlWord.style.background = 'none';
+                                htmlWord.style.color = 'rgba(255,255,255,0.3)';
+                                htmlWord.style.WebkitTextFillColor = 'initial';
+                                htmlWord.style.textShadow = 'none';
+                            } else {
+                                const wordPct = ((percent - wordStart) / (wordEnd - wordStart)) * 100;
+                                htmlWord.style.background = `linear-gradient(to right, #ffffff ${wordPct}%, rgba(255,255,255,0.3) ${wordPct}%)`;
+                                htmlWord.style.WebkitBackgroundClip = 'text';
+                                htmlWord.style.WebkitTextFillColor = 'transparent';
+                                htmlWord.style.backgroundClip = 'text';
+                                htmlWord.style.textShadow = '0 0 16px rgba(255,255,255,0.2)';
+                            }
+                        });
                     }
                 }
             }
@@ -244,7 +302,27 @@ export default function ExpandedPlayer() {
             ctx.fill();
             x += barWidth;
           }
+          
+          // 2.5 Audio Reactive Background (Cristal Vivo)
+          let bassSum = 0;
+          const bassCount = Math.min(5, bufferLength);
+          for(let i=0; i<bassCount; i++) {
+             bassSum += rawDataArray[i] || 0;
+          }
+          const bassAvg = bassCount > 0 ? (bassSum / bassCount) : 0;
+          const bassImpact = isPlayingRef.current ? (bassAvg / 255) : 0;
+          
+          if (!(window as any).bgSmoothed) (window as any).bgSmoothed = 0;
+          (window as any).bgSmoothed = (window as any).bgSmoothed * 0.8 + bassImpact * 0.2;
+          
+          if (lyricsBgRef.current) {
+             const scale = 1.1 + ((window as any).bgSmoothed * 0.05); // Subtle scale bounce
+             const opacity = 0.4 + ((window as any).bgSmoothed * 0.4); // Brighten on beat
+             lyricsBgRef.current.style.transform = `scale(${scale})`;
+             lyricsBgRef.current.style.opacity = `${opacity}`;
+          }
         }
+        
 
         animationId = requestAnimationFrame(draw);
       };
@@ -355,6 +433,10 @@ export default function ExpandedPlayer() {
   }, [resolvedImageSrc]);
 
 
+    useEffect(() => {
+    setShowLyrics(false);
+  }, [currentTrack?.id || currentTrack?.title]);
+
   useEffect(() => {
     if (currentTrack && showLyrics) {
       setLyrics("Buscando letras sincronizadas...");
@@ -381,10 +463,19 @@ export default function ExpandedPlayer() {
                   const ms = parseInt(msStr, 10);
                   const time = minutes * 60 + seconds + ms / 1000;
                   const text = match[4].trim();
-                  if (text) parsed.push({ time, text });
+                  if (text) parsed.push({ time, text, duration: 0 });
+                }
+              }
+              
+              for (let i = 0; i < parsed.length; i++) {
+                if (i < parsed.length - 1) {
+                  parsed[i].duration = parsed[i+1].time - parsed[i].time;
+                } else {
+                  parsed[i].duration = 5; // Default for last line
                 }
               }
               setParsedLyrics(parsed);
+
               parsedLyricsRef.current = parsed;
               setLyrics("");
             } else if (bestMatch.plainLyrics) {
@@ -477,17 +568,23 @@ export default function ExpandedPlayer() {
       <div className="flex-1 flex flex-col items-center justify-center min-h-0 relative z-10 w-full" style={{ perspective: '2000px' }}>
         <motion.div 
           layoutId="player-artwork"
-          className="relative aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] transition-transform duration-1000 ease-[cubic-bezier(0.19,1,0.22,1)] cursor-pointer"
+          className="relative aspect-square rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.3)] cursor-pointer"
           style={{ 
             width: 'min(100%, 45vh, 380px)',
             height: 'min(100%, 45vh, 380px)',
-            transformStyle: 'preserve-3d', 
-            transform: showLyrics ? 'rotateY(180deg) scale(0.95)' : 'rotateY(0deg) scale(1)' 
+            transformStyle: 'preserve-3d'
           }}
-          onClick={() => setShowLyrics(!showLyrics)}
+          animate={{
+            rotateY: showLyrics ? 180 : 0,
+            scale: showLyrics ? 0.95 : 1
+          }}
+          transition={{
+            duration: 1,
+            ease: [0.19, 1, 0.22, 1]
+          }}
         >
           {/* Front (Image) */}
-          <div className="absolute inset-0 rounded-3xl overflow-hidden shadow-inner" style={{ backfaceVisibility: 'hidden' }}>
+          <div onClick={() => setShowLyrics(true)} className="absolute inset-0 rounded-3xl overflow-hidden shadow-inner cursor-pointer" style={{ backfaceVisibility: 'hidden', pointerEvents: showLyrics ? 'none' : 'auto' }}>
             <img
               src={resolvedImageSrc || getImageSrc(currentTrack?.album?.image || currentTrack?.image || currentTrack?.original?.album?.image || currentTrack?.original?.image)}
               alt={currentTrack.albumTitle}
@@ -497,32 +594,50 @@ export default function ExpandedPlayer() {
           
           {/* Back (Lyrics) */}
           <div 
-            className="absolute inset-0 rounded-3xl overflow-hidden border border-white/20 bg-gray-900"
-            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
+            onClick={() => setShowLyrics(false)}
+            className="absolute inset-0 rounded-3xl overflow-hidden border border-white/20 bg-gray-900 cursor-pointer"
+            style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)', pointerEvents: showLyrics ? 'auto' : 'none' }}
           >
             {/* Blurred background using album art */}
             <div 
+              ref={lyricsBgRef}
               className="absolute inset-0 opacity-40 scale-110" 
               style={{ backgroundImage: `url(${currentTrack.image})`, backgroundSize: 'cover', backgroundPosition: 'center', filter: 'blur(30px)' }}
             />
             
             <div className="absolute inset-0 flex flex-col p-6 bg-black/40">
                 <div className="flex justify-center mb-2 relative z-20">
-                  <span className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-white/90 tracking-widest uppercase shadow-sm">
-                    Letras
+                  <span 
+                    onClick={(e) => { e.stopPropagation(); setShowLyrics(false); }}
+                    className="px-3 py-1 bg-white/10 backdrop-blur-md rounded-full text-xs font-bold text-white/90 tracking-widest uppercase shadow-sm cursor-pointer hover:bg-white/20 active:bg-white/30 transition-colors"
+                  >
+                    Volver a Portada
                   </span>
                 </div>
-                <div onTouchMove={(e) => e.stopPropagation()} className="overflow-y-auto flex-1 text-center" style={{ scrollbarWidth: 'none', maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)' }}>
+                <div onTouchMove={(e) => e.stopPropagation()} className="overflow-y-auto flex-1 text-center cursor-default" style={{ scrollbarWidth: 'none', maskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)' }}>
                   <div className="flex flex-col items-center justify-center min-h-full py-20 px-4" ref={lyricsContainerRef}>
                     {parsedLyrics ? (
                       parsedLyrics.map((line, idx) => (
                         <p 
                           key={idx} 
                           className="text-white/60 text-[1.35rem] leading-[1.4] font-bold mb-7 transition-all duration-500 ease-[cubic-bezier(0.19,1,0.22,1)] origin-center flex flex-col items-center gap-1.5"
-                          style={{ opacity: 0.3, transform: 'scale(0.95)', filter: 'blur(4px)' }}
+                          style={{ 
+                            opacity: 0.3, 
+                            transform: 'scale(0.95)', 
+                            filter: 'blur(4px)',
+                            background: 'none',
+                            WebkitBackgroundClip: 'initial',
+                            WebkitTextFillColor: 'initial',
+                            backgroundClip: 'initial',
+                            color: 'rgba(255,255,255,0.7)'
+                          }}
                         >
                           {line.text.split('^').map((part, i) => (
-                            <span key={i} className={i > 0 ? "text-[0.75em] font-medium opacity-75 mt-0.5" : ""}>{part}</span>
+                            <div key={i} className={i > 0 ? "text-[0.75em] font-medium opacity-75 mt-0.5 text-center" : "text-center"}>
+                              {part.split(' ').map((word, w) => (
+                                <span key={w} className="word inline-block mr-[0.25em]">{word}</span>
+                              ))}
+                            </div>
                           ))}
                         </p>
                       ))
@@ -646,29 +761,45 @@ export default function ExpandedPlayer() {
           >
             <Shuffle className="w-5 h-5" />
           </button>
-          <button 
-            onClick={prevTrack}
-            className="p-3 text-black dark:text-white hover:opacity-70 transition-opacity"
+          <motion.button 
+            whileTap={{ scale: 0.8 }}
+            onClick={() => { Haptics.impact({ style: ImpactStyle.Light }); prevTrack(); }}
+            className="p-3 text-black dark:text-white"
           >
             <SkipBack className="w-8 h-8 fill-current" />
-          </button>
-          <button
-            onClick={togglePlay}
-            className="w-20 h-20 flex items-center justify-center text-white rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg"
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.85 }}
+            onClick={() => { Haptics.impact({ style: ImpactStyle.Medium }); togglePlay(); }}
+            className="w-20 h-20 flex items-center justify-center text-white rounded-full shadow-lg"
             style={{ backgroundColor: dominantColor || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black'), color: dominantColor ? '#fff' : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'black' : 'white') }}
           >
-            {isPlaying ? (
-              <Pause className="w-8 h-8 fill-current" />
-            ) : (
-              <Play className="w-8 h-8 fill-current translate-x-1" />
-            )}
-          </button>
-          <button 
-            onClick={nextTrack}
-            className="p-3 text-black dark:text-white hover:opacity-70 transition-opacity"
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor" style={{ marginLeft: isPlaying ? '0' : '4px' }} className="transition-all duration-300">
+              <motion.path
+                animate={{
+                  d: isPlaying 
+                    ? "M 6 4 L 10 4 L 10 20 L 6 20 Z" 
+                    : "M 5 3 L 12 7.5 L 12 16.5 L 5 21 Z"
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              />
+              <motion.path
+                animate={{
+                  d: isPlaying 
+                    ? "M 14 4 L 18 4 L 18 20 L 14 20 Z" 
+                    : "M 12 7.5 L 19 12 L 19 12 L 12 16.5 Z"
+                }}
+                transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              />
+            </svg>
+          </motion.button>
+          <motion.button 
+            whileTap={{ scale: 0.8 }}
+            onClick={() => { Haptics.impact({ style: ImpactStyle.Light }); nextTrack(); }}
+            className="p-3 text-black dark:text-white"
           >
             <SkipForward className="w-8 h-8 fill-current" />
-          </button>
+          </motion.button>
           <button
             onClick={toggleRepeat}
             className={`transition-colors p-2 relative ${repeatMode !== 'off' ? 'text-black dark:text-white' : 'text-black/30 dark:text-white/30 hover:text-black/80 dark:hover:text-white/80'}`}
