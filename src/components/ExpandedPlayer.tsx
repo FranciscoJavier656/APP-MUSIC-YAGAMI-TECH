@@ -11,6 +11,14 @@ import { OfflineImage } from './OfflineImage';
 
 
 export default function ExpandedPlayer() {
+    const safeHaptics = (style: ImpactStyle) => {
+    try {
+      if (Capacitor.isNativePlatform()) {
+        Haptics.impact({ style }).catch(() => {});
+      }
+    } catch (e) {}
+  };
+
   const { 
     currentTrack, isPlaying, togglePlay, playTrack, 
     duration, isExpanded, setIsExpanded,
@@ -69,6 +77,9 @@ export default function ExpandedPlayer() {
   const activeLyricIndexRef = useRef<number>(-1);
   const lyricsContainerRef = useRef<HTMLDivElement>(null);
   const lyricsBgRef = useRef<HTMLDivElement>(null);
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const bgGlowRef = useRef<HTMLDivElement>(null);
+  const playButtonRef = useRef<HTMLButtonElement>(null);
   
   // Swipe gesture state
   const [touchStartY, setTouchStartY] = useState(0);
@@ -154,9 +165,11 @@ export default function ExpandedPlayer() {
           // 1.5 Update Synced Lyrics
           if (parsedLyricsRef.current && lyricsContainerRef.current) {
             const lyricsArray = parsedLyricsRef.current;
+            const LYRICS_OFFSET = 0.4; // advance lyrics by 400ms
+            const adjustedCurrent = current + LYRICS_OFFSET;
             let activeIdx = -1;
             for (let i = 0; i < lyricsArray.length; i++) {
-                if (current >= lyricsArray[i].time) {
+                if (adjustedCurrent >= lyricsArray[i].time) {
                     activeIdx = i;
                 } else {
                     break;
@@ -214,7 +227,7 @@ export default function ExpandedPlayer() {
                 const activeLine = lyricsArray[activeIdx];
                 const activeChild = lyricsContainerRef.current.children[activeIdx];
                 if (activeChild) {
-                    let percent = ((current - activeLine.time) / activeLine.duration);
+                    let percent = ((adjustedCurrent - activeLine.time) / activeLine.duration);
                     if (percent < 0) percent = 0;
                     if (percent > 1) percent = 1;
                     
@@ -321,8 +334,46 @@ export default function ExpandedPlayer() {
              lyricsBgRef.current.style.transform = `scale(${scale})`;
              lyricsBgRef.current.style.opacity = `${opacity}`;
           }
+          
+          // 2.6 Audio Glow (Tipografía y Controles Radiactivos)
+          let midSum = 0;
+          const midStart = Math.floor(bufferLength * 0.1);
+          const midEnd = Math.floor(bufferLength * 0.4);
+          const midCount = Math.max(1, midEnd - midStart);
+          for (let i = midStart; i < midEnd; i++) {
+             midSum += rawDataArray[i] || 0;
+          }
+          const midAvg = midSum / midCount;
+          // Prevent "stuck" glow by calculating the audio spike relative to a moving baseline
+          if (!(window as any).baselineMid) (window as any).baselineMid = midAvg;
+          (window as any).baselineMid = (window as any).baselineMid * 0.95 + midAvg * 0.05; 
+          
+          const spike = Math.max(0, midAvg - (window as any).baselineMid);
+          // A spike of 20 out of 255 is a solid beat, normalize it to 1.5 max
+          const midImpact = isPlayingRef.current ? Math.min((spike / 20), 1.5) : 0;
+          
+          if (!(window as any).midSmoothed) (window as any).midSmoothed = 0;
+          
+          // Fast attack, slow decay for a "breathing" light effect
+          if (midImpact > (window as any).midSmoothed) {
+              (window as any).midSmoothed = (window as any).midSmoothed * 0.4 + midImpact * 0.6; // Attack
+          } else {
+              (window as any).midSmoothed = (window as any).midSmoothed * 0.93 + midImpact * 0.07; // Decay
+          }
+          
+          const glowIntensity = (window as any).midSmoothed;
+          
+          if (titleRef.current) titleRef.current.style.textShadow = 'none';
+          if (playButtonRef.current) playButtonRef.current.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.3)';
+          
+          if (bgGlowRef.current) {
+             const baseOpacity = isDarkMode ? 0.3 : 0.2;
+             const addedOpacity = Math.min(glowIntensity * 0.5, 0.5);
+             bgGlowRef.current.style.opacity = (baseOpacity + addedOpacity).toString();
+             // Very subtle scale heartbeat
+             bgGlowRef.current.style.transform = `scale(${1 + glowIntensity * 0.05})`;
+          }
         }
-        
 
         animationId = requestAnimationFrame(draw);
       };
@@ -535,9 +586,11 @@ export default function ExpandedPlayer() {
         >
       {dominantColor && (
         <div 
-          className="absolute inset-0 opacity-20 dark:opacity-30 mix-blend-screen dark:mix-blend-lighten pointer-events-none transition-colors duration-1000"
+          ref={bgGlowRef}
+          className="absolute inset-0 mix-blend-screen dark:mix-blend-lighten pointer-events-none origin-top"
           style={{ 
-            background: `radial-gradient(circle at 50% 0%, ${dominantColor} 0%, transparent 70%)` 
+            background: `radial-gradient(circle at 50% 0%, ${dominantColor} 0%, transparent 80%)`,
+            opacity: 0.3
           }}
         />
       )}
@@ -673,8 +726,8 @@ export default function ExpandedPlayer() {
       <div className="mt-2 mb-8 relative z-10">
         <div className="flex items-center justify-between mb-6">
           {/* Left: Title, Artist and Badge */}
-          <div className="overflow-hidden pr-4 flex-1">
-            <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white truncate tracking-tight">{currentTrack.title}</h2>
+          <div className="pr-4 flex-1 min-w-0">
+            <h2 ref={titleRef} className="text-2xl sm:text-3xl font-bold text-black dark:text-white truncate tracking-tight transition-transform duration-75">{currentTrack.title}</h2>
             <div className="flex items-center gap-3 mt-1.5">
               <p className="text-lg text-black/60 dark:text-white/60 truncate">{currentTrack.artist}</p>
               
@@ -763,14 +816,15 @@ export default function ExpandedPlayer() {
           </button>
           <motion.button 
             whileTap={{ scale: 0.8 }}
-            onClick={() => { Haptics.impact({ style: ImpactStyle.Light }); prevTrack(); }}
+            onClick={() => { safeHaptics(ImpactStyle.Light); prevTrack(); }}
             className="p-3 text-black dark:text-white"
           >
             <SkipBack className="w-8 h-8 fill-current" />
           </motion.button>
           <motion.button 
+            ref={playButtonRef}
             whileTap={{ scale: 0.85 }}
-            onClick={() => { Haptics.impact({ style: ImpactStyle.Medium }); togglePlay(); }}
+            onClick={() => { safeHaptics(ImpactStyle.Medium); togglePlay(); }}
             className="w-20 h-20 flex items-center justify-center text-white rounded-full shadow-lg"
             style={{ backgroundColor: dominantColor || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'white' : 'black'), color: dominantColor ? '#fff' : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'black' : 'white') }}
           >
@@ -795,7 +849,7 @@ export default function ExpandedPlayer() {
           </motion.button>
           <motion.button 
             whileTap={{ scale: 0.8 }}
-            onClick={() => { Haptics.impact({ style: ImpactStyle.Light }); nextTrack(); }}
+            onClick={() => { safeHaptics(ImpactStyle.Light); nextTrack(); }}
             className="p-3 text-black dark:text-white"
           >
             <SkipForward className="w-8 h-8 fill-current" />
