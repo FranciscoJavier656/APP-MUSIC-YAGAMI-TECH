@@ -367,11 +367,26 @@ export default function ExpandedPlayer() {
           if (playButtonRef.current) playButtonRef.current.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.3)';
           
           if (bgGlowRef.current) {
-             const baseOpacity = isDarkMode ? 0.3 : 0.2;
-             const addedOpacity = Math.min(glowIntensity * 0.5, 0.5);
-             bgGlowRef.current.style.opacity = (baseOpacity + addedOpacity).toString();
-             // Very subtle scale heartbeat
-             bgGlowRef.current.style.transform = `scale(${1 + glowIntensity * 0.05})`;
+             // 1. Opacidad FIJA Y PRESENTE (no se toca)
+             const baseOpacity = isDarkMode ? 0.45 : 0.35;
+             bgGlowRef.current.style.opacity = baseOpacity.toString();
+             
+             // 2. Aura Física (Expansión suave y natural)
+             if (!(window as any).auraSize) (window as any).auraSize = 0;
+             
+             if (midImpact > (window as any).auraSize) {
+                 (window as any).auraSize = (window as any).auraSize * 0.85 + midImpact * 0.15; // Smooth attack
+             } else {
+                 (window as any).auraSize = (window as any).auraSize * 0.95 + midImpact * 0.05; // Smooth decay
+             }
+             
+             const aura = (window as any).auraSize;
+             
+             // Base scale is 1 (contained halo). It expands up to 1.6x its size when intense.
+             const dynamicScale = Math.min(aura * 0.6, 0.6); 
+             
+             bgGlowRef.current.style.transform = `scale(${1 + dynamicScale})`;
+             bgGlowRef.current.style.filter = 'saturate(1.8) brightness(1.25)';
           }
         }
 
@@ -590,7 +605,8 @@ export default function ExpandedPlayer() {
           className="absolute inset-0 mix-blend-screen dark:mix-blend-lighten pointer-events-none origin-top"
           style={{ 
             background: `radial-gradient(circle at 50% 0%, ${dominantColor} 0%, transparent 80%)`,
-            opacity: 0.3
+            opacity: 0.45,
+            filter: 'saturate(1.8) brightness(1.25)'
           }}
         />
       )}
