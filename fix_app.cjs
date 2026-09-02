@@ -1,23 +1,7 @@
 const fs = require('fs');
-
 let code = fs.readFileSync('src/App.tsx', 'utf8');
-
-// Fix ErrorBoundary mismatch
 code = code.replace(
-`        </ErrorBoundary>
-
-        
-        </ErrorBoundary>`,
-`        </ErrorBoundary>`
+  '<nav className="absolute bottom-0 left-0 w-full h-[72px]', 
+  '// Removing old nav layout\n{/* <nav className="absolute bottom-0 left-0 w-full h-[72px]'
 );
-
-// Add MiniPlayer back
-code = code.replace(
-`        <AnimatePresence>
-          {globalOverlay && globalOverlay.type === 'album' && (`,
-`        <MiniPlayer />
-        <AnimatePresence>
-          {globalOverlay && globalOverlay.type === 'album' && (`
-);
-
 fs.writeFileSync('src/App.tsx', code);

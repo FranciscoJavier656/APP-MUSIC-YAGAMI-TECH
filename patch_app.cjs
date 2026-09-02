@@ -1,66 +1,74 @@
 const fs = require('fs');
 
-let code = fs.readFileSync('src/App.tsx', 'utf8');
+const path = 'src/App.tsx';
+let content = fs.readFileSync(path, 'utf8');
 
-const importLines = `
-import AlbumView from './components/AlbumView';
-import PlaylistView from './components/PlaylistView';
-import ArtistView from './components/ArtistView';
-`;
+// Add import
+if (!content.includes("LiquidTabBar")) {
+  content = content.replace(
+    "import { MiniPlayer } from './components/MiniPlayer';",
+    "import { MiniPlayer } from './components/MiniPlayer';\nimport { LiquidTabBar } from './components/LiquidTabBar';"
+  );
+}
 
-code = code.replace("import DownloadsTab from './components/DownloadsTab';", "import DownloadsTab from './components/DownloadsTab';" + importLines);
+// Replace the nav
+const targetNav = `        {/* Docked Modern Tab Bar with Pills */}
+        <nav className="absolute bottom-0 left-0 w-full h-[72px] bg-[#F2F2F7]/95 dark:bg-[#000000]/95 backdrop-blur-3xl border-t border-black/5 dark:border-white/10 flex justify-center z-50 pb-[env(safe-area-inset-bottom)]">
+          <div className="flex items-center justify-between w-full max-w-[450px] px-3 h-full">
+            {[
+              { id: 'home', icon: Home, label: 'Inicio' },
+              { id: 'search', icon: Search, label: 'Buscar' },
+              { id: 'library', icon: Library, label: 'Librería' },
+              { id: 'downloads', icon: Download, label: 'Descargas' },
+              { id: 'settings', icon: SettingsIcon, label: 'Ajustes' },
+            ].map((tab) => {
+              const isActive = activeTab === tab.id;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={\`relative flex items-center justify-center gap-2 px-3.5 py-2.5 rounded-full transition-colors duration-300 \${
+                    isActive 
+                      ? 'text-white' 
+                      : 'text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }\`}
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="active-tab-indicator"
+                      className="absolute inset-0 bg-[#007AFF] rounded-full z-0 shadow-md"
+                      transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.8 }}
+                    />
+                  )}
+                  <Icon size={22} strokeWidth={isActive ? 2.5 : 2} className="relative z-10" />
+                  <AnimatePresence initial={false}>
+                    {isActive && (
+                      <motion.span 
+                        layout
+                        initial={{ opacity: 0, width: 0 }}
+                        animate={{ opacity: 1, width: 'auto' }}
+                        exit={{ opacity: 0, width: 0 }}
+                        transition={{ type: "spring", stiffness: 400, damping: 25, mass: 0.8 }}
+                        className="relative z-10 text-[11px] font-bold uppercase tracking-wide whitespace-nowrap overflow-hidden"
+                      >
+                        {tab.label}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              );
+            })}
+          </div>
+        </nav>`;
 
-const stateAndEffect = `
-  const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
-  const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
+const replacement = `        {/* Liquid Glass Tab Bar */}
+        <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />`;
 
-  useEffect(() => {
-    const handleGlobalOverlay = (e: any) => {
-      setGlobalOverlay(e.detail);
-    };
-    document.addEventListener('open-overlay', handleGlobalOverlay);
-    return () => document.removeEventListener('open-overlay', handleGlobalOverlay);
-  }, []);
-`;
-
-code = code.replace("const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');", stateAndEffect);
-
-const overlayJSX = `
-        </ErrorBoundary>
-
-        <AnimatePresence>
-          {globalOverlay && globalOverlay.type === 'album' && (
-            <motion.div 
-              key="global-album"
-              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
-            >
-              <AlbumView albumId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
-            </motion.div>
-          )}
-          {globalOverlay && globalOverlay.type === 'playlist' && (
-            <motion.div 
-              key="global-playlist"
-              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
-            >
-              <PlaylistView playlistId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
-            </motion.div>
-          )}
-          {globalOverlay && globalOverlay.type === 'artist' && (
-            <motion.div 
-              key="global-artist"
-              initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-0 z-[80] bg-[#F2F2F7] dark:bg-[#000000]"
-            >
-              <ArtistView artistId={globalOverlay.id} onBack={() => setGlobalOverlay(null)} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Mini Player */}
-`;
-
-code = code.replace("{/* Mini Player */}", overlayJSX);
-
-fs.writeFileSync('src/App.tsx', code);
+if (content.includes("Docked Modern Tab Bar with Pills")) {
+  content = content.replace(targetNav, replacement);
+  fs.writeFileSync(path, content, 'utf8');
+  console.log("Patched App.tsx successfully!");
+} else {
+  console.log("Target nav not found.");
+}
