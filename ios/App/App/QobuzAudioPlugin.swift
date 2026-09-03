@@ -1,21 +1,13 @@
 import Foundation
 import Capacitor
-
-// This file is left intentionally blank to prevent Xcode project "missing file" errors.
-// The actual QobuzAudioPlugin logic has been migrated entirely to QobuzAudioPlugin.m (Objective-C)
-// to completely bypass the Swift compiler crashes (Exit Code 65) associated with MTAudioProcessingTap.
-@objc(QobuzAudioPluginSwiftDummy)
-public class QobuzAudioPluginSwiftDummy: CAPPlugin {
-}
-
-// --- LIQUID TAB BAR PLUGIN INJECTED HERE ---
-// Appended to this file to ensure Xcode compiles it without needing to modify project.pbxproj
-
-import Foundation
-import Capacitor
 import SwiftUI
 import UIKit
 
+// --- QOBUZ DUMMY ---
+@objc(QobuzAudioPluginSwiftDummy)
+public class QobuzAudioPluginSwiftDummy: CAPPlugin {}
+
+// --- LIQUID TAB BAR ---
 class LiquidTabBarState: ObservableObject {
     @Published var activeTab: String = "home"
 }
@@ -110,11 +102,11 @@ struct LiquidTabBarView: View {
     ]
 
     var body: some View {
-        GlassEffectContainer {
+        YagamiGlassEffectContainer {
             ZStack {
                 Capsule()
                     .fill(Color.clear)
-                    .glassEffect(.automatic, in: Capsule())
+                    .yagamiGlassEffect(.autoGlass, in: Capsule())
                     .frame(height: 70)
                 
                 HStack(spacing: 0) {
@@ -143,8 +135,8 @@ struct LiquidTabBarView: View {
                                     .fill(Color.clear)
                                     .frame(width: 70, height: 95)
                                     .offset(y: -12)
-                                    .glassEffect(.automatic, in: Capsule())
-                                    .glassEffectUnion(id: "activeBubble_\(tab.0)", namespace: glassSpace)
+                                    .yagamiGlassEffect(.autoGlass, in: Capsule())
+                                    .yagamiGlassEffectUnion(id: "activeBubble_\(tab.0)", namespace: glassSpace)
                                     .matchedGeometryEffect(id: "bubble", in: glassSpace)
                             }
                         }
@@ -158,13 +150,13 @@ struct LiquidTabBarView: View {
     }
 }
 
-public enum GlassStyle {
-    case automatic
+public enum YagamiGlassStyle {
+    case autoGlass
 }
 
 public extension View {
     @ViewBuilder
-    func glassEffect<S: Shape>(_ style: GlassStyle = .automatic, in shape: S) -> some View {
+    func yagamiGlassEffect<S: Shape>(_ style: YagamiGlassStyle = .autoGlass, in shape: S) -> some View {
         self.background(
             shape.fill(.ultraThinMaterial)
         )
@@ -178,12 +170,12 @@ public extension View {
     }
     
     @ViewBuilder
-    func glassEffectUnion(id: String, namespace: Namespace.ID) -> some View {
+    func yagamiGlassEffectUnion(id: String, namespace: Namespace.ID) -> some View {
         self
     }
 }
 
-public struct GlassEffectContainer<Content: View>: View {
+public struct YagamiGlassEffectContainer<Content: View>: View {
     public let content: () -> Content
     
     public init(@ViewBuilder content: @escaping () -> Content) {
