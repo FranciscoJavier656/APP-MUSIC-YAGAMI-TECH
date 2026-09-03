@@ -4,6 +4,7 @@ import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListM
 import { usePlayer } from './PlayerContext';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { Capacitor, registerPlugin } from '@capacitor/core';
+const YagamiNative = registerPlugin('YagamiDownloadManager');
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { getImageSrc } from '../lib/image';
