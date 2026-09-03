@@ -28,15 +28,19 @@ public class LiquidTabBarPlugin: CAPPlugin {
                 host.view.backgroundColor = .clear
                 host.view.isUserInteractionEnabled = true
                 
-                if let webView = self.bridge?.webView, let parent = webView.superview {
+                if let viewController = self.bridge?.viewController {
                     host.view.translatesAutoresizingMaskIntoConstraints = false
-                    parent.addSubview(host.view)
+                    viewController.view.addSubview(host.view)
+                    viewController.addChild(host)
+                    
                     NSLayoutConstraint.activate([
-                        host.view.leadingAnchor.constraint(equalTo: parent.leadingAnchor),
-                        host.view.trailingAnchor.constraint(equalTo: parent.trailingAnchor),
-                        host.view.bottomAnchor.constraint(equalTo: parent.bottomAnchor),
+                        host.view.leadingAnchor.constraint(equalTo: viewController.view.leadingAnchor),
+                        host.view.trailingAnchor.constraint(equalTo: viewController.view.trailingAnchor),
+                        host.view.bottomAnchor.constraint(equalTo: viewController.view.bottomAnchor),
                         host.view.heightAnchor.constraint(equalToConstant: 160)
                     ])
+                    
+                    host.didMove(toParent: viewController)
                     self.hostingController = host
                 }
             }
