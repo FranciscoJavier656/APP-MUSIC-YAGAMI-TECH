@@ -75,7 +75,7 @@ function AppContent() {
       if (!showUI) return;
       if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
         // ALWAYS use native on iOS, ZERO fallback to React
-        await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' }).catch(console.error);
+        await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' }).then(() => alert('TabBar Initialized successfully!')).catch(e => alert('Init Error: ' + e));
         listener = await LiquidTabBarNative.addListener('onTabSelected', (info) => {
           if (info && info.tabId) {
             setActiveTab(info.tabId);
