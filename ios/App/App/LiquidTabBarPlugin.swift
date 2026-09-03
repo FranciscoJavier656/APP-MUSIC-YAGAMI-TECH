@@ -29,10 +29,14 @@ public class LiquidTabBarPlugin: CAPPlugin {
                 host.view.isUserInteractionEnabled = true
                 
                 if let webView = self.bridge?.webView, let parent = webView.superview {
-                    let bottomHeight: CGFloat = 160
-                    host.view.frame = CGRect(x: 0, y: parent.bounds.height - bottomHeight, width: parent.bounds.width, height: bottomHeight)
-                    host.view.autoresizingMask = [.flexibleWidth, .flexibleTopMargin]
+                    host.view.translatesAutoresizingMaskIntoConstraints = false
                     parent.addSubview(host.view)
+                    NSLayoutConstraint.activate([
+                        host.view.leadingAnchor.constraint(equalTo: parent.leadingAnchor),
+                        host.view.trailingAnchor.constraint(equalTo: parent.trailingAnchor),
+                        host.view.bottomAnchor.constraint(equalTo: parent.bottomAnchor),
+                        host.view.heightAnchor.constraint(equalToConstant: 160)
+                    ])
                     self.hostingController = host
                 }
             }
@@ -75,7 +79,7 @@ struct LiquidTabBarView: View {
 
     var body: some View {
         VStack {
-            
+            Spacer()
             // Using iOS 26 GlassEffectContainer
             GlassEffectContainer {
                 HStack(spacing: 0) {
