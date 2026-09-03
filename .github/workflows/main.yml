@@ -38,6 +38,35 @@ jobs:
           mkdir -p ios/App/App/Assets.xcassets
           echo '{"info":{"author":"xcode","version":1}}' > ios/App/App/Assets.xcassets/Contents.json
 
+      - name: Inject Native Plugins into Xcode Project
+        run: |
+          gem install xcodeproj
+          cat << 'RUBYEOF' > patch_xcode.rb
+          require 'xcodeproj'
+          project_path = 'ios/App/App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          app_group = project.main_group.children.find { |group| group.name == 'App' || group.path == 'App' } || project.main_group
+          
+          files = [
+            'ios/App/App/LiquidTabBarPlugin.swift',
+            'ios/App/App/LiquidTabBarPlugin_Register.m',
+            'ios/App/App/QobuzAudioPlugin_Register.m',
+            'ios/App/App/YagamiDownloadManager_Register.m',
+            'ios/App/App/YagamiDownloadManager.swift'
+          ]
+          
+          target = project.targets.first
+          
+          files.each do |file|
+            path = File.expand_path(file)
+            # Only add if not already in project
+            file_ref = app_group.new_reference(path)
+            target.add_file_references([file_ref])
+          end
+          project.save
+          RUBYEOF
+          ruby patch_xcode.rb
+
       - name: Build iOS App (No Code Signing & No Icon)
         run: |
           cd ios/App

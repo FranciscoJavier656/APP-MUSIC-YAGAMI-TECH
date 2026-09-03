@@ -15,7 +15,7 @@ export default function ExpandedPlayer() {
     const safeHaptics = (style: ImpactStyle) => {
     try {
       if (Capacitor.isNativePlatform()) {
-        Haptics.impact({ style }).catch(() => {});
+        Haptics.impact({ style: style }).catch(() => {});
       }
     } catch (e) {}
   };

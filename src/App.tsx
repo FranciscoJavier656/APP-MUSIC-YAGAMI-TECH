@@ -51,6 +51,7 @@ export default function App() {
 
 function AppContent() {
   const [isAppLoading, setIsAppLoading] = useState(true);
+  const [showUI, setShowUI] = useState(false);
   const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
   useEffect(() => {
@@ -62,7 +63,7 @@ function AppContent() {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, []);
+  }, [showUI]);
   
   
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
@@ -72,6 +73,7 @@ function AppContent() {
   useEffect(() => {
     let listener = null;
     const initPlugin = async () => {
+      if (!showUI) return;
       try {
         if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
           try {
@@ -101,7 +103,7 @@ function AppContent() {
         listener.remove().catch(e => console.warn(e));
       }
     };
-  }, []);
+  }, [isAppLoading]);
 
   useEffect(() => {
     try {
@@ -151,7 +153,10 @@ function AppContent() {
   });
 
   useEffect(() => {
-    const timer = setTimeout(() => setIsAppLoading(false), 2500);
+    const timer = setTimeout(() => {
+      setIsAppLoading(false);
+      setTimeout(() => setShowUI(true), 800); // Wait for 0.8s exit animation to finish
+    }, 2500);
     return () => clearTimeout(timer);
   }, []);
 
@@ -256,7 +261,7 @@ function AppContent() {
         <MiniPlayer />
 
         {/* Liquid Glass Tab Bar */}
-        {!nativePluginAvailable && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {(showUI && !nativePluginAvailable) && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
       </div>
     </PlayerProvider>
     </DownloadProvider>
