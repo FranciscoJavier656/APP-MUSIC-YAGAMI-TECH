@@ -518,3 +518,11 @@ static void tapProcess(MTAudioProcessingTapRef tap, CMItemCount numberFrames, MT
 }
 
 @end
+
+// --- LIQUID TAB BAR PLUGIN REGISTRATION ---
+// Appended to this compiled .m file to ensure registration occurs
+
+CAP_PLUGIN(LiquidTabBarPlugin, "LiquidTabBar",
+    CAP_PLUGIN_METHOD(initializeTabBar, CAPPluginReturnPromise);
+    CAP_PLUGIN_METHOD(updateTab, CAPPluginReturnPromise);
+)
