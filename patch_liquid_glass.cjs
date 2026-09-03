@@ -1,4 +1,6 @@
-import Foundation
+const fs = require('fs');
+
+const swiftCode = `import Foundation
 import Capacitor
 import SwiftUI
 
@@ -90,7 +92,7 @@ struct LiquidTabBarView: View {
             // Using iOS 26 GlassEffectContainer
             GlassEffectContainer {
                 HStack(spacing: 0) {
-                    ForEach(tabs, id: .0) { tab in
+                    ForEach(tabs, id: \.0) { tab in
                         let isActive = state.activeTab == tab.0
                         
                         VStack(spacing: 4) {
@@ -173,3 +175,6 @@ public struct GlassEffectContainer<Content: View>: View {
             .compositingGroup() // Enables volumetric light merging on supported iOS versions
     }
 }
+`
+fs.writeFileSync('ios/App/App/LiquidTabBarPlugin.swift', swiftCode);
+console.log("Restored exact iOS 26 Liquid Glass SwiftUI component with proper AutoLayout lifecycle constraints!");

@@ -68,32 +68,19 @@ function AppContent() {
   
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
-  const [nativePluginAvailable, setNativePluginAvailable] = useState(Capacitor.isNativePlatform());
 
   useEffect(() => {
     let listener = null;
     const initPlugin = async () => {
       if (!showUI) return;
-      try {
-        if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
-          try {
-            await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' });
-            setNativePluginAvailable(true);
-          } catch(e) {
-            console.warn("Native plugin failed or missing, falling back to React component:", e);
-            setNativePluginAvailable(false);
+      if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
+        // ALWAYS use native on iOS, ZERO fallback to React
+        await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' }).catch(console.error);
+        listener = await LiquidTabBarNative.addListener('onTabSelected', (info) => {
+          if (info && info.tabId) {
+            setActiveTab(info.tabId);
           }
-          listener = await LiquidTabBarNative.addListener('onTabSelected', (info) => {
-            if (info && info.tabId) {
-              setActiveTab(info.tabId);
-            }
-          }).catch(e => {
-             console.warn(e);
-             return null;
-          });
-        }
-      } catch(e) {
-        console.error("Native plugin init error:", e);
+        }).catch(console.warn);
       }
     };
     initPlugin();
@@ -261,7 +248,7 @@ function AppContent() {
         <MiniPlayer />
 
         {/* Liquid Glass Tab Bar */}
-        {(showUI && !nativePluginAvailable) && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {(showUI && !Capacitor.isNativePlatform()) && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
       </div>
     </PlayerProvider>
     </DownloadProvider>
