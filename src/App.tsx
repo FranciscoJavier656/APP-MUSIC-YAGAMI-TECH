@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Home, Search, Library, Download, Settings as SettingsIcon } from 'lucide-react';
 import { YagamiLoader } from './components/YagamiLoader';
@@ -21,9 +21,37 @@ import { Capacitor, registerPlugin } from '@capacitor/core';
 
 const LiquidTabBarNative = registerPlugin('LiquidTabBar');
 
+
+class RootErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error, errorInfo) {
+    console.error("RootError:", error, errorInfo);
+  }
+  render() {
+    if (this.state.hasError) {
+      return <div style={{padding: 20, color: 'red', background: 'white', height: '100vh', wordWrap: 'break-word'}}>
+        <h1>Fatal Error</h1>
+        <pre>{this.state.error?.toString()}</pre>
+        <pre>{this.state.error?.stack}</pre>
+      </div>;
+    }
+    return this.props.children;
+  }
+}
+
 export default function App() {
+  return <RootErrorBoundary><AppContent /></RootErrorBoundary>;
+}
+
+function AppContent() {
   const [isAppLoading, setIsAppLoading] = useState(true);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -39,20 +67,49 @@ export default function App() {
   
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
+  const [nativePluginAvailable, setNativePluginAvailable] = useState(Capacitor.isNativePlatform());
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      LiquidTabBarNative.initializeTabBar({ activeTab: 'home' });
-      const listener = LiquidTabBarNative.addListener('onTabSelected', (info) => {
-        setActiveTab(info.tabId);
-      });
-      return () => { listener.then(l => l.remove()); };
-    }
+    let listener = null;
+    const initPlugin = async () => {
+      try {
+        if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
+          try {
+            await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' });
+            setNativePluginAvailable(true);
+          } catch(e) {
+            console.warn("Native plugin failed or missing, falling back to React component:", e);
+            setNativePluginAvailable(false);
+          }
+          listener = await LiquidTabBarNative.addListener('onTabSelected', (info) => {
+            if (info && info.tabId) {
+              setActiveTab(info.tabId);
+            }
+          }).catch(e => {
+             console.warn(e);
+             return null;
+          });
+        }
+      } catch(e) {
+        console.error("Native plugin init error:", e);
+      }
+    };
+    initPlugin();
+    
+    return () => { 
+      if (listener && typeof listener.remove === 'function') {
+        listener.remove().catch(e => console.warn(e));
+      }
+    };
   }, []);
 
   useEffect(() => {
-    if (Capacitor.isNativePlatform()) {
-      LiquidTabBarNative.updateTab({ tabId: activeTab });
+    try {
+      if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
+        LiquidTabBarNative.updateTab({ tabId: activeTab }).catch(e => console.warn(e));
+      }
+    } catch(e) {
+      console.error("Native plugin update error:", e);
     }
   }, [activeTab]);
 
@@ -82,8 +139,13 @@ export default function App() {
   
   const [isDarkMode, setIsDarkMode] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') === 'dark' || 
-         (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      try {
+        return localStorage.getItem('theme') === 'dark' || 
+           (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      } catch (e) {
+        console.warn("Storage error", e);
+        return false;
+      }
     }
     return false;
   });
@@ -94,12 +156,16 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
+    try {
+      if (isDarkMode) {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+      }
+    } catch(e) {
+      console.warn("Storage error", e);
     }
   }, [isDarkMode]);
 
@@ -190,7 +256,7 @@ export default function App() {
         <MiniPlayer />
 
         {/* Liquid Glass Tab Bar */}
-        {!Capacitor.isNativePlatform() && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {!nativePluginAvailable && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
       </div>
     </PlayerProvider>
     </DownloadProvider>
