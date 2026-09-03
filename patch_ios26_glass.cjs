@@ -1,4 +1,6 @@
-import Foundation
+const fs = require('fs');
+
+const swiftCode = `import Foundation
 import Capacitor
 import SwiftUI
 
@@ -100,7 +102,7 @@ struct LiquidTabBarView: View {
                     .frame(height: 70)
                 
                 HStack(spacing: 0) {
-                    ForEach(tabs, id: \.0) { tab in
+                    ForEach(tabs, id: \\.0) { tab in
                         let isActive = state.activeTab == tab.0
                         
                         VStack(spacing: 4) {
@@ -128,7 +130,7 @@ struct LiquidTabBarView: View {
                                     .frame(width: 70, height: 95)
                                     .offset(y: -12) // Efecto de extrusión hacia arriba
                                     .glassEffect(.automatic, in: Capsule())
-                                    .glassEffectUnion(id: "activeBubble_\(tab.0)", namespace: glassSpace)
+                                    .glassEffectUnion(id: "activeBubble_\\(tab.0)", namespace: glassSpace)
                                     .matchedGeometryEffect(id: "bubble", in: glassSpace)
                             }
                         }
@@ -181,3 +183,6 @@ public struct GlassEffectContainer<Content: View>: View {
             .compositingGroup()
     }
 }
+`
+fs.writeFileSync('ios/App/App/LiquidTabBarPlugin.swift', swiftCode);
+console.log("iOS 26 Liquid Glass Framework API integrated successfully!");

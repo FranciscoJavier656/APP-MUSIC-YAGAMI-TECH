@@ -90,7 +90,7 @@ function AppContent() {
         listener.remove().catch(e => console.warn(e));
       }
     };
-  }, [isAppLoading]);
+  }, [showUI]);
 
   useEffect(() => {
     try {
