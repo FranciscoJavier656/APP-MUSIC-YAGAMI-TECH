@@ -90,7 +90,7 @@ struct LiquidTabBarView: View {
             // Using iOS 26 GlassEffectContainer
             GlassEffectContainer {
                 HStack(spacing: 0) {
-                    ForEach(tabs, id: .0) { tab in
+                    ForEach(tabs, id: \.0) { tab in
                         let isActive = state.activeTab == tab.0
                         
                         VStack(spacing: 4) {
@@ -149,7 +149,7 @@ public extension View {
             shape.fill(Color.black.opacity(0.6))
         )
         .background(
-            shape.background(.ultraThinMaterial)
+            shape.fill(.ultraThinMaterial)
         )
         .overlay(shape.stroke(Color.white.opacity(0.15), lineWidth: 1))
         .shadow(color: .black.opacity(0.4), radius: 20, x: 0, y: 10)
