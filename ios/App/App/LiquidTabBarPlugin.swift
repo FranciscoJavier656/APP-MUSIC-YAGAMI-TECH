@@ -24,13 +24,14 @@ public class LiquidTabBarPlugin: CAPPlugin {
                     self?.notifyListeners("onTabSelected", data: ["tabId": newTab])
                 }
                 
-                let host = PassThroughHostingController(rootView: view)
+                let host = UIHostingController(rootView: view)
                 host.view.backgroundColor = .clear
                 host.view.isUserInteractionEnabled = true
                 
                 if let webView = self.bridge?.webView, let parent = webView.superview {
-                    host.view.frame = parent.bounds
-                    host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+                    let bottomHeight: CGFloat = 160
+                    host.view.frame = CGRect(x: 0, y: parent.bounds.height - bottomHeight, width: parent.bounds.width, height: bottomHeight)
+                    host.view.autoresizingMask = [.flexibleWidth, .flexibleTopMargin]
                     parent.addSubview(host.view)
                     self.hostingController = host
                 }
@@ -55,21 +56,7 @@ public class LiquidTabBarPlugin: CAPPlugin {
     }
 }
 
-// Allows touches to pass through the clear parts of the SwiftUI view down to the Webview
-class PassThroughHostingController<Content: View>: UIHostingController<Content> {
-    override func viewDidLayoutSubviews() {
-        super.viewDidLayoutSubviews()
-        self.view.backgroundColor = .clear
-    }
-    
-    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
-        let hitView = super.hitTest(point, with: event)
-        if hitView == self.view {
-            return nil
-        }
-        return hitView
-    }
-}
+
 
 // The Native SwiftUI View based on iOS 26 Liquid Glass Specs
 struct LiquidTabBarView: View {
@@ -88,7 +75,6 @@ struct LiquidTabBarView: View {
 
     var body: some View {
         VStack {
-            Spacer()
             
             // Using iOS 26 GlassEffectContainer
             GlassEffectContainer {
