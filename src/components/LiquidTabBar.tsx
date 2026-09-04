@@ -84,18 +84,18 @@ export const LiquidTabBar = ({
           }}
         />
 
-        {/* ── Active Tab Bubble (protrudes above the bar) ── */}
+        {/* ── Active Tab Bubble ── */}
         {bubbleStyle.width > 0 && (
           <motion.div
             className="absolute pointer-events-none"
             style={{
-              width: 62,
-              height: 62,
-              borderRadius: '50%',
-              top: -14,
+              width: 52,
+              height: 48,
+              borderRadius: '24px',
+              top: 12,
             }}
             animate={{
-              left: bubbleStyle.x - 31,
+              left: bubbleStyle.x - 26,
             }}
             transition={{
               type: 'spring',
@@ -106,7 +106,7 @@ export const LiquidTabBar = ({
           >
             {/* Bubble glass surface */}
             <div
-              className="absolute inset-0 rounded-full"
+              className="absolute inset-0 rounded-[24px]"
               style={{
                 background: 'rgba(255,255,255,0.08)',
                 backdropFilter: 'blur(24px) saturate(200%) brightness(1.15)',
@@ -121,7 +121,7 @@ export const LiquidTabBar = ({
 
             {/* Chromatic fringe - subtle RGB edge lighting */}
             <div
-              className="absolute inset-[-0.5px] rounded-full pointer-events-none"
+              className="absolute inset-[-0.5px] rounded-[24px] pointer-events-none"
               style={{
                 border: '0.75px solid transparent',
                 background: `
@@ -158,8 +158,8 @@ export const LiquidTabBar = ({
               >
                 <motion.div
                   animate={{
-                    y: isActive ? -13 : 0,
-                    scale: isActive ? 1.18 : 1,
+                    y: 0,
+                    scale: isActive ? 1.05 : 1,
                   }}
                   transition={{
                     type: 'spring',

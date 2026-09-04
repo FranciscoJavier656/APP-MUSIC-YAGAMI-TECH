@@ -10,7 +10,7 @@ import AlbumView from './components/AlbumView';
 import PlaylistView from './components/PlaylistView';
 import ArtistView from './components/ArtistView';
 
-import { PlayerProvider } from './components/PlayerContext';
+import { PlayerProvider, usePlayer } from './components/PlayerContext';
 import { DownloadProvider } from './lib/DownloadContext';
 import { WifiOff } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -43,6 +43,25 @@ class RootErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { h
 
 export default function App() {
   return <RootErrorBoundary><AppContent /></RootErrorBoundary>;
+}
+
+function TabBarWrapper({ activeTab, setActiveTab, showUI }: { activeTab: string, setActiveTab: (id: string) => void, showUI: boolean }) {
+  const { isExpanded } = usePlayer();
+  return (
+    <AnimatePresence>
+      {showUI && !isExpanded && (
+        <motion.div
+          initial={{ y: 100, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 100, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
+          className="relative z-[100]"
+        >
+          <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 }
 
 function AppContent() {
@@ -213,7 +232,7 @@ function AppContent() {
         <MiniPlayer />
 
         {/* Liquid Glass Tab Bar - iOS 26 style */}
-        {showUI && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab as any} />}
+        <TabBarWrapper activeTab={activeTab} setActiveTab={setActiveTab as any} showUI={showUI} />
       </div>
     </PlayerProvider>
     </DownloadProvider>
