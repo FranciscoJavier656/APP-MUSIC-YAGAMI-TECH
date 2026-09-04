@@ -336,9 +336,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'albums') && results.albums?.items && results.albums.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Álbumes</h2>
-                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-6">
                     {results.albums.items.slice(0, filterMode === 'albums' ? undefined : 8).map((album: any) => (
-                      <motion.div variants={itemVariants} key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
+                      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} key={album.id} onClick={() => setActiveItem({id: album.id.toString(), type: 'album'})} className="flex flex-col gap-2 group cursor-pointer">
                         <div className="relative aspect-square rounded-xl bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden">
                           {album.image?.large ? (
                             <img src={getImageSrc(album.image) || ''} alt={album.title} className="w-full h-full object-cover" />
@@ -353,7 +353,7 @@ export default function SearchTab() {
                         </div>
                       </motion.div>
                     ))}
-                  </motion.div>
+                  </div>
                 </section>
               )}
 
@@ -361,9 +361,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'artists') && results.artists?.items && results.artists.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Artistas</h2>
-                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
                     {results.artists.items.slice(0, filterMode === 'artists' ? undefined : 6).map((artist: any) => (
-                      <motion.div variants={itemVariants} key={artist.id} onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} className="flex-none w-[100px] flex flex-col items-center gap-2 cursor-pointer group">
+                      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} key={artist.id} onClick={() => { setQuery(artist.name); setIsFocused(false); executeSearch(artist.name); }} className="flex-none w-[100px] flex flex-col items-center gap-2 cursor-pointer group">
                         <div className="w-[90px] h-[90px] rounded-full bg-gray-200 dark:bg-gray-800 shadow-sm overflow-hidden border border-black/5 dark:border-white/5 relative">
                           {(artist.picture || artist.image) ? (
                             <img src={getImageSrc(artist.picture) || getImageSrc(artist.image) || ''} alt={artist.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
@@ -376,7 +376,7 @@ export default function SearchTab() {
                         <p className="font-bold text-[13px] leading-tight text-center line-clamp-2">{artist.name}</p>
                       </motion.div>
                     ))}
-                  </motion.div>
+                  </div>
                 </section>
               )}
 
@@ -384,9 +384,9 @@ export default function SearchTab() {
               {(filterMode === 'all' || filterMode === 'tracks') && results.tracks?.items && results.tracks.items.length > 0 && (
                 <section className="mb-8">
                   <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Pistas</h2>
-                  <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
+                  <div className="space-y-1 border-t border-black/5 dark:border-white/5 pt-2">
                     {results.tracks.items.slice(0, filterMode === 'tracks' ? undefined : 5).map((track: any) => (
-                      <motion.div variants={itemVariants} key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
+                      <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} key={track.id} onClick={() => handlePlay(track)} className="flex items-center space-x-3 p-2 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors cursor-pointer group">
                         <div className="w-12 h-12 bg-gray-200 dark:bg-gray-800 rounded-lg overflow-hidden flex-shrink-0 relative">
                           <img src={getImageSrc(track.album?.image) || getImageSrc(track.image) || ''} alt={track.title} className="w-full h-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-100 transition-opacity">
@@ -414,7 +414,7 @@ export default function SearchTab() {
                         </button>
                       </motion.div>
                     ))}
-                  </motion.div>
+                  </div>
                 </section>
               )}
 

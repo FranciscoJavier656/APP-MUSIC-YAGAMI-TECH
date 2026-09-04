@@ -193,11 +193,12 @@ export default function ArtistView({ artistId, onBack }: ArtistViewProps) {
         {topTracks.length > 0 && (
           <div className="mt-8">
             <h3 className="text-xl font-bold text-black dark:text-white mb-4">Top Canciones</h3>
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1">
+            <div className="space-y-1">
               {topTracks.map((track: any, idx: number) => {
                 const isCurrent = currentTrack?.id === track.id.toString();
                 return (
-                  <motion.div variants={itemVariants} 
+                  <motion.div
+                    initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                     key={track.id}
                     onClick={() => handlePlay(track)}
                     className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer"
@@ -234,7 +235,7 @@ export default function ArtistView({ artistId, onBack }: ArtistViewProps) {
                   </motion.div>
                 );
               })}
-            </motion.div>
+            </div>
           </div>
         )}
 
@@ -242,9 +243,10 @@ export default function ArtistView({ artistId, onBack }: ArtistViewProps) {
         {albums.length > 0 && (
           <div className="mt-8">
             <h3 className="text-xl font-bold text-black dark:text-white mb-4">Álbumes</h3>
-            <motion.div variants={containerVariants} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {albums.map((album: any) => (
-                <motion.div variants={itemVariants} 
+                <motion.div
+                  initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   key={album.id}
                   onClick={() => {
                     document.dispatchEvent(new CustomEvent('open-overlay', { detail: { type: 'album', id: album.id || album.qobuz_id } }));
@@ -262,7 +264,7 @@ export default function ArtistView({ artistId, onBack }: ArtistViewProps) {
                   <p className="text-gray-500 text-[13px] font-medium mt-0.5">{new Date(album.released_at * 1000).getFullYear()}</p>
                 </motion.div>
               ))}
-            </motion.div>
+            </div>
           </div>
         )}
 

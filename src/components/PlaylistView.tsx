@@ -215,9 +215,9 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
 
         {/* Tracks List */}
         <div className="mt-8">
-          <motion.div variants={containerVariants} initial="hidden" animate="show" className="space-y-1">
+          <div className="space-y-1">
             {playlist.tracks?.items?.map((track: any, index: number) => (
-              <motion.div variants={itemVariants} key={track.id + "-" + index} onClick={() => handlePlay(track)} className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer">
+              <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 30 }} key={track.id + "-" + index} onClick={() => handlePlay(track)} className="flex items-center space-x-4 p-3 rounded-xl hover:bg-black/5 dark:hover:bg-white/5 transition-colors group cursor-pointer">
                 <div className="w-10 h-10 rounded-md overflow-hidden shrink-0 relative bg-gray-200 dark:bg-gray-800">
                   <img src={getImageSrc(track.album?.image) || getImageSrc(track.image)} alt={track.title} className="w-full h-full object-cover" />
                   {currentTrack?.id === track.id.toString() && isPlaying && (
@@ -256,7 +256,7 @@ export default function PlaylistView({ playlistId, onBack }: PlaylistViewProps) 
                 </div>
               </motion.div>
             ))}
-          </motion.div>
+          </div>
           {hasMore && (
             <div ref={targetRef} className="py-6 flex justify-center">
               <Loader2 className="w-6 h-6 animate-spin text-gray-400" />

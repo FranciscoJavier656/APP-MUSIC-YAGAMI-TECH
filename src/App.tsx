@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Home, Search, Library, Download, Settings as SettingsIcon } from 'lucide-react';
 import { YagamiLoader } from './components/YagamiLoader';
 import HomeTab from './components/HomeTab';
 import SearchTab from './components/SearchTab';
@@ -17,20 +16,17 @@ import { WifiOff } from 'lucide-react';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import MiniPlayer from './components/MiniPlayer';
 import { LiquidTabBar } from './components/LiquidTabBar';
-import { Capacitor, registerPlugin } from '@capacitor/core';
-
-const LiquidTabBarNative = registerPlugin('LiquidTabBar');
 
 
-class RootErrorBoundary extends React.Component {
-  constructor(props) {
+class RootErrorBoundary extends React.Component<React.PropsWithChildren<{}>, { hasError: boolean; error: Error | null }> {
+  constructor(props: React.PropsWithChildren<{}>) {
     super(props);
     this.state = { hasError: false, error: null };
   }
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: Error) {
     return { hasError: true, error };
   }
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error("RootError:", error, errorInfo);
   }
   render() {
@@ -69,38 +65,7 @@ function AppContent() {
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
 
-  useEffect(() => {
-    let listener = null;
-    const initPlugin = async () => {
-      if (!showUI) return;
-      if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
-        // ALWAYS use native on iOS, ZERO fallback to React
-        await LiquidTabBarNative.initializeTabBar({ activeTab: 'home' }).then(() => alert('TabBar Initialized successfully!')).catch(e => alert('Init Error: ' + e));
-        listener = await LiquidTabBarNative.addListener('onTabSelected', (info) => {
-          if (info && info.tabId) {
-            setActiveTab(info.tabId);
-          }
-        }).catch(console.warn);
-      }
-    };
-    initPlugin();
-    
-    return () => { 
-      if (listener && typeof listener.remove === 'function') {
-        listener.remove().catch(e => console.warn(e));
-      }
-    };
-  }, [showUI]);
 
-  useEffect(() => {
-    try {
-      if (Capacitor.isNativePlatform() && LiquidTabBarNative) {
-        LiquidTabBarNative.updateTab({ tabId: activeTab }).catch(e => console.warn(e));
-      }
-    } catch(e) {
-      console.error("Native plugin update error:", e);
-    }
-  }, [activeTab]);
 
   useEffect(() => {
     const handleGlobalOverlay = (e: any) => {
@@ -247,8 +212,8 @@ function AppContent() {
 
         <MiniPlayer />
 
-        {/* Liquid Glass Tab Bar */}
-        {(showUI && !Capacitor.isNativePlatform()) && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {/* Liquid Glass Tab Bar - iOS 26 style */}
+        {showUI && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab as any} />}
       </div>
     </PlayerProvider>
     </DownloadProvider>

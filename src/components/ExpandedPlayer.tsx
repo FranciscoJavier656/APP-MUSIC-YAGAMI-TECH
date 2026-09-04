@@ -187,24 +187,26 @@ export default function ExpandedPlayer() {
                     
                     if (i === activeIdx) {
                         child.style.opacity = '1';
-                        child.style.transform = 'scale(1.15)';
-                        child.style.filter = 'blur(0px)';
-                        child.style.textShadow = '0 0 20px rgba(255,255,255,0.4)';
-                        child.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        const htmlChild = child as HTMLElement;
+                        htmlChild.style.transform = 'scale(1.15)';
+                        htmlChild.style.filter = 'blur(0px)';
+                        htmlChild.style.textShadow = '0 0 20px rgba(255,255,255,0.4)';
+                        htmlChild.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } else {
                         // Reset fill styles for inactive lines
-                        child.style.background = 'none';
-                        child.style.WebkitBackgroundClip = 'initial';
-                        child.style.WebkitTextFillColor = 'initial';
-                        child.style.backgroundClip = 'initial';
-                        child.style.color = 'rgba(255,255,255,0.5)';
+                        const htmlChild = child as HTMLElement;
+                        htmlChild.style.background = 'none';
+                        (htmlChild.style as any).webkitBackgroundClip = 'initial';
+                        (htmlChild.style as any).webkitTextFillColor = 'initial';
+                        htmlChild.style.backgroundClip = 'initial';
+                        htmlChild.style.color = 'rgba(255,255,255,0.5)';
                         
                         const words = child.querySelectorAll('.word');
                         words.forEach(w => {
-                            const htmlWord = w;
+                            const htmlWord = w as HTMLElement;
                             htmlWord.style.background = 'none';
-                            htmlWord.style.WebkitBackgroundClip = 'initial';
-                            htmlWord.style.WebkitTextFillColor = 'initial';
+                            (htmlWord.style as any).webkitBackgroundClip = 'initial';
+                            (htmlWord.style as any).webkitTextFillColor = 'initial';
                             htmlWord.style.backgroundClip = 'initial';
                             htmlWord.style.color = 'inherit';
                             htmlWord.style.textShadow = 'none';
@@ -238,23 +240,23 @@ export default function ExpandedPlayer() {
                         words.forEach((wordSpan, wIdx) => {
                             const wordStart = wIdx / totalWords;
                             const wordEnd = (wIdx + 1) / totalWords;
-                            const htmlWord = wordSpan;
+                            const htmlWord = wordSpan as HTMLElement;
                             
                             if (percent >= wordEnd) {
                                 htmlWord.style.background = 'none';
                                 htmlWord.style.color = '#ffffff';
-                                htmlWord.style.WebkitTextFillColor = 'initial';
+                                (htmlWord.style as any).webkitTextFillColor = 'initial';
                                 htmlWord.style.textShadow = '0 0 16px rgba(255,255,255,0.4)';
                             } else if (percent <= wordStart) {
                                 htmlWord.style.background = 'none';
                                 htmlWord.style.color = 'rgba(255,255,255,0.3)';
-                                htmlWord.style.WebkitTextFillColor = 'initial';
+                                (htmlWord.style as any).webkitTextFillColor = 'initial';
                                 htmlWord.style.textShadow = 'none';
                             } else {
                                 const wordPct = ((percent - wordStart) / (wordEnd - wordStart)) * 100;
                                 htmlWord.style.background = `linear-gradient(to right, #ffffff ${wordPct}%, rgba(255,255,255,0.3) ${wordPct}%)`;
-                                htmlWord.style.WebkitBackgroundClip = 'text';
-                                htmlWord.style.WebkitTextFillColor = 'transparent';
+                                (htmlWord.style as any).webkitBackgroundClip = 'text';
+                                (htmlWord.style as any).webkitTextFillColor = 'transparent';
                                 htmlWord.style.backgroundClip = 'text';
                                 htmlWord.style.textShadow = '0 0 16px rgba(255,255,255,0.2)';
                             }
@@ -431,7 +433,7 @@ export default function ExpandedPlayer() {
   useEffect(() => {
     if (resolvedImageSrc) {
       if (Capacitor.getPlatform() === 'ios') {
-          YagamiNative.getVibrantColor({ url: resolvedImageSrc }).then((res: any) => {
+          (YagamiNative as any).getVibrantColor({ url: resolvedImageSrc }).then((res: any) => {
               if (res && res.color) {
                   setDominantColor(res.color);
               }

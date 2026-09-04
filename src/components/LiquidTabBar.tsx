@@ -1,9 +1,6 @@
-
-import * as React from 'react';
-import { useRef, useState, useEffect } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
+import React, { useRef, useLayoutEffect, useState } from 'react';
+import { motion } from 'motion/react';
 import { Home, Search, Library, Download, Settings as SettingsIcon } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
 
 interface Tab {
   id: string;
@@ -19,171 +16,180 @@ const TABS: Tab[] = [
   { id: 'settings', icon: SettingsIcon, label: 'Ajustes' },
 ];
 
-export const LiquidTabBar = ({ activeTab, setActiveTab }: { activeTab: string, setActiveTab: (id: string) => void }) => {
+export const LiquidTabBar = ({
+  activeTab,
+  setActiveTab,
+}: {
+  activeTab: string;
+  setActiveTab: (id: string) => void;
+}) => {
   const containerRef = useRef<HTMLDivElement>(null);
-  const [tabMeasurements, setTabMeasurements] = useState<{ x: number, width: number }[]>([]);
-  const isDragging = useRef(false);
-  
-  // Motion values
-  const dropX = useMotionValue(0);
-  const dropWidth = useMotionValue(0);
-  
-  // Springs tuned for heavy liquid/water physics
-  const smoothDropX = useSpring(dropX, { stiffness: 140, damping: 18, mass: 1.1 });
-  const smoothDropWidth = useSpring(dropWidth, { stiffness: 180, damping: 20, mass: 1 });
-  
-  useEffect(() => {
+  const [bubbleStyle, setBubbleStyle] = useState<{ x: number; width: number }>({ x: 0, width: 0 });
+
+  // Measure active tab position for the floating bubble
+  useLayoutEffect(() => {
     if (!containerRef.current) return;
-    const updateMeasurements = () => {
-      const tabs = Array.from(containerRef.current!.querySelectorAll('.tab-btn')) as HTMLElement[];
-      const measures = tabs.map(tab => ({
-        x: tab.offsetLeft,
-        width: tab.offsetWidth,
-      }));
-      setTabMeasurements(measures);
-      
-      if (!isDragging.current) {
-        const activeIdx = TABS.findIndex(t => t.id === activeTab);
-        if (measures[activeIdx]) {
-          const targetWidth = measures[activeIdx].width + 12; // Extra padding for bubble
-          const targetX = measures[activeIdx].x - 6;
-          dropX.set(targetX);
-          dropWidth.set(targetWidth);
-        }
-      }
+    const measure = () => {
+      const container = containerRef.current;
+      if (!container) return;
+      const activeIdx = TABS.findIndex((t) => t.id === activeTab);
+      const btns = container.querySelectorAll<HTMLElement>('.ltb-tab');
+      const btn = btns[activeIdx];
+      if (!btn) return;
+      const containerRect = container.getBoundingClientRect();
+      const btnRect = btn.getBoundingClientRect();
+      setBubbleStyle({
+        x: btnRect.left - containerRect.left + btnRect.width / 2,
+        width: btnRect.width,
+      });
     };
-    
-    updateMeasurements();
-    setTimeout(updateMeasurements, 100);
-    window.addEventListener('resize', updateMeasurements);
-    return () => window.removeEventListener('resize', updateMeasurements);
+    measure();
+    // Remeasure on resize
+    const ro = new ResizeObserver(measure);
+    ro.observe(containerRef.current);
+    return () => ro.disconnect();
   }, [activeTab]);
 
-  useEffect(() => {
-    if (isDragging.current || tabMeasurements.length === 0) return;
-    const activeIdx = TABS.findIndex(t => t.id === activeTab);
-    if (tabMeasurements[activeIdx]) {
-      const targetWidth = tabMeasurements[activeIdx].width + 12;
-      const targetX = tabMeasurements[activeIdx].x - 6;
-      dropX.set(targetX);
-      dropWidth.set(targetWidth);
-    }
-  }, [activeTab, tabMeasurements, dropX, dropWidth]);
-
-  const handlePointerDown = (e: React.PointerEvent) => {
-    if (!containerRef.current) return;
-    isDragging.current = true;
-    const rect = containerRef.current.getBoundingClientRect();
-    const localX = e.clientX - rect.left;
-    
-    // Stretch wide like a puddle when pressed
-    const stretchWidth = 140;
-    dropX.set(localX - stretchWidth / 2);
-    dropWidth.set(stretchWidth);
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging.current || !containerRef.current) return;
-    const rect = containerRef.current.getBoundingClientRect();
-    let localX = e.clientX - rect.left;
-    localX = Math.max(0, Math.min(localX, rect.width));
-    
-    const stretchWidth = 140;
-    dropX.set(localX - stretchWidth / 2); 
-    dropWidth.set(stretchWidth);
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (!isDragging.current || !containerRef.current) return;
-    isDragging.current = false;
-    
-    const rect = containerRef.current.getBoundingClientRect();
-    const localX = e.clientX - rect.left;
-    
-    let closestTab = TABS[0].id;
-    let minDistance = Infinity;
-    
-    tabMeasurements.forEach((m, idx) => {
-      const center = m.x + m.width / 2;
-      const dist = Math.abs(center - localX);
-      if (dist < minDistance) {
-        minDistance = dist;
-        closestTab = TABS[idx].id;
-      }
-    });
-    
-    setActiveTab(closestTab);
-    
-    const activeIdx = TABS.findIndex(t => t.id === closestTab);
-    if (tabMeasurements[activeIdx]) {
-      const targetWidth = tabMeasurements[activeIdx].width + 12;
-      const targetX = tabMeasurements[activeIdx].x - 6;
-      dropX.set(targetX);
-      dropWidth.set(targetWidth);
-    }
-  };
-
-  const isIOS = Capacitor.getPlatform() === 'ios';
-
   return (
-    <div className={`fixed left-0 w-full flex justify-center z-[100] pointer-events-none ${isIOS ? 'bottom-8' : 'bottom-6'}`}>
-      <nav 
-        className="relative w-[95%] max-w-[420px] h-[78px] rounded-[39px] pointer-events-none"
+    <div
+      className="fixed left-0 w-full flex justify-center z-[100] pointer-events-none"
+      style={{ bottom: 'max(env(safe-area-inset-bottom, 8px), 8px)' }}
+    >
+      <nav
+        className="relative w-[92%] max-w-[420px] pointer-events-auto"
+        style={{ height: 72 }}
       >
-        {/* Main Bar Background - Dark Translucent */}
-        <div className="absolute inset-0 bg-[#141414]/50 dark:bg-black/60 backdrop-blur-[24px] saturate-[1.8] rounded-[39px] border border-white/10 shadow-[0_10px_40px_rgba(0,0,0,0.4)] pointer-events-auto" />
-        
-        {/* The Liquid Bubble - Taller than the bar, full chromatic aberration */}
-        <motion.div
-          className="absolute top-1/2 -translate-y-1/2 h-[96px] rounded-[48px] pointer-events-none z-10"
+        {/* ── Main Pill Background ── */}
+        <div
+          className="absolute inset-0 rounded-[36px] overflow-hidden"
           style={{
-            left: smoothDropX,
-            width: smoothDropWidth,
-            background: 'linear-gradient(180deg, rgba(255,255,255,0.06) 0%, rgba(255,255,255,0.0) 100%)',
-            backdropFilter: 'blur(8px) brightness(1.2) saturate(1.4)',
-            WebkitBackdropFilter: 'blur(8px) brightness(1.2) saturate(1.4)',
+            background: 'rgba(28,28,30,0.55)',
+            backdropFilter: 'blur(40px) saturate(180%) brightness(1.1)',
+            WebkitBackdropFilter: 'blur(40px) saturate(180%) brightness(1.1)',
             boxShadow: `
-              inset 0px 8px 12px -4px rgba(0,0,0,0.9),
-              inset 0px -8px 12px -4px rgba(0,0,0,0.9),
-              inset 3px 0px 8px -1px rgba(0, 255, 255, 0.9),
-              inset 6px 0px 12px -2px rgba(255, 255, 0, 0.6),
-              inset -3px 0px 8px -1px rgba(255, 0, 255, 0.9),
-              inset -6px 0px 12px -2px rgba(0, 0, 255, 0.6),
-              inset 0px 0px 4px 1px rgba(255, 255, 255, 0.3),
-              inset 0px 1px 1px rgba(255,255,255,0.9),
-              0px 12px 24px -4px rgba(0, 0, 0, 0.7)
+              0 8px 40px rgba(0,0,0,0.45),
+              0 1.5px 0 rgba(255,255,255,0.08) inset,
+              0 -0.5px 0 rgba(255,255,255,0.04) inset
             `,
-            border: '1px solid rgba(255, 255, 255, 0.25)'
           }}
         />
 
-        {/* Foreground Icons & Text */}
-        <div 
+        {/* Chromatic edge highlight - top */}
+        <div
+          className="absolute inset-0 rounded-[36px] pointer-events-none"
+          style={{
+            border: '0.5px solid rgba(255,255,255,0.18)',
+            maskImage: 'linear-gradient(to bottom, black 0%, transparent 60%)',
+            WebkitMaskImage: 'linear-gradient(to bottom, black 0%, transparent 60%)',
+          }}
+        />
+
+        {/* ── Active Tab Bubble (protrudes above the bar) ── */}
+        {bubbleStyle.width > 0 && (
+          <motion.div
+            className="absolute pointer-events-none"
+            style={{
+              width: 62,
+              height: 62,
+              borderRadius: '50%',
+              top: -14,
+            }}
+            animate={{
+              left: bubbleStyle.x - 31,
+            }}
+            transition={{
+              type: 'spring',
+              stiffness: 340,
+              damping: 28,
+              mass: 0.8,
+            }}
+          >
+            {/* Bubble glass surface */}
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                background: 'rgba(255,255,255,0.08)',
+                backdropFilter: 'blur(24px) saturate(200%) brightness(1.15)',
+                WebkitBackdropFilter: 'blur(24px) saturate(200%) brightness(1.15)',
+                boxShadow: `
+                  0 4px 20px rgba(0,0,0,0.35),
+                  0 0 0 0.5px rgba(255,255,255,0.2) inset,
+                  0 1px 0 rgba(255,255,255,0.15) inset
+                `,
+              }}
+            />
+
+            {/* Chromatic fringe - subtle RGB edge lighting */}
+            <div
+              className="absolute inset-[-0.5px] rounded-full pointer-events-none"
+              style={{
+                border: '0.75px solid transparent',
+                background: `
+                  linear-gradient(135deg, 
+                    rgba(0,255,255,0.25) 0%, 
+                    rgba(255,255,255,0.1) 25%, 
+                    rgba(255,0,255,0.2) 50%, 
+                    rgba(255,255,255,0.1) 75%, 
+                    rgba(0,200,255,0.25) 100%
+                  )
+                `,
+                maskImage: 'radial-gradient(circle, transparent 60%, black 100%)',
+                WebkitMaskImage: 'radial-gradient(circle, transparent 60%, black 100%)',
+              }}
+            />
+          </motion.div>
+        )}
+
+        {/* ── Tab Icons & Labels ── */}
+        <div
           ref={containerRef}
-          className="relative flex items-center justify-between w-full h-full px-2 pointer-events-auto select-none touch-none z-20"
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          onPointerLeave={handlePointerUp}
+          className="relative flex items-center justify-around w-full h-full px-1 z-10"
         >
           {TABS.map((tab) => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
+
             return (
-              <div
+              <button
                 key={tab.id}
-                className="tab-btn relative flex flex-col items-center justify-center gap-1 w-[72px] h-full transition-colors duration-300"
+                className="ltb-tab flex flex-col items-center justify-center gap-[3px] flex-1 h-full bg-transparent border-none outline-none cursor-pointer relative"
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+                onClick={() => setActiveTab(tab.id)}
               >
-                <Icon 
-                  size={26} 
-                  strokeWidth={isActive ? 2.5 : 2} 
-                  className={`relative z-10 transition-colors duration-300 ${isActive ? 'text-white drop-shadow-md' : 'text-white/60'}`} 
-                />
-                <span className={`text-[11px] font-medium tracking-wide transition-colors duration-300 ${isActive ? 'text-white drop-shadow-md' : 'text-white/60'}`}>
-                  {tab.label}
-                </span>
-              </div>
+                <motion.div
+                  animate={{
+                    y: isActive ? -13 : 0,
+                    scale: isActive ? 1.18 : 1,
+                  }}
+                  transition={{
+                    type: 'spring',
+                    stiffness: 360,
+                    damping: 26,
+                    mass: 0.7,
+                  }}
+                  className="flex flex-col items-center gap-[3px]"
+                >
+                  <Icon
+                    size={isActive ? 24 : 22}
+                    strokeWidth={isActive ? 2.4 : 1.8}
+                    className="transition-colors duration-200"
+                    style={{
+                      color: isActive ? '#ffffff' : 'rgba(255,255,255,0.45)',
+                      filter: isActive
+                        ? 'drop-shadow(0 0 6px rgba(255,255,255,0.3))'
+                        : 'none',
+                    }}
+                  />
+                  <span
+                    className="text-[10px] font-semibold tracking-wide transition-colors duration-200 leading-none"
+                    style={{
+                      color: isActive ? '#ffffff' : 'rgba(255,255,255,0.4)',
+                    }}
+                  >
+                    {tab.label}
+                  </span>
+                </motion.div>
+              </button>
             );
           })}
         </div>
