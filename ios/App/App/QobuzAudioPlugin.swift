@@ -48,6 +48,7 @@ public class LiquidTabBarPlugin: CAPPlugin {
                 host.view.backgroundColor = .clear
                 host.view.translatesAutoresizingMaskIntoConstraints = false
                 
+                vc.addChild(host)
                 vc.view.addSubview(host.view)
                 
                 NSLayoutConstraint.activate([
@@ -57,6 +58,10 @@ public class LiquidTabBarPlugin: CAPPlugin {
                     host.view.heightAnchor.constraint(equalToConstant: 140)
                 ])
                 
+                host.didMove(toParent: vc)
+                
+                // FORCE IT to front just in case
+                vc.view.bringSubviewToFront(host.view)
                 host.view.layer.zPosition = 9999
                 self.hostingController = host
                 
