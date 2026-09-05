@@ -19,7 +19,7 @@ myProj.parse(function (err) {
     // Check and add each file
     filesToAdd.forEach(filePath => {
         // App group is usually where App files go, let's just add to project
-        myProj.addSourceFile(filePath.replace('ios/App/', ''), null, myProj.findPBXGroupKey({name: 'App'}));
+        myProj.addSourceFile(filePath.replace('ios/App/', ''), null, myProj.findPBXGroupKey({path: 'App'}));
     });
     
     fs.writeFileSync(projectPath, myProj.writeSync());

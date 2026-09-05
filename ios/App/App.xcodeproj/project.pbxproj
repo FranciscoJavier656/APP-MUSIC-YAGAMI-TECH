@@ -18,6 +18,10 @@
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		17D9E735DEF54D85993B631F /* QobuzAudioPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B260D131F0C4E0BA914CDCA /* QobuzAudioPlugin.swift */; };
 		277D65F8644E48CAA742ED51 /* QobuzAudioPlugin.m in Sources */ = {isa = PBXBuildFile; fileRef = 11CCA424236949A7B8E08231 /* QobuzAudioPlugin.m */; };
+		D946CAB1657B41028778C0FD /* LiquidTabBarPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE7DAC5F08914658976D56A4 /* LiquidTabBarPlugin.swift */; };
+		BA890C9BB85A4E499C155F0E /* LiquidTabBarPlugin_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */; };
+		71A3B2FC5DA64C25A7525081 /* QobuzAudioPlugin_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = 6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */; };
+		648A2C8D5A9243BD9A19E00F /* YagamiDownloadManager_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +38,10 @@
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		6B260D131F0C4E0BA914CDCA /* QobuzAudioPlugin.swift */ = {isa = PBXFileReference; name = "QobuzAudioPlugin.swift"; path = "App/QobuzAudioPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 		11CCA424236949A7B8E08231 /* QobuzAudioPlugin.m */ = {isa = PBXFileReference; name = "QobuzAudioPlugin.m"; path = "App/QobuzAudioPlugin.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
+		BE7DAC5F08914658976D56A4 /* LiquidTabBarPlugin.swift */ = {isa = PBXFileReference; name = "LiquidTabBarPlugin.swift"; path = "App/LiquidTabBarPlugin.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
+		CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */ = {isa = PBXFileReference; name = "LiquidTabBarPlugin_Register.m"; path = "App/LiquidTabBarPlugin_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
+		6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */ = {isa = PBXFileReference; name = "QobuzAudioPlugin_Register.m"; path = "App/QobuzAudioPlugin_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
+		BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */ = {isa = PBXFileReference; name = "YagamiDownloadManager_Register.m"; path = "App/YagamiDownloadManager_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -77,6 +85,10 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				BE7DAC5F08914658976D56A4 /* LiquidTabBarPlugin.swift */,
+				CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */,
+				6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */,
+				BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -166,6 +178,10 @@
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				17D9E735DEF54D85993B631F /* QobuzAudioPlugin.swift in Sources */,
 				277D65F8644E48CAA742ED51 /* QobuzAudioPlugin.m in Sources */,
+				D946CAB1657B41028778C0FD /* LiquidTabBarPlugin.swift in Sources */,
+				BA890C9BB85A4E499C155F0E /* LiquidTabBarPlugin_Register.m in Sources */,
+				71A3B2FC5DA64C25A7525081 /* QobuzAudioPlugin_Register.m in Sources */,
+				648A2C8D5A9243BD9A19E00F /* YagamiDownloadManager_Register.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
