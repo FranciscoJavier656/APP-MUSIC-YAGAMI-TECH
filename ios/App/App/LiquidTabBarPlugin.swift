@@ -120,55 +120,58 @@ struct LiquidTabBarView: View {
     // The system handles ALL the liquid physics,
     // refraction, blur, merging, and animation.
     // ─────────────────────────────────────────────
-    @available(iOS 26, *)
+        @available(iOS 26, *)
     private var iOS26TabBar: some View {
         GlassEffectContainer {
-            HStack(spacing: 0) {
-                ForEach(tabs, id: \.0) { tab in
-                    let isActive = state.activeTab == tab.0
+            ZStack {
+                // Main bar glass
+                Capsule()
+                    .fill(.clear)
+                    .frame(height: 64)
+                    .glassEffect(.regular, in: .capsule)
+                    .glassEffectUnion(id: "activeTab", namespace: tabBarNamespace)
 
-                    Button {
-                        onTabSelected(tab.0)
-                        withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) {
-                            state.activeTab = tab.0
+                // Bubbles and content
+                HStack(spacing: 0) {
+                    ForEach(tabs, id: \.0) { tab in
+                        let isActive = state.activeTab == tab.0
+                        Button {
+                            onTabSelected(tab.0)
+                            withAnimation(.spring(response: 0.45, dampingFraction: 0.7)) {
+                                state.activeTab = tab.0
+                            }
+                        } label: {
+                            VStack(spacing: 3) {
+                                Image(systemName: tab.1)
+                                    .font(.system(size: isActive ? 22 : 20, weight: isActive ? .bold : .medium))
+                                    .symbolEffect(.bounce, value: isActive)
+                                    .foregroundColor(isActive ? .white : Color(UIColor.lightGray))
+                                Text(tab.2)
+                                    .font(.system(size: 10, weight: isActive ? .bold : .medium))
+                                    .foregroundColor(isActive ? .white : Color(UIColor.lightGray))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 64)
+                            .contentShape(Rectangle())
                         }
-                    } label: {
-                        VStack(spacing: 4) {
-                            Image(systemName: tab.1)
-                                .font(.system(size: isActive ? 22 : 20, weight: isActive ? .bold : .medium))
-                                .symbolEffect(.bounce, value: isActive)
-                            Text(tab.2)
-                                .font(.system(size: 10, weight: isActive ? .bold : .medium))
-                        }
-                        .foregroundStyle(isActive ? .primary : .secondary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 64)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .background {
-                        if isActive {
-                            // This capsule "bubbles up" above the bar
-                            // The system merges it with the bar via glassEffectUnion
-                            Capsule()
-                                .fill(.clear)
-                                .frame(width: 64, height: 88)
-                                .offset(y: -12)
-                                .glassEffect(.regular, in: .capsule)
-                                .glassEffectUnion(id: "activeTab", namespace: tabBarNamespace)
-                                .matchedGeometryEffect(id: "activeBubble", in: tabBarNamespace)
+                        .buttonStyle(.plain)
+                        .background {
+                            if isActive {
+                                Capsule()
+                                    .fill(.clear)
+                                    .frame(width: 64, height: 88)
+                                    .offset(y: -12)
+                                    .glassEffect(.regular, in: .capsule)
+                                    .glassEffectUnion(id: "activeTab", namespace: tabBarNamespace)
+                                    .matchedGeometryEffect(id: "activeBubble", in: tabBarNamespace)
+                            }
                         }
                     }
                 }
-            }
-            .padding(.horizontal, 8)
-            .frame(height: 64)
-            .background {
-                // Main bar glass — system handles blur, refraction, tinting
-                Capsule()
-                    .fill(.clear)
-                    .glassEffect(.regular, in: .capsule)
-                    .glassEffectUnion(id: "activeTab", namespace: tabBarNamespace)
+                .padding(.horizontal, 8)
+                .frame(height: 64)
             }
         }
         .padding(.horizontal, 16)
@@ -178,47 +181,65 @@ struct LiquidTabBarView: View {
     // ─────────────────────────────────────────────
     // Fallback for iOS < 26: .ultraThinMaterial
     // ─────────────────────────────────────────────
+        // ─────────────────────────────────────────────
+    // Fallback for iOS < 26: .ultraThinMaterial
+    // ─────────────────────────────────────────────
     private var fallbackTabBar: some View {
-        HStack(spacing: 0) {
-            ForEach(tabs, id: \.0) { tab in
-                let isActive = state.activeTab == tab.0
-
-                Button {
-                    onTabSelected(tab.0)
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                        state.activeTab = tab.0
-                    }
-                } label: {
-                    VStack(spacing: 4) {
-                        Image(systemName: tab.1)
-                            .font(.system(size: isActive ? 22 : 20, weight: isActive ? .bold : .medium))
-                        Text(tab.2)
-                            .font(.system(size: 10, weight: isActive ? .bold : .medium))
-                    }
-                    .foregroundColor(isActive ? .white : .gray)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 64)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .background {
+        ZStack {
+            // 1. The main bar background
+            Capsule()
+                .fill(.ultraThinMaterial)
+                .frame(height: 64)
+                .shadow(color: .black.opacity(0.4), radius: 15, y: 10)
+            
+            // 2. The active indicator (the bubble)
+            HStack(spacing: 0) {
+                ForEach(tabs, id: \.0) { tab in
+                    let isActive = state.activeTab == tab.0
                     if isActive {
                         Capsule()
-                            .fill(.white.opacity(0.15))
+                            .fill(Color.white.opacity(0.15))
                             .frame(width: 64, height: 88)
                             .offset(y: -12)
                             .matchedGeometryEffect(id: "activeBubble", in: tabBarNamespace)
+                    } else {
+                        Color.clear.frame(maxWidth: .infinity)
                     }
                 }
             }
+            .padding(.horizontal, 8)
+            .frame(height: 64)
+
+            // 3. The actual buttons (Icons and Text) sitting ON TOP
+            HStack(spacing: 0) {
+                ForEach(tabs, id: \.0) { tab in
+                    let isActive = state.activeTab == tab.0
+                    Button {
+                        onTabSelected(tab.0)
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                            state.activeTab = tab.0
+                        }
+                    } label: {
+                        VStack(spacing: 3) {
+                            Image(systemName: tab.1)
+                                .font(.system(size: isActive ? 22 : 20, weight: isActive ? .bold : .medium))
+                                .foregroundColor(isActive ? .white : Color(UIColor.lightGray))
+                            Text(tab.2)
+                                .font(.system(size: 10, weight: isActive ? .bold : .medium))
+                                .foregroundColor(isActive ? .white : Color(UIColor.lightGray))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 64)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 8)
+            .frame(height: 64)
         }
-        .padding(.horizontal, 8)
-        .frame(height: 64)
-        .background(
-            Capsule()
-                .fill(.ultraThinMaterial)
-                .shadow(color: .black.opacity(0.4), radius: 15, y: 10)
-        )
         .padding(.horizontal, 16)
         .padding(.bottom, 8)
     }
