@@ -89,6 +89,8 @@
 				CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */,
 				6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */,
 				BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */,
+				6B260D131F0C4E0BA914CDCA /* QobuzAudioPlugin.swift */,
+				11CCA424236949A7B8E08231 /* QobuzAudioPlugin.m */,
 			);
 			path = App;
 			sourceTree = "<group>";
