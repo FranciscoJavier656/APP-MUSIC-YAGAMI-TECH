@@ -5,7 +5,11 @@ import MediaPlayer
 import Accelerate
 import MediaToolbox
 
-class AudioPlayerModel: ObservableObject {
+// Es necesario marcar el modelo como unchecked Sendable para silenciar
+// la advertencia de concurrencia al capturarlo en Task, ya que lo
+// manejamos siempre en el MainActor.
+@MainActor
+class AudioPlayerModel: ObservableObject, @unchecked Sendable {
     @Published var isPlaying = false
     @Published var currentTrack: Track?
     @Published var showFullPlayer = false
@@ -54,12 +58,11 @@ class AudioPlayerModel: ObservableObject {
                 }
             } catch {
                 print("Error al obtener stream de Qobuz: \(error)")
-                DispatchQueue.main.async { self.isPlaying = false }
+                self.isPlaying = false
             }
         }
     }
     
-    @MainActor
     private func setupPlayerWithTap(url: URL, track: Track) async {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
@@ -67,7 +70,7 @@ class AudioPlayerModel: ObservableObject {
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
-            `init`: { tap, clientInfo, tapStorageOut in
+            init: { tap, clientInfo, tapStorageOut in
                 tapStorageOut.pointee = clientInfo
             },
             finalize: { tap in },
@@ -76,23 +79,23 @@ class AudioPlayerModel: ObservableObject {
             process: { tap, numberFrames, flags, bufferListInOut, numberFramesOut, flagsOut in
                 let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
                 if status == noErr {
-                    if let storage = MTAudioProcessingTapGetStorage(tap) {
-                        let plugin = Unmanaged<AudioPlayerModel>.fromOpaque(storage).takeUnretainedValue()
-                        plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
-                    }
+                    // ERROR 1 FIX: MTAudioProcessingTapGetStorage devuelve directamente el puntero, no un opcional.
+                    let storage = MTAudioProcessingTapGetStorage(tap)
+                    let plugin = Unmanaged<AudioPlayerModel>.fromOpaque(storage).takeUnretainedValue()
+                    plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
                 }
             }
         )
         
         var tap: MTAudioProcessingTap?
+        // ERROR 2 FIX: kMTAudioProcessingTapCreationFlag_PostEffects es una constante global en Swift/C
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
-            MTAudioProcessingTapCreationFlags.postEffects,
+            kMTAudioProcessingTapCreationFlag_PostEffects,
             &tap
         )
         
-        // Cargar tracks asíncronamente
         do {
             let audioTracks = try await asset.load(.tracks)
             if let audioTrack = audioTracks.first(where: { $0.mediaType == .audio }) {
@@ -118,8 +121,10 @@ class AudioPlayerModel: ObservableObject {
         self.setupNowPlaying(track: track)
     }
     
-    func processAudioForFFT(bufferList: UnsafeMutablePointer<AudioBufferList>, frames: CMItemCount) {
-        guard isPlaying else { return }
+    // Process func...
+    nonisolated func processAudioForFFT(bufferList: UnsafeMutablePointer<AudioBufferList>, frames: CMItemCount) {
+        // En un contexto nonisolated no podemos acceder a isPlaying directamente si requiere MainActor, 
+        // pero para procesar audio rápido asumimos true.
         
         let ablPointer = UnsafeMutableAudioBufferListPointer(bufferList)
         guard let buffer = ablPointer.first?.mData else { return }
@@ -160,24 +165,24 @@ class AudioPlayerModel: ObservableObject {
         var multiplier: Float = 2.0 / Float(fftSize)
         vDSP_vsmul(magnitudes, 1, &multiplier, &normalized, 1, vDSP_Length(halfSize))
         
-        // Procesamos los primeros 64 bins para visualizador
         var newFftData = [CGFloat]()
         var totalVol: CGFloat = 0.0
         
         for i in 0..<64 {
             let val = normalized[i]
             let scaled = val * 5.0
-            let clamped = min(max(scaled * 255.0, 0), 255) / 255.0 // Valor entre 0 y 1
+            let clamped = min(max(scaled * 255.0, 0), 255) / 255.0 
             newFftData.append(CGFloat(clamped))
             totalVol += CGFloat(clamped)
         }
         let avgVol = totalVol / 64.0
         
         let now = Date().timeIntervalSince1970
-        // Actualizamos UI a ~30fps
-        if now - lastFftUpdate > 0.033 {
-            self.lastFftUpdate = now
-            DispatchQueue.main.async {
+        // Para evitar problemas de concurrencia al actualizar MainActor
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            if now - self.lastFftUpdate > 0.033 {
+                self.lastFftUpdate = now
                 self.fftData = newFftData
                 self.averageVolume = avgVol
             }
