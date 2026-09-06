@@ -4,30 +4,28 @@ struct PlayerView: View {
     @EnvironmentObject var audioPlayer: AudioPlayerModel
     @Environment(\.dismiss) var dismiss
     
+    @State private var showLyrics = false
+    @State private var isDraggingSlider = false
+    @State private var sliderValue: TimeInterval = 0
+    
     var body: some View {
         if let track = audioPlayer.currentTrack {
             ZStack {
-                // Background Ambient Light (Aura)
-                GeometryReader { geo in
-                    AsyncImage(url: track.imageUrl) { phase in
-                        if let image = phase.image {
-                            image.resizable()
-                                .scaledToFill()
-                                .frame(width: geo.size.width, height: geo.size.height)
-                                // Efecto Ambient Light que reacciona a la música
-                                .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.1))
-                                .blur(radius: 80 - (audioPlayer.averageVolume * 10))
-                                .overlay(Color.black.opacity(0.5))
-                                .animation(.easeOut(duration: 0.2), value: audioPlayer.averageVolume)
-                        } else {
-                            Color.black
-                        }
-                    }
-                }
+                // 1. Background
+                Color.black.ignoresSafeArea()
+                
+                // Aura (Radial gradient)
+                RadialGradient(
+                    gradient: Gradient(colors: [audioPlayer.artworkColor.opacity(0.45), Color.clear]),
+                    center: .top,
+                    startRadius: 0,
+                    endRadius: UIScreen.main.bounds.height * 0.7
+                )
+                .blendMode(.screen)
                 .ignoresSafeArea()
                 
-                VStack(spacing: 32) {
-                    // Header
+                VStack(spacing: 0) {
+                    // 2. Header
                     HStack {
                         Button {
                             withAnimation { audioPlayer.showFullPlayer = false }
@@ -35,90 +33,228 @@ struct PlayerView: View {
                             Image(systemName: "chevron.down")
                                 .font(.title2)
                                 .foregroundColor(.white)
+                                .frame(width: 44, height: 44) // better touch target
                         }
                         Spacer()
-                        Text("Reproduciendo de Qobuz")
-                            .font(.caption)
-                            .bold()
-                            .foregroundColor(.white.opacity(0.8))
+                        VStack(spacing: 2) {
+                            Text("REPRODUCIENDO DESDE")
+                                .font(.system(size: 11, weight: .bold))
+                                .kerning(1.5)
+                                .foregroundColor(.white.opacity(0.4))
+                            Text("QOBUZ")
+                                .font(.system(size: 13, weight: .semibold))
+                                .kerning(2.0)
+                                .foregroundColor(.white.opacity(0.8))
+                        }
                         Spacer()
-                        Button {
-                        } label: {
-                            Image(systemName: "ellipsis")
-                                .font(.title2)
-                                .foregroundColor(.white)
-                        }
-                    }
-                    .padding(.horizontal, 24)
-                    .padding(.top, 50)
-                    
-                    // Artwork con Drop Shadow dinámico
-                    AsyncImage(url: track.imageUrl) { phase in
-                        if let image = phase.image {
-                            image.resizable().scaledToFit()
-                        } else {
-                            Rectangle().fill(Color.white.opacity(0.1))
-                        }
-                    }
-                    .aspectRatio(1, contentMode: .fit) // PREVENTS EXPANDING TO INFINITY!
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal, 32)
-                    .shadow(color: .black.opacity(0.6), radius: 20, y: 15)
-                    .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.03))
-                    .animation(.interactiveSpring(response: 0.1, dampingFraction: 0.8), value: audioPlayer.averageVolume)
-                    
-                    // Track Info
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(track.title)
+                        HStack(spacing: 4) {
+                            Button { } label: { 
+                                Image(systemName: "ellipsis")
                                     .font(.title2)
-                                    .bold()
                                     .foregroundColor(.white)
-                                    .lineLimit(1)
-                                Text(track.artist)
-                                    .font(.title3)
-                                    .foregroundColor(.white.opacity(0.7))
-                                    .lineLimit(1)
+                                    .frame(width: 44, height: 44)
                             }
-                            Spacer()
+                            Button { } label: { 
+                                Image(systemName: "text.line.bullet")
+                                    .font(.title2)
+                                    .foregroundColor(.white)
+                                    .frame(width: 44, height: 44)
+                            }
                         }
                     }
-                    .padding(.horizontal, 32)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 40)
                     
-                    // Espectrograma (FFT Visualizer)
+                    Spacer().frame(height: 32)
+                    
+                    // 3. Artwork Flip View
+                    ZStack {
+                        if showLyrics {
+                            RoundedRectangle(cornerRadius: 24)
+                                .fill(Color.black.opacity(0.5))
+                                .overlay(
+                                    VStack(alignment: .leading, spacing: 16) {
+                                        Button(action: { withAnimation { showLyrics = false } }) {
+                                            Text("VOLVER A PORTADA")
+                                                .font(.caption).bold()
+                                                .padding(8)
+                                                .background(Color.white.opacity(0.2))
+                                                .cornerRadius(8)
+                                                .foregroundColor(.white)
+                                        }
+                                        Spacer()
+                                        Text("It's WICKED OUTSIDE")
+                                            .font(.title2).bold().foregroundColor(.white.opacity(0.5))
+                                        Text("Rio control, Rio control")
+                                            .font(.title).bold().foregroundColor(.white)
+                                        Text("Del 3-0-8. porte SCAR")
+                                            .font(.title2).bold().foregroundColor(.white.opacity(0.5))
+                                        Spacer()
+                                    }
+                                    .padding()
+                                )
+                                .rotation3DEffect(.degrees(180), axis: (x: 0, y: 1, z: 0))
+                        } else {
+                            AsyncImage(url: track.imageUrl) { phase in
+                                if let image = phase.image {
+                                    image.resizable().scaledToFit()
+                                } else {
+                                    Rectangle().fill(Color.white.opacity(0.1))
+                                }
+                            }
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .shadow(color: .black.opacity(0.8), radius: 30, y: 20)
+                            .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.03))
+                            .animation(.interactiveSpring(response: 0.1, dampingFraction: 0.8), value: audioPlayer.averageVolume)
+                        }
+                    }
+                    .aspectRatio(1, contentMode: .fit)
+                    .padding(.horizontal, 32)
+                    .rotation3DEffect(.degrees(showLyrics ? 180 : 0), axis: (x: 0, y: 1, z: 0))
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                            showLyrics.toggle()
+                        }
+                    }
+                    
+                    // 4. FFT Visualizer
                     HStack(spacing: 3) {
-                        ForEach(0..<audioPlayer.fftData.count, id: \.self) { index in
-                            let height = max(4, audioPlayer.fftData[index] * 80) // Max 80px altura
+                        ForEach(0..<64, id: \.self) { index in
+                            let val = audioPlayer.fftData.indices.contains(index) ? audioPlayer.fftData[index] : 0
+                            let height = max(4, val * 60)
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.white.opacity(0.8))
+                                .fill(audioPlayer.artworkColor)
+                                .opacity(0.3 + Double(val) * 0.7) // Brighter on peak
                                 .frame(width: 3, height: height)
-                                .animation(.linear(duration: 0.05), value: audioPlayer.fftData[index])
+                                .animation(.linear(duration: 0.05), value: val)
                         }
                     }
-                    .frame(height: 80, alignment: .bottom)
+                    .frame(height: 60, alignment: .bottom)
+                    .padding(.horizontal, 32)
+                    .padding(.top, 16)
+                    
+                    Spacer().frame(height: 24)
+                    
+                    // 5. Track Info & Actions
+                    HStack(alignment: .center) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(track.title)
+                                .font(.system(size: 26, weight: .bold))
+                                .foregroundColor(.white)
+                                .lineLimit(1)
+                            HStack(spacing: 12) {
+                                Text(track.artist)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.white.opacity(0.6))
+                                    .lineLimit(1)
+                                
+                                Text("LOSSLESS")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .kerning(1.5)
+                                    .foregroundColor(.white.opacity(0.8))
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 3)
+                                    .background(Color.white.opacity(0.1))
+                                    .cornerRadius(4)
+                                    .overlay(RoundedRectangle(cornerRadius: 4).stroke(Color.white.opacity(0.1), lineWidth: 1))
+                            }
+                        }
+                        Spacer(minLength: 16)
+                        HStack(spacing: 12) {
+                            Button { DownloadManager.shared.startDownload(track: track) } label: { 
+                                Image(systemName: "arrow.down")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.white.opacity(0.1))
+                                    .clipShape(Circle())
+                            }
+                            Button { } label: { 
+                                Image(systemName: "ellipsis")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 40, height: 40)
+                                    .background(Color.white.opacity(0.1))
+                                    .clipShape(Circle())
+                            }
+                        }
+                    }
                     .padding(.horizontal, 32)
                     
-                    // Controls
-                    HStack(spacing: 40) {
-                        Image(systemName: "backward.fill")
-                            .font(.largeTitle)
-                            .foregroundColor(.white)
+                    Spacer().frame(height: 24)
+                    
+                    // 6. Progress Bar
+                    VStack(spacing: 8) {
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color.white.opacity(0.1))
+                                .frame(height: 6)
+                            
+                            GeometryReader { geo in
+                                let percent = audioPlayer.duration > 0 ? (audioPlayer.currentTime / audioPlayer.duration) : 0
+                                Capsule()
+                                    .fill(audioPlayer.artworkColor)
+                                    .frame(width: max(0, geo.size.width * CGFloat(percent)))
+                            }
+                            .frame(height: 6)
+                        }
+                        .contentShape(Rectangle()) // Make tappable
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    isDraggingSlider = true
+                                    let percent = min(max(value.location.x / UIScreen.main.bounds.width, 0), 1)
+                                    sliderValue = audioPlayer.duration * Double(percent)
+                                }
+                                .onEnded { value in
+                                    let percent = min(max(value.location.x / UIScreen.main.bounds.width, 0), 1)
+                                    audioPlayer.seek(to: audioPlayer.duration * Double(percent))
+                                    isDraggingSlider = false
+                                }
+                        )
+                        
+                        HStack {
+                            Text(formatTime(isDraggingSlider ? sliderValue : audioPlayer.currentTime))
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.5))
+                            Spacer()
+                            Text("-" + formatTime(audioPlayer.duration - (isDraggingSlider ? sliderValue : audioPlayer.currentTime)))
+                                .font(.system(size: 12, weight: .semibold, design: .monospaced))
+                                .foregroundColor(.white.opacity(0.5))
+                        }
+                    }
+                    .padding(.horizontal, 32)
+                    
+                    Spacer().frame(height: 24)
+                    
+                    // 7. Transport Controls
+                    HStack {
+                        Button { } label: { Image(systemName: "shuffle").font(.title2).foregroundColor(.white.opacity(0.3)) }
+                        Spacer()
+                        Button { } label: { Image(systemName: "backward.end.fill").font(.title).foregroundColor(.white) }
+                        Spacer()
                         
                         Button {
                             audioPlayer.togglePlay()
                         } label: {
-                            Image(systemName: audioPlayer.isPlaying ? "pause.circle.fill" : "play.circle.fill")
-                                .font(.system(size: 80))
-                                .foregroundColor(.white)
-                                // Sutil efecto de luz en el botón
-                                .shadow(color: .white.opacity(Double(audioPlayer.averageVolume) * 0.5), radius: 10, y: 0)
+                            ZStack {
+                                Circle()
+                                    .fill(audioPlayer.artworkColor)
+                                    .frame(width: 80, height: 80)
+                                    .shadow(color: audioPlayer.artworkColor.opacity(0.5), radius: 10 + (audioPlayer.averageVolume * 15), y: 0)
+                                
+                                Image(systemName: audioPlayer.isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 32))
+                                    .foregroundColor(.white)
+                            }
                         }
                         
-                        Image(systemName: "forward.fill")
-                            .font(.largeTitle)
-                            .foregroundColor(.white)
+                        Spacer()
+                        Button { } label: { Image(systemName: "forward.end.fill").font(.title).foregroundColor(.white) }
+                        Spacer()
+                        Button { } label: { Image(systemName: "repeat").font(.title2).foregroundColor(.white.opacity(0.3)) }
                     }
+                    .padding(.horizontal, 32)
                     
                     Spacer()
                 }
@@ -133,5 +269,13 @@ struct PlayerView: View {
         } else {
             Color.black.ignoresSafeArea()
         }
+    }
+    
+    private func formatTime(_ time: TimeInterval) -> String {
+        if time.isNaN || time.isInfinite { return "0:00" }
+        let timeToUse = max(0, time)
+        let minutes = Int(timeToUse) / 60
+        let seconds = Int(timeToUse) % 60
+        return String(format: "%d:%02d", minutes, seconds)
     }
 }

@@ -13,27 +13,19 @@ struct ContentView: View {
                 }
                 
                 Tab("Buscar", systemImage: "magnifyingglass", value: "search") {
-                    Text("Buscar")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
+                    SearchView()
                 }
                 
                 Tab("Librería", systemImage: "square.stack.fill", value: "library") {
-                    Text("Librería")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
+                    LibraryView()
                 }
                 
                 Tab("Descargas", systemImage: "arrow.down.circle.fill", value: "downloads") {
-                    Text("Descargas")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
+                    DownloadsView()
                 }
                 
                 Tab("Ajustes", systemImage: "gearshape.fill", value: "settings") {
-                    Text("Ajustes")
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .background(Color.black)
+                    SettingsView()
                 }
             }
             // API oficial de Landmarks WWDC25 para integrar el reproductor a la barra

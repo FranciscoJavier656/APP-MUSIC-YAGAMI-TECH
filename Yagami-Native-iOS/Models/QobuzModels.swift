@@ -42,3 +42,26 @@ struct QobuzStreamResponse: Codable {
     let format_id: Int?
     let mime_type: String?
 }
+
+struct QobuzFeaturedPlaylistsResponse: Codable {
+    let playlists: QobuzPlaylistsList?
+}
+
+struct QobuzPlaylistsList: Codable {
+    let items: [QobuzPlaylist]?
+}
+
+struct QobuzPlaylist: Codable, Identifiable {
+    let id: String?
+    let name: String?
+    let description: String?
+    let image: QobuzImage?
+    let images300: [String]?
+    let owner: QobuzOwner?
+    
+    var wrappedId: String { id ?? UUID().uuidString }
+}
+
+struct QobuzOwner: Codable {
+    let name: String?
+}

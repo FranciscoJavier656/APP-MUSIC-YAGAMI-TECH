@@ -75,14 +75,48 @@ class QobuzAPI {
         request.allHTTPHeaderFields = getHeaders()
         
         let (data, _) = try await URLSession.shared.data(for: request)
-        // Basic search response parsing... wait let's define struct
+        
         struct SearchResponse: Codable {
             let tracks: TracksData?
             struct TracksData: Codable {
                 let items: [QobuzTrack]?
             }
         }
+        
         let json = try JSONDecoder().decode(SearchResponse.self, from: data)
         return json.tracks?.items ?? []
+    }
+    
+    func getFeaturedPlaylists() async throws -> [QobuzPlaylist] {
+        guard var components = URLComponents(string: Config.baseURL + "playlist/getFeatured") else { return [] }
+        components.queryItems = [
+            URLQueryItem(name: "limit", value: "15")
+        ]
+        guard let url = components.url else { return [] }
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let json = try JSONDecoder().decode(QobuzFeaturedPlaylistsResponse.self, from: data)
+        return json.playlists?.items ?? []
+    }
+    
+    func getFeaturedAlbumsWithGenre(type: String = "new-releases", genreId: String? = nil, limit: Int = 15) async throws -> [QobuzAlbum] {
+        guard var components = URLComponents(string: Config.baseURL + "album/getFeatured") else { return [] }
+        var items = [
+            URLQueryItem(name: "type", value: type),
+            URLQueryItem(name: "limit", value: "\(limit)")
+        ]
+        if let genreId = genreId {
+            items.append(URLQueryItem(name: "genre_id", value: genreId))
+        }
+        components.queryItems = items
+        guard let url = components.url else { return [] }
+        var request = URLRequest(url: url)
+        request.allHTTPHeaderFields = getHeaders()
+        
+        let (data, _) = try await URLSession.shared.data(for: request)
+        let json = try JSONDecoder().decode(QobuzFeaturedAlbumsResponse.self, from: data)
+        return json.albums?.items ?? []
     }
 }

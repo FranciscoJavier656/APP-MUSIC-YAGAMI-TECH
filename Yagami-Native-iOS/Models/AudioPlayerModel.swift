@@ -4,6 +4,7 @@ import SwiftUI
 import MediaPlayer
 import Accelerate
 import MediaToolbox
+import CoreImage
 
 @MainActor
 class AudioPlayerModel: ObservableObject, @unchecked Sendable {
@@ -16,10 +17,15 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
     @Published var fftData: [CGFloat] = Array(repeating: 0, count: 64)
     @Published var averageVolume: CGFloat = 0.0
     
+    // Reproductor y Progreso
+    @Published var currentTime: TimeInterval = 0
+    @Published var duration: TimeInterval = 0
+    @Published var artworkColor: Color = Color(UIColor.systemYellow) // Default
+    
     private var player: AVPlayer?
     private var lastFftUpdate: TimeInterval = 0
+    private var timeObserver: Any?
     
-    // FIX: Propiedades inmutables y no aisladas para que el hilo de C (MTAudioProcessingTap) pueda leerlas sin bloquearse
     nonisolated let fftSize: Int = 1024
     nonisolated let log2n: vDSP_Length = vDSP_Length(log2(Float(1024)))
     nonisolated let fftSetup: FFTSetup? = vDSP_create_fftsetup(vDSP_Length(log2(Float(1024))), FFTRadix(kFFTRadix2))
@@ -50,6 +56,10 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         currentTrack = track
         isPlaying = true
         
+        if let url = track.imageUrl {
+            extractColor(from: url)
+        }
+        
         Task {
             do {
                 if let streamUrl = try await QobuzAPI.shared.getTrackUrl(trackId: track.id, formatId: 5) {
@@ -58,6 +68,39 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
             } catch {
                 print("Error al obtener stream de Qobuz: \(error)")
                 self.isPlaying = false
+            }
+        }
+    }
+    
+    private func extractColor(from url: URL) {
+        Task.detached {
+            if let (data, _) = try? await URLSession.shared.data(from: url), let uiImage = UIImage(data: data) {
+                if let ciImage = CIImage(image: uiImage), let filter = CIFilter(name: "CIAreaAverage") {
+                    let extentVector = CIVector(x: ciImage.extent.origin.x, y: ciImage.extent.origin.y, z: ciImage.extent.size.width, w: ciImage.extent.size.height)
+                    filter.setValue(ciImage, forKey: kCIInputImageKey)
+                    filter.setValue(extentVector, forKey: kCIInputExtentKey)
+                    
+                    if let outputImage = filter.outputImage {
+                        var bitmap = [UInt8](repeating: 0, count: 4)
+                        let context = CIContext(options: [.workingColorSpace: kCFNull as Any])
+                        context.render(outputImage, toBitmap: &bitmap, rowBytes: 4, bounds: CGRect(x: 0, y: 0, width: 1, height: 1), format: .RGBA8, colorSpace: nil)
+                        
+                        let r = CGFloat(bitmap[0]) / 255.0
+                        let g = CGFloat(bitmap[1]) / 255.0
+                        let b = CGFloat(bitmap[2]) / 255.0
+                        
+                        let color = UIColor(red: r, green: g, blue: b, alpha: 1.0)
+                        var h: CGFloat = 0, s: CGFloat = 0, br: CGFloat = 0, a: CGFloat = 0
+                        color.getHue(&h, saturation: &s, brightness: &br, alpha: &a)
+                        
+                        // Boost saturation & brightness for vibrant UI feeling
+                        let vibrant = UIColor(hue: h, saturation: min(s * 1.5, 1.0), brightness: max(min(br * 1.2, 1.0), 0.5), alpha: 1.0)
+                        
+                        await MainActor.run {
+                            self.artworkColor = Color(vibrant)
+                        }
+                    }
+                }
             }
         }
     }
@@ -113,6 +156,21 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         } else {
             self.player?.replaceCurrentItem(with: playerItem)
         }
+        
+        // Progress Observer
+        if let observer = self.timeObserver {
+            self.player?.removeTimeObserver(observer)
+            self.timeObserver = nil
+        }
+        
+        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        self.timeObserver = self.player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
+            self?.currentTime = time.seconds
+            if let duration = self?.player?.currentItem?.duration.seconds, !duration.isNaN {
+                self?.duration = duration
+            }
+        }
+        
         self.player?.play()
         self.isPlaying = true
         self.setupNowPlaying(track: track)
@@ -179,6 +237,11 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
                 self.averageVolume = avgVol
             }
         }
+    }
+    
+    func seek(to time: TimeInterval) {
+        let cmTime = CMTime(seconds: time, preferredTimescale: 600)
+        player?.seek(to: cmTime)
     }
     
     private func setupNowPlaying(track: Track) {
