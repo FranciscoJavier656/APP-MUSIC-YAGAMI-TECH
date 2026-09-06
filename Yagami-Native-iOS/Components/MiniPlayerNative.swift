@@ -7,7 +7,7 @@ struct MiniPlayerNative: View {
         if let track = audioPlayer.currentTrack {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
-                    // Artwork
+                    // Artwork con latido dinámico
                     AsyncImage(url: track.imageUrl) { phase in
                         if let image = phase.image {
                             image.resizable().scaledToFill()
@@ -18,6 +18,8 @@ struct MiniPlayerNative: View {
                     .frame(width: 44, height: 44)
                     .clipShape(RoundedRectangle(cornerRadius: 8))
                     .shadow(radius: 3)
+                    .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.1))
+                    .animation(.interactiveSpring(response: 0.1, dampingFraction: 0.8), value: audioPlayer.averageVolume)
                     
                     // Info
                     VStack(alignment: .leading, spacing: 2) {
@@ -33,6 +35,20 @@ struct MiniPlayerNative: View {
                     
                     Spacer()
                     
+                    // Mini Visualizador (solo mostramos 16 barras centradas)
+                    HStack(spacing: 2) {
+                        ForEach(24..<40, id: \.self) { index in
+                            let val = audioPlayer.fftData.indices.contains(index) ? audioPlayer.fftData[index] : 0
+                            let height = max(2, val * 20)
+                            RoundedRectangle(cornerRadius: 1)
+                                .fill(Color.primary.opacity(0.8))
+                                .frame(width: 2, height: height)
+                                .animation(.linear(duration: 0.05), value: val)
+                        }
+                    }
+                    .frame(height: 24, alignment: .center)
+                    .padding(.trailing, 8)
+                    
                     // Controls
                     Button {
                         audioPlayer.togglePlay()
@@ -42,38 +58,16 @@ struct MiniPlayerNative: View {
                             .foregroundColor(.primary)
                             .frame(width: 44, height: 44)
                     }
-                    
-                    Button {
-                        // Next track action
-                    } label: {
-                        Image(systemName: "forward.fill")
-                            .font(.title3)
-                            .foregroundColor(.primary)
-                            .frame(width: 44, height: 44)
-                    }
                 }
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
-                
-                // Progress Bar (Slim)
-                GeometryReader { geometry in
-                    ZStack(alignment: .leading) {
-                        Rectangle()
-                            .fill(Color.gray.opacity(0.3))
-                            .frame(height: 2)
-                        
-                        Rectangle()
-                            .fill(Color.primary)
-                            .frame(width: geometry.size.width * 0.3, height: 2) // Simulado por ahora
-                    }
-                }
-                .frame(height: 2)
             }
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(.ultraThinMaterial)
             )
-            .shadow(color: .black.opacity(0.2), radius: 10, y: 5)
+            // Sombra tipo Aura en el MiniPlayer
+            .shadow(color: .black.opacity(0.1 + Double(audioPlayer.averageVolume * 0.2)), radius: 10, y: 5)
             .onTapGesture {
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.8)) {
                     audioPlayer.showFullPlayer = true
