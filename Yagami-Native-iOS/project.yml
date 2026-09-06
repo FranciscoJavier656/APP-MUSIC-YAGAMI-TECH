@@ -1,0 +1,16 @@
+name: YagamiSwiftUI
+options:
+  bundleIdPrefix: com.yagami.music
+  deploymentTarget:
+    iOS: "26.0"
+targets:
+  YagamiSwiftUI:
+    type: application
+    platform: iOS
+    sources: 
+      - .
+    info:
+      path: Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIBackgroundModes: [audio]
