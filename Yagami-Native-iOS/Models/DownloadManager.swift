@@ -10,7 +10,7 @@ enum DownloadStatus: String, Codable {
 }
 
 struct DownloadTaskModel: Identifiable, Codable {
-    var id: String { track.id }
+    var id: Int { track.id }
     let track: Track
     var progress: Double
     var status: DownloadStatus
@@ -67,7 +67,7 @@ class DownloadManager: ObservableObject {
         }
     }
     
-    func deleteDownload(trackId: String) {
+    func deleteDownload(trackId: Int) {
         downloads.removeAll { $0.id == trackId }
         saveOfflineTracks()
     }

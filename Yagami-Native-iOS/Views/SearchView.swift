@@ -95,7 +95,7 @@ struct SearchView: View {
                     }
                 }
                 .searchable(text: $query, prompt: "Álbumes, artistas, canciones...")
-                .onChange(of: query) { newValue in
+                .onChange(of: query) { oldValue, newValue in
                     if newValue.isEmpty {
                         results = []
                         isSearching = false

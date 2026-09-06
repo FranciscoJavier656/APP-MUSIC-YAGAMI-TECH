@@ -28,7 +28,11 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
     
     nonisolated let fftSize: Int = 1024
     nonisolated let log2n: vDSP_Length = vDSP_Length(log2(Float(1024)))
-    nonisolated let fftSetup: FFTSetup? = vDSP_create_fftsetup(vDSP_Length(log2(Float(1024))), FFTRadix(kFFTRadix2))
+    nonisolated let fftContext = FFTContext()
+    
+    struct FFTContext: @unchecked Sendable {
+        let setup = vDSP_create_fftsetup(vDSP_Length(log2(Float(1024))), FFTRadix(kFFTRadix2))
+    }
 
     init() {
         setupAudioSession()
@@ -165,9 +169,11 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         
         let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         self.timeObserver = self.player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
-            self?.currentTime = time.seconds
-            if let duration = self?.player?.currentItem?.duration.seconds, !duration.isNaN {
-                self?.duration = duration
+            Task { @MainActor [weak self] in
+                self?.currentTime = time.seconds
+                if let duration = self?.player?.currentItem?.duration.seconds, !duration.isNaN {
+                    self?.duration = duration
+                }
             }
         }
         
@@ -205,7 +211,7 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
                     }
                 }
                 
-                if let setup = fftSetup {
+                if let setup = fftContext.setup {
                     vDSP_fft_zrip(setup, &complex, 1, log2n, FFTDirection(FFT_FORWARD))
                     vDSP_zvmags(&complex, 1, &magnitudes, 1, vDSP_Length(halfSize))
                 }

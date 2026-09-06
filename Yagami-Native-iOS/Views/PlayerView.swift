@@ -19,7 +19,7 @@ struct PlayerView: View {
                     gradient: Gradient(colors: [audioPlayer.artworkColor.opacity(0.45), Color.clear]),
                     center: .top,
                     startRadius: 0,
-                    endRadius: UIScreen.main.bounds.height * 0.7
+                    endRadius: 600
                 )
                 .blendMode(.screen)
                 .ignoresSafeArea()
@@ -185,33 +185,34 @@ struct PlayerView: View {
                     
                     // 6. Progress Bar
                     VStack(spacing: 8) {
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(Color.white.opacity(0.1))
-                                .frame(height: 6)
-                            
-                            GeometryReader { geo in
-                                let percent = audioPlayer.duration > 0 ? (audioPlayer.currentTime / audioPlayer.duration) : 0
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.1))
+                                    .frame(height: 6)
+                                
+                                let currentProgress = isDraggingSlider ? sliderValue : audioPlayer.currentTime
+                                let percent = audioPlayer.duration > 0 ? (currentProgress / audioPlayer.duration) : 0
                                 Capsule()
                                     .fill(audioPlayer.artworkColor)
                                     .frame(width: max(0, geo.size.width * CGFloat(percent)))
                             }
-                            .frame(height: 6)
+                            .contentShape(Rectangle()) // Make tappable
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { value in
+                                        isDraggingSlider = true
+                                        let percent = min(max(value.location.x / geo.size.width, 0), 1)
+                                        sliderValue = audioPlayer.duration * Double(percent)
+                                    }
+                                    .onEnded { value in
+                                        let percent = min(max(value.location.x / geo.size.width, 0), 1)
+                                        audioPlayer.seek(to: audioPlayer.duration * Double(percent))
+                                        isDraggingSlider = false
+                                    }
+                            )
                         }
-                        .contentShape(Rectangle()) // Make tappable
-                        .gesture(
-                            DragGesture(minimumDistance: 0)
-                                .onChanged { value in
-                                    isDraggingSlider = true
-                                    let percent = min(max(value.location.x / UIScreen.main.bounds.width, 0), 1)
-                                    sliderValue = audioPlayer.duration * Double(percent)
-                                }
-                                .onEnded { value in
-                                    let percent = min(max(value.location.x / UIScreen.main.bounds.width, 0), 1)
-                                    audioPlayer.seek(to: audioPlayer.duration * Double(percent))
-                                    isDraggingSlider = false
-                                }
-                        )
+                        .frame(height: 6)
                         
                         HStack {
                             Text(formatTime(isDraggingSlider ? sliderValue : audioPlayer.currentTime))

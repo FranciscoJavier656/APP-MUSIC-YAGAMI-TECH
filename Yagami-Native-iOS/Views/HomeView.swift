@@ -49,7 +49,7 @@ struct HomeView: View {
                 await fetchPlaylists()
                 await fetchHomeData()
             }
-            .onChange(of: activeCategory) { _ in
+            .onChange(of: activeCategory) { oldValue, newValue in
                 Task {
                     await fetchHomeData()
                 }
@@ -568,8 +568,10 @@ struct HomeView: View {
         }
         
         do {
-            async let ep = QobuzAPI.shared.getFeaturedAlbumsWithGenre(type: "editor-picks", genreId: genreId, limit: limit)
-            async let ms = QobuzAPI.shared.getFeaturedAlbumsWithGenre(type: "most-streamed", genreId: genreId, limit: limit)
+            let safeGenreId = genreId
+            let safeLimit = limit
+            async let ep = QobuzAPI.shared.getFeaturedAlbumsWithGenre(type: "editor-picks", genreId: safeGenreId, limit: safeLimit)
+            async let ms = QobuzAPI.shared.getFeaturedAlbumsWithGenre(type: "most-streamed", genreId: safeGenreId, limit: safeLimit)
             
             let (epList, msList) = try await (ep, ms)
             await MainActor.run {
