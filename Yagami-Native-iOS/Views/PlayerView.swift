@@ -15,10 +15,10 @@ struct PlayerView: View {
                                 .scaledToFill()
                                 .frame(width: geo.size.width, height: geo.size.height)
                                 // Efecto Ambient Light que reacciona a la música
-                                .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.3))
-                                .blur(radius: 80 - (audioPlayer.averageVolume * 20))
-                                .overlay(.black.opacity(0.4))
-                                .animation(.easeOut(duration: 0.1), value: audioPlayer.averageVolume)
+                                .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.1))
+                                .blur(radius: 80 - (audioPlayer.averageVolume * 10))
+                                .overlay(Color.black.opacity(0.5))
+                                .animation(.easeOut(duration: 0.2), value: audioPlayer.averageVolume)
                         } else {
                             Color.black
                         }
@@ -49,21 +49,22 @@ struct PlayerView: View {
                                 .foregroundColor(.white)
                         }
                     }
-                    .padding(.horizontal)
-                    .padding(.top, 40)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 50)
                     
                     // Artwork con Drop Shadow dinámico
                     AsyncImage(url: track.imageUrl) { phase in
                         if let image = phase.image {
                             image.resizable().scaledToFit()
                         } else {
-                            Rectangle().fill(Color.gray.opacity(0.3))
+                            Rectangle().fill(Color.white.opacity(0.1))
                         }
                     }
-                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .aspectRatio(1, contentMode: .fit) // PREVENTS EXPANDING TO INFINITY!
+                    .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal, 32)
-                    .shadow(color: .black.opacity(0.6), radius: 30, y: 20)
-                    .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.05)) // Pequeño latido de la portada
+                    .shadow(color: .black.opacity(0.6), radius: 20, y: 15)
+                    .scaleEffect(1.0 + (audioPlayer.averageVolume * 0.03))
                     .animation(.interactiveSpring(response: 0.1, dampingFraction: 0.8), value: audioPlayer.averageVolume)
                     
                     // Track Info
@@ -95,7 +96,7 @@ struct PlayerView: View {
                                 .animation(.linear(duration: 0.05), value: audioPlayer.fftData[index])
                         }
                     }
-                    .frame(height: 80)
+                    .frame(height: 80, alignment: .bottom)
                     .padding(.horizontal, 32)
                     
                     // Controls
@@ -111,7 +112,7 @@ struct PlayerView: View {
                                 .font(.system(size: 80))
                                 .foregroundColor(.white)
                                 // Sutil efecto de luz en el botón
-                                .shadow(color: .white.opacity(Double(audioPlayer.averageVolume)), radius: 10, y: 0)
+                                .shadow(color: .white.opacity(Double(audioPlayer.averageVolume) * 0.5), radius: 10, y: 0)
                         }
                         
                         Image(systemName: "forward.fill")
@@ -129,6 +130,8 @@ struct PlayerView: View {
                     }
                 }
             )
+        } else {
+            Color.black.ignoresSafeArea()
         }
     }
 }
