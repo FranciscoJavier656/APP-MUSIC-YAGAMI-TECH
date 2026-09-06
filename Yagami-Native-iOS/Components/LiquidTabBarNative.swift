@@ -18,74 +18,111 @@ let nativeTabs: [TabItem] = [
 struct LiquidTabBarNative: View {
     @Binding var activeTab: String
     @Namespace private var glassNS
-    @Namespace private var bubbleNS
+    
+    // Estados para controlar el arrastre fluido
+    @State private var dragX: CGFloat? = nil
+    @State private var isDragging: Bool = false
 
     var body: some View {
-        GlassEffectContainer {
-            ZStack(alignment: .bottom) {
-                // 1. CÁPSULA BASE
-                Capsule()
-                    .fill(.clear)
-                    .frame(height: 64)
-                    .glassEffect(.regular.interactive(), in: Capsule())
-                    .glassEffectID("liquid", in: glassNS)
+        GeometryReader { geo in
+            let tabWidth = geo.size.width / CGFloat(nativeTabs.count)
+            
+            ZStack {
+                // 1. CONTENEDOR FÍSICO DE CRISTAL
+                GlassEffectContainer {
+                    ZStack(alignment: .topLeading) {
+                        // Base de la barra (Cápsula estática)
+                        Capsule()
+                            .fill(.clear)
+                            .frame(width: geo.size.width, height: 64)
+                            .glassEffect(.regular.interactive(), in: Capsule())
+                            .glassEffectID("liquid", in: glassNS)
 
-                // 2. BURBUJA ACTIVA (EL SELECTOR PERFECTO ESTILO APPLE)
-                HStack(spacing: 0) {
-                    ForEach(nativeTabs) { tab in
-                        Color.clear
-                            .frame(maxWidth: .infinity)
-                            .overlay(alignment: .bottom) {
-                                if tab.id == activeTab {
-                                    // Cambiamos Circle() por una cápsula ligeramente más ancha y alta
-                                    // Esta es la forma exacta que usan en el proyecto Landmarks
-                                    Capsule()
-                                        .frame(width: 68, height: 74)
-                                        .glassEffect(.regular.interactive(), in: Capsule())
-                                        .glassEffectID("liquid", in: glassNS)
-                                        .matchedGeometryEffect(id: "bubble", in: bubbleNS)
-                                        .offset(y: -4) // Lo bajamos un poco para que se fusione mejor con la base
-                                }
-                            }
+                        // Selector fluido (gota de agua)
+                        let activeIndex = nativeTabs.firstIndex(where: { $0.id == activeTab }) ?? 0
+                        let exactTabX = (CGFloat(activeIndex) * tabWidth) + (tabWidth / 2)
+                        
+                        // Si el usuario arrastra, usamos el dedo (dragX). Si no, usamos la posición exacta de la pestaña.
+                        let currentX = dragX ?? exactTabX
+                        
+                        // MAGIA WWDC25: Morfismo de forma
+                        // Cuando está estático, es una píldora sutil dentro de la barra.
+                        // Cuando se arrastra, se infla como una burbuja redonda y gigante que distorsiona el fondo.
+                        let bubbleWidth: CGFloat = isDragging ? 74 : 60
+                        let bubbleHeight: CGFloat = isDragging ? 74 : 48
+                        let bubbleRadius: CGFloat = isDragging ? 37 : 24
+                        
+                        RoundedRectangle(cornerRadius: bubbleRadius)
+                            .fill(.clear)
+                            .frame(width: bubbleWidth, height: bubbleHeight)
+                            .glassEffect(.regular.interactive(), in: RoundedRectangle(cornerRadius: bubbleRadius))
+                            .glassEffectID("liquid", in: glassNS)
+                            .position(x: currentX, y: 32)
+                            // Animaciones separadas para el movimiento del dedo y la inflación de la burbuja
+                            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.65), value: currentX)
+                            .animation(.spring(response: 0.4, dampingFraction: 0.6), value: isDragging)
                     }
                 }
-                .frame(height: 64)
-            }
-        }
-        // 3. ÍCONOS Y TÍTULOS (En el overlay)
-        .overlay(alignment: .bottom) {
-            HStack(spacing: 0) {
-                ForEach(nativeTabs) { tab in
-                    let isActive = tab.id == activeTab
-                    Button {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
-                            activeTab = tab.id
-                        }
-                    } label: {
+                
+                // 2. ÍCONOS, TEXTOS Y GESTOS TÁCTILES (Capa inalterable superior)
+                HStack(spacing: 0) {
+                    ForEach(nativeTabs) { tab in
+                        let isActive = tab.id == activeTab
+                        
                         VStack(spacing: 3) {
                             Image(systemName: tab.icon)
                                 .font(.system(size: isActive ? 24 : 20, weight: isActive ? .semibold : .regular))
                                 .symbolEffect(.bounce, value: isActive)
-                                // Ajustamos el offset vertical del ícono activo para que encaje perfecto en la burbuja
                                 .offset(y: isActive ? -12 : 0)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.65), value: isActive)
                             
-                            // Ocultamos el texto si la pestaña está activa, 
-                            // exactamente como lo hace Apple en la nueva interfaz.
                             if !isActive {
                                 Text(tab.label)
                                     .font(.system(size: 10, weight: .medium))
+                                    .transition(.opacity)
                             }
                         }
                         .foregroundStyle(isActive ? Color.white : Color.gray)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 64)
+                        .frame(width: tabWidth, height: 64)
                         .contentShape(Rectangle())
+                        // Toque simple
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                                activeTab = tab.id
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
                 }
+                .frame(width: geo.size.width, height: 64)
+                // Gesto de arrastre continuo
+                .gesture(
+                    DragGesture(minimumDistance: 5)
+                        .onChanged { value in
+                            isDragging = true
+                            dragX = value.location.x
+                            
+                            // Calcula sobre qué pestaña está pasando el dedo para animar los íconos dinámicamente
+                            let index = Int(value.location.x / tabWidth)
+                            let safeIndex = max(0, min(nativeTabs.count - 1, index))
+                            let hoveredTab = nativeTabs[safeIndex].id
+                            
+                            if hoveredTab != activeTab {
+                                withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.7)) {
+                                    activeTab = hoveredTab
+                                }
+                            }
+                        }
+                        .onEnded { value in
+                            // Al soltar el dedo, desinflamos la burbuja y la encajamos en la pestaña final
+                            withAnimation(.spring(response: 0.5, dampingFraction: 0.7)) {
+                                isDragging = false
+                                dragX = nil
+                            }
+                        }
+                )
             }
-            .frame(height: 64)
         }
+        .frame(height: 64)
         .padding(.horizontal, 16)
         .padding(.bottom, 16)
     }
