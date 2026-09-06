@@ -5,9 +5,6 @@ import MediaPlayer
 import Accelerate
 import MediaToolbox
 
-// Es necesario marcar el modelo como unchecked Sendable para silenciar
-// la advertencia de concurrencia al capturarlo en Task, ya que lo
-// manejamos siempre en el MainActor.
 @MainActor
 class AudioPlayerModel: ObservableObject, @unchecked Sendable {
     @Published var isPlaying = false
@@ -21,9 +18,11 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
     
     private var player: AVPlayer?
     private var lastFftUpdate: TimeInterval = 0
-    private let fftSize = 1024
-    private lazy var log2n = vDSP_Length(log2(Float(fftSize)))
-    private lazy var fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
+    
+    // FIX: Propiedades inmutables y no aisladas para que el hilo de C (MTAudioProcessingTap) pueda leerlas sin bloquearse
+    nonisolated let fftSize: Int = 1024
+    nonisolated let log2n: vDSP_Length = vDSP_Length(log2(Float(1024)))
+    nonisolated let fftSetup: FFTSetup? = vDSP_create_fftsetup(vDSP_Length(log2(Float(1024))), FFTRadix(kFFTRadix2))
 
     init() {
         setupAudioSession()
@@ -79,7 +78,6 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
             process: { tap, numberFrames, flags, bufferListInOut, numberFramesOut, flagsOut in
                 let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
                 if status == noErr {
-                    // ERROR 1 FIX: MTAudioProcessingTapGetStorage devuelve directamente el puntero, no un opcional.
                     let storage = MTAudioProcessingTapGetStorage(tap)
                     let plugin = Unmanaged<AudioPlayerModel>.fromOpaque(storage).takeUnretainedValue()
                     plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
@@ -88,7 +86,6 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         )
         
         var tap: MTAudioProcessingTap?
-        // ERROR 2 FIX: kMTAudioProcessingTapCreationFlag_PostEffects es una constante global en Swift/C
         let status = MTAudioProcessingTapCreate(
             kCFAllocatorDefault,
             &callbacks,
@@ -121,11 +118,7 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         self.setupNowPlaying(track: track)
     }
     
-    // Process func...
     nonisolated func processAudioForFFT(bufferList: UnsafeMutablePointer<AudioBufferList>, frames: CMItemCount) {
-        // En un contexto nonisolated no podemos acceder a isPlaying directamente si requiere MainActor, 
-        // pero para procesar audio rápido asumimos true.
-        
         let ablPointer = UnsafeMutableAudioBufferListPointer(bufferList)
         guard let buffer = ablPointer.first?.mData else { return }
         
@@ -178,7 +171,6 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
         let avgVol = totalVol / 64.0
         
         let now = Date().timeIntervalSince1970
-        // Para evitar problemas de concurrencia al actualizar MainActor
         Task { @MainActor [weak self] in
             guard let self = self else { return }
             if now - self.lastFftUpdate > 0.033 {
