@@ -1,18 +1,33 @@
 import Foundation
-import SwiftUI
 
 struct Track: Identifiable, Equatable {
-    let id = UUID()
+    let id: Int
     let title: String
     let artist: String
-    let artworkColors: [Color]
+    let imageUrl: URL?
+    let duration: Int
+    
+    init(id: Int, title: String, artist: String, imageUrl: URL?, duration: Int = 0) {
+        self.id = id
+        self.title = title
+        self.artist = artist
+        self.imageUrl = imageUrl
+        self.duration = duration
+    }
+    
+    init(from qobuzTrack: QobuzTrack) {
+        self.id = qobuzTrack.id ?? 0
+        self.title = qobuzTrack.title ?? "Unknown Track"
+        self.artist = qobuzTrack.performer?.name ?? "Unknown Artist"
+        if let imgString = qobuzTrack.album?.image?.extralarge ?? qobuzTrack.album?.image?.large {
+            self.imageUrl = URL(string: imgString)
+        } else {
+            self.imageUrl = nil
+        }
+        self.duration = qobuzTrack.duration ?? 0
+    }
+    
+    static func == (lhs: Track, rhs: Track) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
-
-let mockLibrary: [Track] = [
-    Track(title: "Déjale Caer To' El Peso", artist: "Hector 'El Father'", artworkColors: [.purple, .black]),
-    Track(title: "Gasolina", artist: "Daddy Yankee", artworkColors: [.orange, .red]),
-    Track(title: "Danza Kuduro", artist: "Don Omar", artworkColors: [.blue, .cyan]),
-    Track(title: "Safaera", artist: "Bad Bunny", artworkColors: [.pink, .purple]),
-    Track(title: "Llamado de Emergencia", artist: "Daddy Yankee", artworkColors: [.red, .black]),
-    Track(title: "Dile", artist: "Don Omar", artworkColors: [.green, .yellow])
-]

@@ -8,10 +8,16 @@ struct MiniPlayerNative: View {
             VStack(spacing: 0) {
                 HStack(spacing: 12) {
                     // Artwork
-                    RoundedRectangle(cornerRadius: 8)
-                        .fill(LinearGradient(colors: track.artworkColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .frame(width: 44, height: 44)
-                        .shadow(radius: 3)
+                    AsyncImage(url: track.imageUrl) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFill()
+                        } else {
+                            Rectangle().fill(Color.gray)
+                        }
+                    }
+                    .frame(width: 44, height: 44)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .shadow(radius: 3)
                     
                     // Info
                     VStack(alignment: .leading, spacing: 2) {
@@ -58,7 +64,7 @@ struct MiniPlayerNative: View {
                         
                         Rectangle()
                             .fill(Color.primary)
-                            .frame(width: geometry.size.width * 0.3, height: 2) // Simulando 30% de progreso
+                            .frame(width: geometry.size.width * 0.3, height: 2) // Simulado por ahora
                     }
                 }
                 .frame(height: 2)

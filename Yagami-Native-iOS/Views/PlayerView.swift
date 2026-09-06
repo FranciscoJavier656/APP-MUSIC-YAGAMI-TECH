@@ -7,10 +7,21 @@ struct PlayerView: View {
     var body: some View {
         if let track = audioPlayer.currentTrack {
             ZStack {
-                // Background Blur
-                LinearGradient(colors: track.artworkColors, startPoint: .topLeading, endPoint: .bottomTrailing)
-                    .ignoresSafeArea()
-                    .overlay(.ultraThinMaterial)
+                // Background Blur from Artwork
+                GeometryReader { geo in
+                    AsyncImage(url: track.imageUrl) { phase in
+                        if let image = phase.image {
+                            image.resizable()
+                                .scaledToFill()
+                                .frame(width: geo.size.width, height: geo.size.height)
+                                .blur(radius: 60)
+                                .overlay(.black.opacity(0.3)) // Darken to ensure text readability
+                        } else {
+                            Color.black
+                        }
+                    }
+                }
+                .ignoresSafeArea()
                 
                 VStack(spacing: 32) {
                     // Header
@@ -23,7 +34,7 @@ struct PlayerView: View {
                                 .foregroundColor(.white)
                         }
                         Spacer()
-                        Text("Reproduciendo")
+                        Text("Reproduciendo de Qobuz")
                             .font(.caption)
                             .bold()
                             .foregroundColor(.white.opacity(0.8))
@@ -39,11 +50,16 @@ struct PlayerView: View {
                     .padding(.top, 40)
                     
                     // Artwork
-                    RoundedRectangle(cornerRadius: 24)
-                        .fill(LinearGradient(colors: track.artworkColors, startPoint: .topLeading, endPoint: .bottomTrailing))
-                        .aspectRatio(1, contentMode: .fit)
-                        .padding(.horizontal, 32)
-                        .shadow(color: .black.opacity(0.3), radius: 20, y: 10)
+                    AsyncImage(url: track.imageUrl) { phase in
+                        if let image = phase.image {
+                            image.resizable().scaledToFit()
+                        } else {
+                            Rectangle().fill(Color.gray.opacity(0.3))
+                        }
+                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 24))
+                    .padding(.horizontal, 32)
+                    .shadow(color: .black.opacity(0.5), radius: 30, y: 15)
                     
                     // Track Info
                     VStack(alignment: .leading, spacing: 8) {
@@ -53,9 +69,11 @@ struct PlayerView: View {
                                     .font(.title2)
                                     .bold()
                                     .foregroundColor(.white)
+                                    .lineLimit(1)
                                 Text(track.artist)
                                     .font(.title3)
                                     .foregroundColor(.white.opacity(0.7))
+                                    .lineLimit(1)
                             }
                             Spacer()
                         }
