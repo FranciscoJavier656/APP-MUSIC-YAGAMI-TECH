@@ -21,7 +21,6 @@ struct LiquidTabBarNative: View {
     @Namespace private var bubbleNS
 
     var body: some View {
-        // AQUÍ ESTÁ EL CÓDIGO WWDC25 DE LIQUID GLASS 100% NATIVO
         GlassEffectContainer {
             ZStack(alignment: .bottom) {
                 // 1. CÁPSULA BASE
@@ -31,54 +30,63 @@ struct LiquidTabBarNative: View {
                     .glassEffect(.regular.interactive(), in: Capsule())
                     .glassEffectID("liquid", in: glassNS)
 
-                // 2. BURBUJA ACTIVA QUE SE FUSIONA
+                // 2. BURBUJA ACTIVA (EL SELECTOR PERFECTO ESTILO APPLE)
                 HStack(spacing: 0) {
                     ForEach(nativeTabs) { tab in
                         Color.clear
                             .frame(maxWidth: .infinity)
                             .overlay(alignment: .bottom) {
                                 if tab.id == activeTab {
-                                    Circle()
-                                        .frame(width: 60, height: 60)
-                                        .glassEffect(.regular.interactive(), in: Circle())
+                                    // Cambiamos Circle() por una cápsula ligeramente más ancha y alta
+                                    // Esta es la forma exacta que usan en el proyecto Landmarks
+                                    Capsule()
+                                        .frame(width: 68, height: 74)
+                                        .glassEffect(.regular.interactive(), in: Capsule())
                                         .glassEffectID("liquid", in: glassNS)
                                         .matchedGeometryEffect(id: "bubble", in: bubbleNS)
-                                        .offset(y: -10)
+                                        .offset(y: -4) // Lo bajamos un poco para que se fusione mejor con la base
                                 }
                             }
                     }
                 }
                 .frame(height: 64)
-
-                // 3. ÍCONOS (Separados del cristal para no deformarse)
-                HStack(spacing: 0) {
-                    ForEach(nativeTabs) { tab in
-                        let isActive = tab.id == activeTab
-                        Button {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
-                                activeTab = tab.id
-                            }
-                        } label: {
-                            VStack(spacing: 3) {
-                                Image(systemName: tab.icon)
-                                    .font(.system(size: isActive ? 23 : 20, weight: isActive ? .semibold : .regular))
-                                    .symbolEffect(.bounce, value: isActive)
-                                    .offset(y: isActive ? -8 : 0)
-                                Text(tab.label)
-                                    .font(.system(size: 10, weight: isActive ? .bold : .medium))
-                            }
-                            .foregroundStyle(isActive ? Color.white : Color(UIColor.lightGray))
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 64)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .frame(height: 64)
             }
         }
+        // 3. ÍCONOS Y TÍTULOS (En el overlay)
+        .overlay(alignment: .bottom) {
+            HStack(spacing: 0) {
+                ForEach(nativeTabs) { tab in
+                    let isActive = tab.id == activeTab
+                    Button {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.72)) {
+                            activeTab = tab.id
+                        }
+                    } label: {
+                        VStack(spacing: 3) {
+                            Image(systemName: tab.icon)
+                                .font(.system(size: isActive ? 24 : 20, weight: isActive ? .semibold : .regular))
+                                .symbolEffect(.bounce, value: isActive)
+                                // Ajustamos el offset vertical del ícono activo para que encaje perfecto en la burbuja
+                                .offset(y: isActive ? -12 : 0)
+                            
+                            // Ocultamos el texto si la pestaña está activa, 
+                            // exactamente como lo hace Apple en la nueva interfaz.
+                            if !isActive {
+                                Text(tab.label)
+                                    .font(.system(size: 10, weight: .medium))
+                            }
+                        }
+                        .foregroundStyle(isActive ? Color.white : Color.gray)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 64)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .frame(height: 64)
+        }
         .padding(.horizontal, 16)
-        // El safe area inferior de iOS mantendrá la barra en su lugar
+        .padding(.bottom, 16)
     }
 }
