@@ -1,0 +1,96 @@
+name: Build Native iOS App
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'Yagami-Native-iOS/**'
+  workflow_dispatch:
+
+jobs:
+  build-ios-native:
+    name: Build iOS 26 SwiftUI App
+    runs-on: macos-latest # Utiliza los runners de Apple de GitHub Actions
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Necesitamos seleccionar explícitamente la versión de Xcode que soporte iOS 26
+      # Como iOS 26 y Xcode 26 serían las versiones correspondientes al 2026/2027, 
+      # idealmente aquí iría: xcode-version: '18.0' (o la versión que corresponda al lanzamiento de iOS 26)
+      # Para propósitos de que la Action corra sin crashear hoy, seleccionamos 'latest-stable'
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable 
+
+      # Como generé archivos sueltos para el esqueleto, necesitamos crear un proyecto xcodeproj
+      # al vuelo usando Xcodegen, para que xcodebuild tenga algo que compilar.
+      - name: Install xcodegen
+        run: brew install xcodegen
+
+      - name: Create project.yml for Xcodegen
+        run: |
+          cat << 'PROJ' > Yagami-Native-iOS/project.yml
+          name: YagamiSwiftUI
+          options:
+            bundleIdPrefix: com.yagami.music
+            deploymentTarget:
+              iOS: "26.0"
+          targets:
+            YagamiSwiftUI:
+              type: application
+              platform: iOS
+              sources: 
+                - .
+              info:
+                path: Info.plist
+                properties:
+                  UILaunchScreen: {}
+                  UIBackgroundModes: [audio]
+          PROJ
+          
+          # Crear un Info.plist básico
+          cat << 'PLIST' > Yagami-Native-iOS/Info.plist
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>CFBundleIdentifier</key>
+              <string>com.yagami.music.YagamiSwiftUI</string>
+              <key>CFBundleName</key>
+              <string>Yagami</string>
+              <key>CFBundleExecutable</key>
+              <string>$(EXECUTABLE_NAME)</string>
+              <key>CFBundleShortVersionString</key>
+              <string>1.0</string>
+              <key>CFBundleVersion</key>
+              <string>1</string>
+              <key>UIBackgroundModes</key>
+              <array>
+                  <string>audio</string>
+              </array>
+          </dict>
+          </plist>
+          PLIST
+
+      - name: Generate Xcode Project
+        working-directory: ./Yagami-Native-iOS
+        run: xcodegen generate
+
+      - name: Build App (Simulator)
+        working-directory: ./Yagami-Native-iOS
+        # Compila para el simulador genérico de iOS para validar el código
+        run: |
+          set -o pipefail
+          xcodebuild clean build \
+            -project YagamiSwiftUI.xcodeproj \
+            -scheme YagamiSwiftUI \
+            -destination "generic/platform=iOS Simulator" \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO | xcpretty
+
+      # Si tienes certificados configurados en Github Secrets, aquí iría el paso de
+      # Fastlane o xcodebuild con el provisioning profile para exportar el .ipa real.
