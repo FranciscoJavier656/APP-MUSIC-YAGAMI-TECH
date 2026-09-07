@@ -46,10 +46,11 @@ class RootErrorBoundary extends React.Component {
 }
 
 export default function App() {
-  return <RootErrorBoundary><AppContent /></RootErrorBoundary>;
+  return <AppContent />;
 }
 
 function AppContent() {
+  const [useNativeTabBar, setUseNativeTabBar] = useState(false);
   const [isAppLoading, setIsAppLoading] = useState(true);
   const [showUI, setShowUI] = useState(false);
   const [isOffline, setIsOffline] = useState(typeof navigator !== 'undefined' ? !navigator.onLine : false);
@@ -68,7 +69,6 @@ function AppContent() {
   
   const [activeTab, setActiveTab] = useState<'home' | 'search' | 'library' | 'downloads' | 'settings'>('home');
   const [globalOverlay, setGlobalOverlay] = useState<{ type: 'album'|'artist'|'playlist', id: string } | null>(null);
-  const [useNativeTabBar, setUseNativeTabBar] = useState(false);
 
   // ─── Native iOS 26 Liquid Glass TabBar (real Apple APIs) ───
   useEffect(() => {

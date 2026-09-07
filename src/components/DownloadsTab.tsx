@@ -252,7 +252,7 @@ export default function DownloadsTab() {
       </div>
 
       <motion.div 
-        initial={{ opacity: 0 }}
+        initial={{ opacity: 1 }}
         animate={{ opacity: 1 }}
         className="flex-1 flex flex-col"
       >

@@ -1,9 +1,44 @@
 const fs = require('fs');
-const path = 'src/components/LiquidTabBar.tsx';
-let content = fs.readFileSync(path, 'utf8');
+const f = 'src/components/LiquidTabBar.tsx';
+let c = fs.readFileSync(f, 'utf8');
 
-// Fix the react import issue
-content = content.replace("import React, { useRef, useState, useEffect } from 'react';", "import * as React from 'react';\nimport { useRef, useState, useEffect } from 'react';");
+const replacement = `  // ── Drag interaction ──────────────────────────────────────────────
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    isDragging.current = true;
+    const bar = barRef.current;
+    if (!bar) return;
+    const rect = bar.getBoundingClientRect();
+    
+    const onMove = (ev: PointerEvent) => {
+      if (!isDragging.current) return;
+      const localX = ev.clientX - rect.left;
+      bubbleX.set(localX);
+    };
+    
+    const onUp = (ev: PointerEvent) => {
+      isDragging.current = false;
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      
+      if (!centers.length) return;
+      const localX = ev.clientX - rect.left;
+      let nearestIdx = 0;
+      let minDist = Infinity;
+      centers.forEach((c, i) => {
+        const d = Math.abs(c - localX);
+        if (d < minDist) { minDist = d; nearestIdx = i; }
+      });
+      animate(bubbleX, centers[nearestIdx], SNAP_SPRING as any);
+    };
+    
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [centers, bubbleX]);
 
-fs.writeFileSync(path, content, 'utf8');
-console.log("Fixed React import!");
+  // ── Active icon lift animation ───────────────────────────────`;
+
+c = c.replace('  // ── Active icon lift animation ───────────────────────────────', replacement);
+
+fs.writeFileSync(f, c);

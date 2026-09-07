@@ -266,9 +266,11 @@ const processSingleDownload = async (track: any, formatId: string, ext: string):
       throw e;
     }
   } else {
-    // Web mock
+    // Web
     const filename = `${track.track_number?.toString().padStart(2, '0') || '01'} - ${(track.title || 'Track').replace(/[/\\?+%*:_|"<>]/g, '-')}.${ext}`;
-    await downloadFileWeb(url, filename);
+    // Usar el endpoint backend que incrusta metadatos (ffmpeg) en Web
+    const backendUrl = `/api/downloadWithMetadata?track_id=${trackId}&format_id=${formatId}`;
+    await downloadFileWeb(backendUrl, filename);
     
     // Añadimos metadatos también en Web para que aparezca en la pestaña de descargas
     const trackWithLocalPath = {

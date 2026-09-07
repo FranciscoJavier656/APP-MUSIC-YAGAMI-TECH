@@ -1,11 +1,8 @@
-import SwiftUI
+const fs = require('fs');
+const f = 'Yagami-Native-iOS/ContentView.swift';
+let c = fs.readFileSync(f, 'utf8');
 
-struct ContentView: View {
-    @State private var activeTab: String = "home"
-    @EnvironmentObject var audioPlayer: AudioPlayerModel
-    
-    var body: some View {
-        
+c = c.replace(/if #available\(iOS 26\.0, \*\) \{[\s\S]*?\} else \{[\s\S]*?\}/, `
         ZStack(alignment: .bottom) {
             TabView(selection: $activeTab) {
                 HomeView()
@@ -53,6 +50,5 @@ struct ContentView: View {
                 PlayerView()
             }
         }
-
-    }
-}
+`);
+fs.writeFileSync(f, c);

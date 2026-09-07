@@ -67,47 +67,44 @@ export const LiquidTabBar = ({
     setCenters(cs);
   }, []);
 
+
   useLayoutEffect(() => {
     measure();
-    const ro = new ResizeObserver(measure);
-    if (barRef.current) ro.observe(barRef.current);
-    return () => ro.disconnect();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
   }, [measure]);
 
-  // Snap bubble to active tab (when tab changes without dragging)
+  // Sync bubble to active tab when active tab changes externally (or centers recalculate)
   useEffect(() => {
-    if (isDragging.current || !centers.length) return;
-    const idx = TABS.findIndex(t => t.id === activeTab);
-    if (idx >= 0 && centers[idx] != null) {
-      animate(bubbleX, centers[idx], SNAP_SPRING as any);
+    if (centers.length > 0) {
+      const idx = TABS.findIndex(t => t.id === activeTab);
+      if (idx !== -1 && !isDragging.current) {
+        animate(bubbleX, centers[idx], SNAP_SPRING as any);
+      }
     }
   }, [activeTab, centers, bubbleX]);
 
-  // ── Touch / pointer drag: bubble follows finger ──────────────
+
+  // ── Drag interaction ──────────────────────────────────────────────
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    isDragging.current = true;
     const bar = barRef.current;
     if (!bar) return;
-
-    isDragging.current = true;
-    bar.setPointerCapture(e.pointerId);
-
+    const rect = bar.getBoundingClientRect();
+    
     const onMove = (ev: PointerEvent) => {
-      const rect = bar.getBoundingClientRect();
+      if (!isDragging.current) return;
       const localX = ev.clientX - rect.left;
-      // Clamp to bar bounds
-      const clamped = Math.max(BUBBLE_D / 2, Math.min(rect.width - BUBBLE_D / 2, localX));
-      bubbleX.set(clamped);
+      bubbleX.set(localX);
     };
-
+    
     const onUp = (ev: PointerEvent) => {
       isDragging.current = false;
-      bar.removeEventListener('pointermove', onMove);
-      bar.removeEventListener('pointerup', onUp);
-      bar.removeEventListener('pointercancel', onUp);
-
-      // Find nearest tab center and snap to it
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+      
       if (!centers.length) return;
-      const rect = bar.getBoundingClientRect();
       const localX = ev.clientX - rect.left;
       let nearestIdx = 0;
       let minDist = Infinity;
@@ -115,15 +112,13 @@ export const LiquidTabBar = ({
         const d = Math.abs(c - localX);
         if (d < minDist) { minDist = d; nearestIdx = i; }
       });
-      const snappedTab = TABS[nearestIdx].id;
-      setActiveTab(snappedTab);
       animate(bubbleX, centers[nearestIdx], SNAP_SPRING as any);
     };
-
-    bar.addEventListener('pointermove', onMove);
-    bar.addEventListener('pointerup',   onUp);
-    bar.addEventListener('pointercancel', onUp);
-  }, [centers, bubbleX, setActiveTab]);
+    
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+  }, [centers, bubbleX]);
 
   // ── Active icon lift animation ───────────────────────────────
   const activeIdx = TABS.findIndex(t => t.id === activeTab);

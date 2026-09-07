@@ -244,7 +244,7 @@ export default function SearchTab() {
           
           {/* STATE 1: Empty (Bento Grid Discovery) */}
           {!query && !results && !loading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-2">
+            <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }} className="mt-2">
               <h2 className="text-xl font-black tracking-tighter mb-4 text-black dark:text-white">Explorar géneros</h2>
               <div className="grid grid-cols-2 gap-4">
                 {BENTO_GENRES.map((genre, idx) => (
@@ -283,7 +283,7 @@ export default function SearchTab() {
 
           {/* STATE 4: Results */}
           {results && !loading && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+            <motion.div initial={{ opacity: 1 }} animate={{ opacity: 1 }}>
               
               {/* Filter Pills */}
               <div className="flex gap-2 overflow-x-auto no-scrollbar mb-6 pb-2">
