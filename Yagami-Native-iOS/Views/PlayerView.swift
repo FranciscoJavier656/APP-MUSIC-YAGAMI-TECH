@@ -118,7 +118,7 @@ struct PlayerView: View {
                     }
                     
                     // 4. FFT Visualizer
-                    HStack(spacing: 3) {
+                    HStack(alignment: .bottom, spacing: 3) {
                         ForEach(0..<64, id: \.self) { index in
                             let val = audioPlayer.fftData.indices.contains(index) ? audioPlayer.fftData[index] : 0
                             let height = max(4, val * 60)

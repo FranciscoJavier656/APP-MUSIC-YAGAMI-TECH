@@ -40,7 +40,7 @@ struct MiniPlayerNative: View {
                         Spacer()
                         
                         // Mini Visualizador (Seguro porque tiene un frame fijo)
-                        HStack(spacing: 2) {
+                        HStack(alignment: .bottom, spacing: 2) {
                             ForEach(24..<40, id: \.self) { index in
                                 let val = audioPlayer.fftData.indices.contains(index) ? audioPlayer.fftData[index] : 0
                                 let height = max(2, val * 20)
