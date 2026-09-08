@@ -96,7 +96,7 @@ export default function MiniPlayer() {
                 {/* Mini Visualizador */}
                 {isPlaying && (
                   <div className="h-6 w-[64px] flex items-center pr-2">
-                    <FFTVisualizer barCount={16} startIndex={24} maxHeight={20} minHeight={2} barWidth={2} gap={2} color="currentColor" className="text-black dark:text-white" />
+                    <FFTVisualizer barCount={16} startIndex={24} className="w-full h-full text-black dark:text-white" color="currentColor" />
                   </div>
                 )}
 

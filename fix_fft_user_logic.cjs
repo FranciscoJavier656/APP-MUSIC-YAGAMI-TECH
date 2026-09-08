@@ -1,4 +1,6 @@
-import React, { useEffect, useRef } from 'react';
+const fs = require('fs');
+
+const fftCode = `import React, { useEffect, useRef } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { QobuzAudio } from '../lib/QobuzAudioPlugin';
 import { usePlayer } from './PlayerContext';
@@ -97,7 +99,7 @@ export function FFTVisualizer({
           let r = 255, g = 255, b = 255; 
           
           if (color.startsWith('rgb(')) {
-             const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+             const match = color.match(/rgb\\((\\d+),\\s*(\\d+),\\s*(\\d+)\\)/);
              if (match) {
                  r = parseInt(match[1], 10);
                  g = parseInt(match[2], 10);
@@ -114,7 +116,7 @@ export function FFTVisualizer({
              g = isDark ? 255 : 0;
              b = isDark ? 255 : 0;
           }
-          const baseRgb = `${r}, ${g}, ${b}`;
+          const baseRgb = \`\${r}, \${g}, \${b}\`;
           
           let bassSum = 0;
           let midSum = 0;
@@ -138,7 +140,7 @@ export function FFTVisualizer({
             if (barHeight < 3) barHeight = 3; // Altura mínima de reposo
             
             // Opacidad dinámica basada en la fuerza de la frecuencia
-            ctx.fillStyle = `rgba(${baseRgb}, ${0.15 + (smoothed[i]/255)*0.85})`; 
+            ctx.fillStyle = \`rgba(\${baseRgb}, \${0.15 + (smoothed[i]/255)*0.85})\`; 
             
             // Geometría: Puntas redondas arriba
             ctx.beginPath();
@@ -189,7 +191,10 @@ export function FFTVisualizer({
       ref={canvasRef} 
       width={300} 
       height={60} 
-      className={`w-full h-full ${className}`}
+      className={\`w-full h-full \${className}\`}
     />
   );
 }
+`;
+
+fs.writeFileSync('src/components/FFTVisualizer.tsx', fftCode, 'utf8');

@@ -562,8 +562,8 @@ export default function ExpandedPlayer() {
             </div>
 
             {/* Audio Visualizer Canvas */}
-            <div className="px-8 mt-4 sm:mt-6 h-[40px] sm:h-[60px] flex items-center justify-center w-full max-w-[450px] mx-auto">
-              <FFTVisualizer barCount={64} startIndex={0} maxHeight={60} minHeight={3} barWidth={3} gap={3} className="w-full mx-auto" color='#ffffff' onFftAverages={handleFftAverages} />
+            <div className="h-16 w-full max-w-[320px] sm:max-w-[400px] mx-auto mt-4 mb-2 flex items-end">
+              <FFTVisualizer barCount={64} startIndex={0} className="w-full h-full" color="#ffffff" onFftAverages={handleFftAverages} />
             </div>
             <div className="flex-1" />
           </div>
@@ -721,7 +721,7 @@ export default function ExpandedPlayer() {
                       </p>
                       <p className="text-sm text-white/50 truncate">{track.artist}</p>
                     </div>
-                    {isPlayingQueue && (<div className="h-4 w-[20px] flex items-center"><FFTVisualizer barCount={4} startIndex={24} maxHeight={16} minHeight={4} barWidth={3} gap={2} color="currentColor" className="text-white" /></div>)}
+                    {isPlayingQueue && (<div className="h-4 w-[20px] flex items-center"><FFTVisualizer barCount={4} startIndex={24} className="w-full h-full" color="#ffffff" /></div>)}
                   </div>
                 );
               })}
