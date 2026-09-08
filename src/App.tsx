@@ -25,7 +25,7 @@ const LiquidTabBarNative = isNative ? registerPlugin('LiquidTabBar') : null;
 class RootErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false as boolean, error: null as string | null };
   }
   static getDerivedStateFromError(error) {
     return { hasError: true, error };
@@ -37,11 +37,11 @@ class RootErrorBoundary extends React.Component {
     if (this.state.hasError) {
       return <div style={{padding: 20, color: 'red', background: 'white', height: '100vh', wordWrap: 'break-word'}}>
         <h1>Fatal Error</h1>
-        <pre>{this.state.error?.toString()}</pre>
-        <pre>{this.state.error?.stack}</pre>
+        <pre>{(this.state as any).error?.toString()}</pre>
+        <pre>{(this.state as any).error?.stack}</pre>
       </div>;
     }
-    return this.props.children;
+    return (this.props as any).children;
   }
 }
 
@@ -251,7 +251,7 @@ function AppContent() {
         {/* Liquid Glass Tab Bar
              iOS native: SwiftUI view using real Apple glassEffect APIs (handled by plugin)
              Web / fallback: React component with CSS liquid simulation */}
-        {showUI && !useNativeTabBar && <LiquidTabBar activeTab={activeTab} setActiveTab={setActiveTab} />}
+        {showUI && !useNativeTabBar && <LiquidTabBar activeTab={activeTab} setActiveTab={(id: string) => setActiveTab(id as any)} />}
       </div>
     </PlayerProvider>
     </DownloadProvider>

@@ -181,7 +181,7 @@ export default function SearchTab() {
         {activeItem?.type === 'album' && (
           <motion.div 
             key="album-view"
-            initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            initial={{ opacity: 0, x: "100%" }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: "100%" }} transition={{ type: "spring" as const, damping: 25, stiffness: 200 }}
             className="fixed inset-0 z-50 bg-[#F2F2F7] dark:bg-[#000000]"
           >
             <AlbumView albumId={activeItem.id} onBack={() => setActiveItem(null)} />

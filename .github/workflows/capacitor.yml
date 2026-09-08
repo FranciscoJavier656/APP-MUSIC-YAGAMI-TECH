@@ -1,0 +1,59 @@
+name: Build iOS IPA for TrollStore (Hybrid Capacitor)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ios-hybrid:
+    name: Build Hybrid iOS App (TrollStore)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable 
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Build Web Assets
+        run: npm run build
+
+      - name: Sync Capacitor
+        run: npx cap sync ios
+
+      - name: Build App (No Code Signing for TrollStore)
+        working-directory: ./ios/App
+        run: |
+          set -o pipefail
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath ./build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            clean build | xcpretty
+
+      - name: Package into IPA
+        working-directory: ./ios/App
+        run: |
+          mkdir -p Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r AudiophilePlayer-Hybrid-TrollStore.ipa Payload
+
+      - name: Upload IPA Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: AudiophilePlayer-Hybrid-TrollStore
+          path: ios/App/AudiophilePlayer-Hybrid-TrollStore.ipa

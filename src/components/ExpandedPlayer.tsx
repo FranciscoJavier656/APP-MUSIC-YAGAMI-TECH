@@ -1,4 +1,5 @@
 type LyricLine = { time: number; text: string; duration: number };
+
 import { motion, AnimatePresence } from 'motion/react';
 import React, { useRef, useEffect, useState } from 'react';
 import { ChevronDown, Play, Pause, SkipForward, SkipBack, Repeat, Shuffle, ListMusic, Info, MoreHorizontal, Download } from 'lucide-react';
@@ -435,7 +436,7 @@ export default function ExpandedPlayer() {
   useEffect(() => {
     if (resolvedImageSrc) {
       if (Capacitor.getPlatform() === 'ios') {
-          YagamiNative.getVibrantColor({ url: resolvedImageSrc }).then((res: any) => {
+          (YagamiNative as any).getVibrantColor({ url: resolvedImageSrc }).then((res: any) => {
               if (res && res.color) {
                   setDominantColor(res.color);
               }
