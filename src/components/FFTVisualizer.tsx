@@ -26,12 +26,19 @@ export function FFTVisualizer({
   onFftAverages
 }: FFTVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  
+  // Guardamos el callback en un ref para no reiniciar la animación en cada render
+  const onFftAveragesRef = useRef(onFftAverages);
+  useEffect(() => {
+    onFftAveragesRef.current = onFftAverages;
+  }, [onFftAverages]);
 
   useEffect(() => {
     let animationId: number;
     let latestData: number[] | null = null;
     
-    // Suavizado exponencial para los cálculos (attack/decay filter)
+    // Suavizado exponencial (attack/decay) esencial para que las barras luzcan orgánicas
+    const smoothedBars = new Float32Array(barCount);
     let smoothedBass = 0;
     let smoothedMid = 0;
     
@@ -68,21 +75,28 @@ export function FFTVisualizer({
 
       for (let i = 0; i < barCount; i++) {
         const dataIndex = startIndex + i;
-        // El plugin Swift ya envía la info perfectamente calculada, amplificada y suavizada
-        const val = latestData ? (latestData[dataIndex] || 0) : 0;
+        const targetVal = latestData ? (latestData[dataIndex] || 0) : 0;
         
         // Sumas para el glow/scale del background
-        if (i < 10) bassSum += val;
-        else if (i < 30) midSum += val;
+        if (i < 10) bassSum += targetVal;
+        else if (i < 30) midSum += targetVal;
 
-        const normalizedVal = val / 255;
-        // Sin smoothing ni easing falso en el frontend, dibujamos directamente la data nativa
+        // Filtro de suavizado (Attack / Decay) para el ecualizador visual
+        // Si el valor sube, reacciona rápido (0.6), si baja, cae suavemente (0.8)
+        if (targetVal > smoothedBars[i]) {
+            smoothedBars[i] = smoothedBars[i] * 0.4 + targetVal * 0.6;
+        } else {
+            smoothedBars[i] = smoothedBars[i] * 0.8 + targetVal * 0.2;
+        }
+
+        const normalizedVal = smoothedBars[i] / 255;
         const h = Math.max(minHeight, normalizedVal * maxHeight);
         
         const x = startX + i * (parsedBarWidth + parsedGap);
-        const y = (height - h) / 2;
+        // ALINEADO ABAJO (Baseline) como el visualizador clásico
+        const y = height - h;
         
-        ctx.fillStyle = color; // Color solido como en la captura
+        ctx.fillStyle = color;
         
         ctx.beginPath();
         if (ctx.roundRect) {
@@ -102,15 +116,12 @@ export function FFTVisualizer({
         ctx.fill();
       }
 
-      // Procesar luces ambientales (Glow / Escala)
-      if (onFftAverages) {
+      if (onFftAveragesRef.current) {
         const avgBass = bassSum / 10;
         const avgMid = midSum / 20;
-        
         smoothedBass = smoothedBass * 0.8 + avgBass * 0.2;
         smoothedMid = smoothedMid * 0.8 + avgMid * 0.2;
-        
-        onFftAverages(smoothedBass, smoothedMid);
+        onFftAveragesRef.current(smoothedBass, smoothedMid);
       }
 
       animationId = requestAnimationFrame(draw);
@@ -137,7 +148,7 @@ export function FFTVisualizer({
         capListener.remove();
       }
     };
-  }, [barCount, startIndex, maxHeight, minHeight, color, barWidth, gap, onFftAverages]);
+  }, [barCount, startIndex, maxHeight, minHeight, color, barWidth, gap]);
 
   return (
     <canvas 
