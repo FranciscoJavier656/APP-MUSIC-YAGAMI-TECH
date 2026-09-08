@@ -9,6 +9,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { getImageSrc } from '../lib/image';
 import { OfflineImage } from './OfflineImage';
+import { FFTVisualizer } from './FFTVisualizer';
 
 
 export default function ExpandedPlayer() {
@@ -61,7 +62,7 @@ export default function ExpandedPlayer() {
   const seekInputRef = useRef<HTMLInputElement>(null);
   const currentTimeRef = useRef<HTMLSpanElement>(null);
   const remainingTimeRef = useRef<HTMLSpanElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+  
   const [dominantColor, _setDominantColor] = useState<string | null>(null);
   const dominantColorRef = useRef<string | null>(null);
   const setDominantColor = (color: string | null) => {
@@ -106,38 +107,13 @@ export default function ExpandedPlayer() {
     setTouchStartY(0);
   };
 
-  // Sync FFT data
-  useEffect(() => {
-    let listener: any;
-    const setup = async () => {
-      
-      if (Capacitor.isNativePlatform()) {
-        listener = await QobuzAudio.addListener('onFftData', (info) => {
-         if (canvasRef.current && info.data) {
-            (canvasRef.current as any).nativeFftData = info.data;
-         }
-      });
-      } else {
-        const webListener = (e: any) => {
-          if (canvasRef.current && e.detail.data) {
-             (canvasRef.current as any).nativeFftData = e.detail.data;
-          }
-        };
-        window.addEventListener('fft_data', webListener);
-        listener = { remove: () => window.removeEventListener('fft_data', webListener) };
-      }
-
-    };
-    setup();
-    return () => { if (listener) listener.remove(); };
-  }, []);
+  
 
   // Main rendering loop for Progress and FFT
   useEffect(() => {
     let animationId: number;
     let timeoutId: number;
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext('2d');
+    
         
     const startDrawing = () => {
       const draw = () => {
@@ -166,7 +142,7 @@ export default function ExpandedPlayer() {
           // 1.5 Update Synced Lyrics
           if (parsedLyricsRef.current && lyricsContainerRef.current) {
             const lyricsArray = parsedLyricsRef.current;
-            const LYRICS_OFFSET = 0.4; // advance lyrics by 400ms
+            const LYRICS_OFFSET = 0.4;
             const adjustedCurrent = current + LYRICS_OFFSET;
             let activeIdx = -1;
             for (let i = 0; i < lyricsArray.length; i++) {
@@ -192,7 +168,6 @@ export default function ExpandedPlayer() {
                         child.style.textShadow = '0 0 20px rgba(255,255,255,0.4)';
                         child.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } else {
-                        // Reset fill styles for inactive lines
                         child.style.background = 'none';
                         child.style.WebkitBackgroundClip = 'initial';
                         child.style.WebkitTextFillColor = 'initial';
@@ -201,7 +176,7 @@ export default function ExpandedPlayer() {
                         
                         const words = child.querySelectorAll('.word');
                         words.forEach(w => {
-                            const htmlWord = w;
+                            const htmlWord = w as HTMLElement;
                             htmlWord.style.background = 'none';
                             htmlWord.style.WebkitBackgroundClip = 'initial';
                             htmlWord.style.WebkitTextFillColor = 'initial';
@@ -209,8 +184,7 @@ export default function ExpandedPlayer() {
                             htmlWord.style.color = 'inherit';
                             htmlWord.style.textShadow = 'none';
                         });
-
-                        // Calculate cinematic blur and fade
+                        
                         const blurAmount = Math.min(distance * 1.5, 6);
                         const opacityAmount = Math.max(0.6 - (distance * 0.15), 0.1);
                         const scaleAmount = Math.max(0.95 - (distance * 0.02), 0.85);
@@ -223,10 +197,9 @@ export default function ExpandedPlayer() {
                 }
             }
             
-            // Always update fill on active line
             if (activeIdx >= 0 && activeIdx < lyricsArray.length) {
                 const activeLine = lyricsArray[activeIdx];
-                const activeChild = lyricsContainerRef.current.children[activeIdx];
+                const activeChild = lyricsContainerRef.current.children[activeIdx] as HTMLElement;
                 if (activeChild) {
                     let percent = ((adjustedCurrent - activeLine.time) / activeLine.duration);
                     if (percent < 0) percent = 0;
@@ -238,7 +211,7 @@ export default function ExpandedPlayer() {
                         words.forEach((wordSpan, wIdx) => {
                             const wordStart = wIdx / totalWords;
                             const wordEnd = (wIdx + 1) / totalWords;
-                            const htmlWord = wordSpan;
+                            const htmlWord = wordSpan as HTMLElement;
                             
                             if (percent >= wordEnd) {
                                 htmlWord.style.background = 'none';
@@ -264,138 +237,10 @@ export default function ExpandedPlayer() {
             }
           }
         }
-
-        // 2. Draw Analyser (Native iOS vDSP)
-        if (ctx && canvas && (canvas as any).nativeFftData) {
-          const rawDataArray = (canvas as any).nativeFftData;
-          const bufferLength = rawDataArray.length;
-          
-          if (!(canvas as any).smoothedFftData) {
-             (canvas as any).smoothedFftData = new Float32Array(bufferLength);
-          }
-          const smoothed = (canvas as any).smoothedFftData;
-          
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          
-          // Slight padding between bars
-          const barWidth = (canvas.width / bufferLength);
-          let x = 0;
-          
-          const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-          let r = isDarkMode ? 255 : 0;
-          let g = isDarkMode ? 255 : 0;
-          let b = isDarkMode ? 255 : 0;
-          
-          if (dominantColorRef.current) {
-            const match = dominantColorRef.current.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
-            if (match) {
-              r = parseInt(match[1]);
-              g = parseInt(match[2]);
-              b = parseInt(match[3]);
-            }
-          }
-          const baseRgb = `${r}, ${g}, ${b}`;
-          
-          for (let i = 0; i < bufferLength; i++) {
-            // If paused, force the target value to 0 so it decays smoothly
-            const targetValue = isPlayingRef.current ? rawDataArray[i] : 0;
-            
-            // Exponential smoothing for buttery smooth animation
-            smoothed[i] = smoothed[i] * 0.70 + targetValue * 0.30;
-            
-            let barHeight = (smoothed[i] / 255) * canvas.height;
-            if (barHeight < 3) barHeight = 3; // Minimum height for silence
-            
-            ctx.fillStyle = `rgba(${baseRgb}, ${0.15 + (smoothed[i]/255)*0.85})`; 
-            ctx.beginPath();
-            if (ctx.roundRect) {
-              ctx.roundRect(x, canvas.height - barHeight, barWidth - 2, barHeight, [4, 4, 0, 0]);
-            } else {
-              ctx.fillRect(x, canvas.height - barHeight, barWidth - 2, barHeight);
-            }
-            ctx.fill();
-            x += barWidth;
-          }
-          
-          // 2.5 Audio Reactive Background (Cristal Vivo)
-          let bassSum = 0;
-          const bassCount = Math.min(5, bufferLength);
-          for(let i=0; i<bassCount; i++) {
-             bassSum += rawDataArray[i] || 0;
-          }
-          const bassAvg = bassCount > 0 ? (bassSum / bassCount) : 0;
-          const bassImpact = isPlayingRef.current ? (bassAvg / 255) : 0;
-          
-          if (!(window as any).bgSmoothed) (window as any).bgSmoothed = 0;
-          (window as any).bgSmoothed = (window as any).bgSmoothed * 0.8 + bassImpact * 0.2;
-          
-          if (lyricsBgRef.current) {
-             const scale = 1.1 + ((window as any).bgSmoothed * 0.05); // Subtle scale bounce
-             const opacity = 0.4 + ((window as any).bgSmoothed * 0.4); // Brighten on beat
-             lyricsBgRef.current.style.transform = `scale(${scale})`;
-             lyricsBgRef.current.style.opacity = `${opacity}`;
-          }
-          
-          // 2.6 Audio Glow (Tipografía y Controles Radiactivos)
-          let midSum = 0;
-          const midStart = Math.floor(bufferLength * 0.1);
-          const midEnd = Math.floor(bufferLength * 0.4);
-          const midCount = Math.max(1, midEnd - midStart);
-          for (let i = midStart; i < midEnd; i++) {
-             midSum += rawDataArray[i] || 0;
-          }
-          const midAvg = midSum / midCount;
-          // Prevent "stuck" glow by calculating the audio spike relative to a moving baseline
-          if (!(window as any).baselineMid) (window as any).baselineMid = midAvg;
-          (window as any).baselineMid = (window as any).baselineMid * 0.95 + midAvg * 0.05; 
-          
-          const spike = Math.max(0, midAvg - (window as any).baselineMid);
-          // A spike of 20 out of 255 is a solid beat, normalize it to 1.5 max
-          const midImpact = isPlayingRef.current ? Math.min((spike / 20), 1.5) : 0;
-          
-          if (!(window as any).midSmoothed) (window as any).midSmoothed = 0;
-          
-          // Fast attack, slow decay for a "breathing" light effect
-          if (midImpact > (window as any).midSmoothed) {
-              (window as any).midSmoothed = (window as any).midSmoothed * 0.4 + midImpact * 0.6; // Attack
-          } else {
-              (window as any).midSmoothed = (window as any).midSmoothed * 0.93 + midImpact * 0.07; // Decay
-          }
-          
-          const glowIntensity = (window as any).midSmoothed;
-          
-          if (titleRef.current) titleRef.current.style.textShadow = 'none';
-          if (playButtonRef.current) playButtonRef.current.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.3)';
-          
-          if (bgGlowRef.current) {
-             // 1. Opacidad FIJA Y PRESENTE (no se toca)
-             const baseOpacity = isDarkMode ? 0.45 : 0.35;
-             bgGlowRef.current.style.opacity = baseOpacity.toString();
-             
-             // 2. Aura Física (Expansión suave y natural)
-             if (!(window as any).auraSize) (window as any).auraSize = 0;
-             
-             if (midImpact > (window as any).auraSize) {
-                 (window as any).auraSize = (window as any).auraSize * 0.85 + midImpact * 0.15; // Smooth attack
-             } else {
-                 (window as any).auraSize = (window as any).auraSize * 0.95 + midImpact * 0.05; // Smooth decay
-             }
-             
-             const aura = (window as any).auraSize;
-             
-             // Base scale is 1 (contained halo). It expands up to 1.6x its size when intense.
-             const dynamicScale = Math.min(aura * 0.6, 0.6); 
-             
-             bgGlowRef.current.style.transform = `scale(${1 + dynamicScale})`;
-             bgGlowRef.current.style.filter = 'saturate(1.8) brightness(1.25)';
-          }
-        }
-
         animationId = requestAnimationFrame(draw);
       };
       draw();
     };
-
     if (isExpanded) {
       timeoutId = window.setTimeout(startDrawing, 100);
     }
@@ -705,12 +550,7 @@ export default function ExpandedPlayer() {
 
             {/* Audio Visualizer Canvas */}
             <div className="px-8 mt-4 sm:mt-6 h-[40px] sm:h-[60px] flex items-end justify-center w-full max-w-[450px] mx-auto">
-              <canvas
-                ref={canvasRef}
-                width={320}
-                height={60}
-                className="w-full h-full"
-              />
+              <FFTVisualizer barCount={64} startIndex={0} maxHeight={60} minHeight={4} barWidth="3px" gap="3px" className="w-full justify-between max-w-[320px] mx-auto" color='currentColor' />
             </div>
             <div className="flex-1" />
           </div>
@@ -868,13 +708,7 @@ export default function ExpandedPlayer() {
                       </p>
                       <p className="text-sm text-white/50 truncate">{track.artist}</p>
                     </div>
-                    {isPlayingQueue && (
-                      <div className="w-4 h-4 flex items-end justify-between gap-[2px]">
-                        <div className="w-[3px] bg-white rounded-full animate-[bounce_1s_infinite] h-2"></div>
-                        <div className="w-[3px] bg-white rounded-full animate-[bounce_1s_infinite_0.2s] h-4"></div>
-                        <div className="w-[3px] bg-white rounded-full animate-[bounce_1s_infinite_0.4s] h-3"></div>
-                      </div>
-                    )}
+                    {isPlayingQueue && (<div className="h-4 flex items-center"><FFTVisualizer barCount={4} startIndex={24} maxHeight={16} minHeight={4} barWidth="3px" gap="2px" color="currentColor" className="text-white" /></div>)}
                   </div>
                 );
               })}

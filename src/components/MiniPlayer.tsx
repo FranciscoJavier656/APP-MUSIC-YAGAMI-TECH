@@ -5,6 +5,7 @@ import ExpandedPlayer from './ExpandedPlayer';
 import { motion, AnimatePresence } from 'motion/react';
 import { getImageSrc } from '../lib/image';
 import { OfflineImage } from './OfflineImage';
+import { FFTVisualizer } from './FFTVisualizer';
 
 
 export default function MiniPlayer() {
@@ -73,15 +74,7 @@ export default function MiniPlayer() {
                     <div className="w-full h-full flex items-center justify-center bg-black/10 dark:bg-white/10 text-gray-500">?</div>
                   )}
                   {/* Playing indicator overlay on image (optional subtlety) */}
-                  {isPlaying && (
-                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                      <div className="flex gap-[2px] justify-center h-3 items-end">
-                        <div className="w-0.5 bg-white animate-[bounce_1s_infinite] h-1.5"></div>
-                        <div className="w-0.5 bg-white animate-[bounce_1s_infinite_0.2s] h-3"></div>
-                        <div className="w-0.5 bg-white animate-[bounce_1s_infinite_0.4s] h-2"></div>
-                      </div>
-                    </div>
-                  )}
+                  
                 </motion.div>
                 {/* Track Info */}
                 <div className="flex-1 min-w-0 flex flex-col justify-center">
@@ -99,6 +92,13 @@ export default function MiniPlayer() {
                     </p>
                   </div>
                 </div>
+
+                {/* Mini Visualizador */}
+                {isPlaying && (
+                  <div className="h-6 flex items-center pr-2">
+                    <FFTVisualizer barCount={16} startIndex={24} maxHeight={20} minHeight={2} barWidth="2px" gap="2px" color="currentColor" className="text-black dark:text-white" />
+                  </div>
+                )}
 
                 {/* Controls */}
                 <div className="flex items-center gap-2 pr-2">
