@@ -82,13 +82,20 @@ export default function ExpandedPlayer() {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const bgGlowRef = useRef<HTMLDivElement>(null);
   
-  const handleFftAverages = (bass, mid) => {
+  const handleFftAverages = (bass: number, auraSize: number) => {
     if (bgGlowRef.current) {
-      const scale = 1 + (bass * 0.15); 
-      const opacity = Math.min(1, 0.4 + (mid * 0.4));
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const baseOpacity = isDarkMode ? 0.45 : 0.35;
       
-      bgGlowRef.current.style.transform = `translateX(-50%) scale(${scale})`;
-      bgGlowRef.current.style.opacity = `${opacity}`;
+      const dynamicScale = Math.min(auraSize * 0.6, 0.6); 
+      
+      bgGlowRef.current.style.opacity = baseOpacity.toString();
+      bgGlowRef.current.style.transform = `translateX(-50%) scale(${1 + dynamicScale})`;
+      bgGlowRef.current.style.filter = 'saturate(1.8) brightness(1.25)';
+    }
+    
+    if (playButtonRef.current && dominantColor) {
+      playButtonRef.current.style.boxShadow = `0 10px 15px -3px ${dominantColor}80`;
     }
   };
   const playButtonRef = useRef<HTMLButtonElement>(null);
@@ -472,7 +479,7 @@ export default function ExpandedPlayer() {
               ref={bgGlowRef}
               className="absolute top-0 left-1/2 w-[120vw] h-[120vw] max-w-[1200px] max-h-[1200px] pointer-events-none mix-blend-screen transition-all duration-75 ease-out"
               style={{
-                background: `radial-gradient(50% 50% at 50% 0%, ${dominantColor}73 0%, transparent 100%)`,
+                background: `radial-gradient(circle at 50% 0%, ${dominantColor} 0%, transparent 80%)`,
                 transform: 'translateX(-50%) scale(1)',
                 transformOrigin: 'top center'
               }}

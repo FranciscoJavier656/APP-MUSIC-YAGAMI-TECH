@@ -160,13 +160,26 @@ export function FFTVisualizer({
               const bassAvg = bassCount > 0 ? (bassSum / bassCount) : 0;
               const midAvg = midSum / midCount;
               
+              const w = window as any;
+              
+              // Aura Math from Architecture Guide
+              if (!w.baselineMid) w.baselineMid = midAvg;
+              w.baselineMid = w.baselineMid * 0.95 + midAvg * 0.05;
+              
+              const spike = Math.max(0, midAvg - w.baselineMid);
+              const rawMidImpact = isPlayingRef.current ? Math.min((spike / 20), 1.5) : 0;
+              
+              if (!w.auraSize) w.auraSize = 0;
+              if (rawMidImpact > w.auraSize) {
+                  w.auraSize = w.auraSize * 0.85 + rawMidImpact * 0.15; // Attack
+              } else {
+                  w.auraSize = w.auraSize * 0.95 + rawMidImpact * 0.05; // Decay
+              }
+              
               const bassImpact = isPlayingRef.current ? (bassAvg / 255) : 0;
-              const midImpact = isPlayingRef.current ? (midAvg / 255) : 0; 
-              
               smoothedBass = smoothedBass * 0.8 + bassImpact * 0.2;
-              smoothedMid = smoothedMid * 0.8 + midImpact * 0.2;
               
-              onFftAveragesRef.current(smoothedBass, smoothedMid);
+              onFftAveragesRef.current(smoothedBass, w.auraSize);
           }
         }
 
