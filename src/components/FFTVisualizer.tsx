@@ -11,6 +11,7 @@ interface FFTVisualizerProps {
   gap?: string | number;
   maxHeight?: number;
   minHeight?: number;
+  onFftAverages?: (bass: number, mid: number) => void;
 }
 
 export function FFTVisualizer({ 
@@ -21,14 +22,18 @@ export function FFTVisualizer({
   barWidth = 3,
   gap = 3,
   maxHeight = 60,
-  minHeight = 4
+  minHeight = 3,
+  onFftAverages
 }: FFTVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    let smoothed = new Float32Array(barCount);
     let animationId: number;
     let latestData: number[] | null = null;
+    
+    // Suavizado exponencial para los cálculos (attack/decay filter)
+    let smoothedBass = 0;
+    let smoothedMid = 0;
     
     const handleData = (data: number[]) => {
       latestData = data;
@@ -52,49 +57,37 @@ export function FFTVisualizer({
 
       ctx.clearRect(0, 0, width, height);
 
-      // Parse dimensions
       const parsedBarWidth = typeof barWidth === 'string' ? parseInt(barWidth) : barWidth;
       const parsedGap = typeof gap === 'string' ? parseInt(gap) : gap;
 
-      // Determine colors based on the text color or prop
-      const isBlack = color === '#000000' || color === 'black';
-      const rgb = isBlack ? '0, 0, 0' : '255, 255, 255';
-
-      // We want to fill the canvas width, but if it's too wide, center it.
-      // Actually, if we want it to look exactly like the screenshot, it should span perfectly.
-      // Let's calculate total width to center it within the canvas.
       const totalWidth = barCount * parsedBarWidth + (barCount - 1) * parsedGap;
       const startX = (width - totalWidth) / 2;
 
+      let bassSum = 0;
+      let midSum = 0;
+
       for (let i = 0; i < barCount; i++) {
         const dataIndex = startIndex + i;
+        // El plugin Swift ya envía la info perfectamente calculada, amplificada y suavizada
         const val = latestData ? (latestData[dataIndex] || 0) : 0;
         
-        // Very smooth interpolation for that premium feel
-        smoothed[i] = smoothed[i] * 0.75 + val * 0.25;
-        
-        const normalizedVal = smoothed[i] / 255;
-        // Apply an easing curve to make the peaks look more dynamic and less linear
-        const easedVal = Math.pow(normalizedVal, 1.2);
-        const h = Math.max(minHeight, easedVal * maxHeight);
+        // Sumas para el glow/scale del background
+        if (i < 10) bassSum += val;
+        else if (i < 30) midSum += val;
+
+        const normalizedVal = val / 255;
+        // Sin smoothing ni easing falso en el frontend, dibujamos directamente la data nativa
+        const h = Math.max(minHeight, normalizedVal * maxHeight);
         
         const x = startX + i * (parsedBarWidth + parsedGap);
-        // Vertically center the bars (mirrored up and down)
         const y = (height - h) / 2;
-
-        const opacity = 0.25 + (normalizedVal * 0.75);
         
-        ctx.fillStyle = `rgba(${rgb}, ${opacity})`;
+        ctx.fillStyle = color; // Color solido como en la captura
         
-        // Add a subtle bloom/glow effect
-        ctx.shadowColor = `rgba(${rgb}, ${opacity * 0.8})`;
-        ctx.shadowBlur = 6;
-
         ctx.beginPath();
         if (ctx.roundRect) {
             ctx.roundRect(x, y, parsedBarWidth, h, parsedBarWidth / 2);
         } else {
-            // Fallback for older iOS Safari
             const r = parsedBarWidth / 2;
             ctx.moveTo(x + r, y);
             ctx.lineTo(x + parsedBarWidth - r, y);
@@ -107,9 +100,17 @@ export function FFTVisualizer({
             ctx.arcTo(x, y, x + r, y, r);
         }
         ctx.fill();
+      }
+
+      // Procesar luces ambientales (Glow / Escala)
+      if (onFftAverages) {
+        const avgBass = bassSum / 10;
+        const avgMid = midSum / 20;
         
-        // Reset shadow for performance on next iteration (though we overwrite it)
-        ctx.shadowBlur = 0;
+        smoothedBass = smoothedBass * 0.8 + avgBass * 0.2;
+        smoothedMid = smoothedMid * 0.8 + avgMid * 0.2;
+        
+        onFftAverages(smoothedBass, smoothedMid);
       }
 
       animationId = requestAnimationFrame(draw);
@@ -123,7 +124,7 @@ export function FFTVisualizer({
         if (info && info.data) {
           handleData(info.data);
         }
-      }).then(l => { capListener = l; });
+      }).then((l: any) => { capListener = l; });
     } else {
       const webListener = (e: any) => handleData(e.detail.data);
       window.addEventListener('fft_data', webListener);
@@ -136,12 +137,12 @@ export function FFTVisualizer({
         capListener.remove();
       }
     };
-  }, [barCount, startIndex, maxHeight, minHeight, color, barWidth, gap]);
+  }, [barCount, startIndex, maxHeight, minHeight, color, barWidth, gap, onFftAverages]);
 
   return (
     <canvas 
       ref={canvasRef} 
-      className={`${className}`}
+      className={`\${className}`}
       style={{ display: 'block', width: '100%', height: '100%' }}
     />
   );

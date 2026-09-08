@@ -81,6 +81,16 @@ export default function ExpandedPlayer() {
   const lyricsBgRef = useRef<HTMLDivElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const bgGlowRef = useRef<HTMLDivElement>(null);
+  
+  const handleFftAverages = (bass, mid) => {
+    if (bgGlowRef.current) {
+      const scale = 1 + (bass * 0.15); 
+      const opacity = Math.min(1, 0.4 + (mid * 0.4));
+      
+      bgGlowRef.current.style.transform = `translateX(-50%) scale(${scale})`;
+      bgGlowRef.current.style.opacity = `${opacity}`;
+    }
+  };
   const playButtonRef = useRef<HTMLButtonElement>(null);
   
   // Swipe gesture state
@@ -459,9 +469,12 @@ export default function ExpandedPlayer() {
           {/* Aura Background */}
           {dominantColor && (
             <div
-              className="absolute top-0 left-1/2 -translate-x-1/2 w-[120vw] h-[120vw] max-w-[1200px] max-h-[1200px] pointer-events-none mix-blend-screen"
+              ref={bgGlowRef}
+              className="absolute top-0 left-1/2 w-[120vw] h-[120vw] max-w-[1200px] max-h-[1200px] pointer-events-none mix-blend-screen transition-all duration-75 ease-out"
               style={{
                 background: `radial-gradient(50% 50% at 50% 0%, ${dominantColor}73 0%, transparent 100%)`,
+                transform: 'translateX(-50%) scale(1)',
+                transformOrigin: 'top center'
               }}
             />
           )}
@@ -550,7 +563,7 @@ export default function ExpandedPlayer() {
 
             {/* Audio Visualizer Canvas */}
             <div className="px-8 mt-4 sm:mt-6 h-[40px] sm:h-[60px] flex items-center justify-center w-full max-w-[450px] mx-auto">
-              <FFTVisualizer barCount={64} startIndex={0} maxHeight={60} minHeight={4} barWidth="3px" gap="3px" className="w-full mx-auto" color='currentColor' />
+              <FFTVisualizer barCount={64} startIndex={0} maxHeight={60} minHeight={3} barWidth={3} gap={3} className="w-full mx-auto" color='#ffffff' onFftAverages={handleFftAverages} />
             </div>
             <div className="flex-1" />
           </div>
@@ -708,7 +721,7 @@ export default function ExpandedPlayer() {
                       </p>
                       <p className="text-sm text-white/50 truncate">{track.artist}</p>
                     </div>
-                    {isPlayingQueue && (<div className="h-4 w-[20px] flex items-center"><FFTVisualizer barCount={4} startIndex={24} maxHeight={16} minHeight={4} barWidth="3px" gap="2px" color="currentColor" className="text-white" /></div>)}
+                    {isPlayingQueue && (<div className="h-4 w-[20px] flex items-center"><FFTVisualizer barCount={4} startIndex={24} maxHeight={16} minHeight={4} barWidth={3} gap={2} color="currentColor" className="text-white" /></div>)}
                   </div>
                 );
               })}
