@@ -40,17 +40,28 @@ struct MiniPlayerNative: View {
                         Spacer()
                         
                         // Mini Visualizador (Seguro porque tiene un frame fijo)
-                        HStack(alignment: .bottom, spacing: 2) {
-                            ForEach(24..<40, id: \.self) { index in
+                        // Mini Visualizador usando Native Canvas API (Performance)
+                        Canvas { context, size in
+                            let startIndex = 24
+                            let barCount = 16
+                            let spacing: CGFloat = 2
+                            let totalSpacing = spacing * CGFloat(barCount - 1)
+                            let barWidth = (size.width - totalSpacing) / CGFloat(barCount)
+                            
+                            for i in 0..<barCount {
+                                let index = startIndex + i
                                 let val = audioPlayer.fftData.indices.contains(index) ? audioPlayer.fftData[index] : 0
                                 let height = max(2, val * 20)
-                                RoundedRectangle(cornerRadius: 1)
-                                    .fill(Color.primary.opacity(0.8))
-                                    .frame(width: 2, height: height)
-                                    .animation(.linear(duration: 0.05), value: val)
+                                let x = CGFloat(i) * (barWidth + spacing)
+                                let y = size.height - height
+                                
+                                let rect = CGRect(x: x, y: y, width: barWidth, height: height)
+                                let path = Path(roundedRect: rect, cornerRadius: 1)
+                                
+                                context.fill(path, with: .color(Color.primary.opacity(0.8)))
                             }
                         }
-                        .frame(height: 24, alignment: .center)
+                        .frame(width: 60, height: 24, alignment: .center)
                         .padding(.trailing, 8)
                         
                         // Controls

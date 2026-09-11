@@ -239,7 +239,7 @@ class AudioPlayerModel: ObservableObject, @unchecked Sendable {
             guard let self = self else { return }
             if now - self.lastFftUpdate > 0.033 {
                 self.lastFftUpdate = now
-                self.fftData = newFftData
+                for i in 0..<64 { self.fftData[i] = self.fftData[i] * 0.70 + newFftData[i] * 0.30 }
                 self.averageVolume = avgVol
             }
         }
