@@ -26,7 +26,9 @@ jobs:
           xcode-version: latest-stable 
 
       - name: Install npm dependencies
-        run: npm ci
+        run: |
+          rm -rf node_modules package-lock.json
+          npm install
 
       - name: Build Web App
         run: npm run build
