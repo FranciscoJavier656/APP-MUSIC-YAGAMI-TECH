@@ -41,6 +41,9 @@ jobs:
         run: |
           sed -i '' '/Assets.xcassets/d' App.xcodeproj/project.pbxproj
           sed -i '' 's/ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;//g' App.xcodeproj/project.pbxproj
+          
+          # Clean up orphaned Capacitor Register files for plugins not explicitly added to PBXProj sources
+          rm -f App/YagamiDownloadManager_Register.m App/LiquidTabBarPlugin_Register.m
 
       - name: Build App (No Code Signing for TrollStore)
         working-directory: ./ios/App
