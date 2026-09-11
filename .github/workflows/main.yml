@@ -1,4 +1,4 @@
-name: Build iOS IPA for TrollStore (100% Native)
+name: Build Capacitor iOS IPA for TrollStore
 
 on:
   push:
@@ -6,49 +6,56 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-ios-native:
-    name: Build Native iOS App (TrollStore)
+  build-ios-capacitor:
+    name: Build Capacitor iOS App (TrollStore)
     runs-on: macos-latest
-
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
 
       - name: Setup Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
           xcode-version: latest-stable 
 
-      - name: Install xcodegen
-        run: brew install xcodegen
+      - name: Install npm dependencies
+        run: npm ci
 
-      - name: Generate Xcode Project
-        working-directory: ./Yagami-Native-iOS
-        run: xcodegen generate
+      - name: Build Web App
+        run: npm run build
+
+      - name: Sync Capacitor iOS Project
+        run: npx cap sync ios
 
       - name: Build App (No Code Signing for TrollStore)
-        working-directory: ./Yagami-Native-iOS
+        working-directory: ./ios/App
         run: |
           set -o pipefail
-          xcodebuild -project YagamiSwiftUI.xcodeproj \
-            -scheme YagamiSwiftUI \
+          xcodebuild -workspace App.xcworkspace \
+            -scheme App \
             -configuration Release \
             -sdk iphoneos \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            ASSETCATALOG_COMPILER_APPICON_NAME="" \
             clean build | xcpretty
 
       - name: Package into IPA
-        working-directory: ./Yagami-Native-iOS
+        working-directory: ./ios/App
         run: |
           mkdir -p Payload
-          cp -r build/Build/Products/Release-iphoneos/YagamiSwiftUI.app Payload/
-          zip -r AudiophilePlayer-Native-TrollStore.ipa Payload
+          cp -r build/Build/Products/Release-iphoneos/App.app Payload/
+          zip -r AudiophilePlayer-Capacitor-TrollStore.ipa Payload
 
       - name: Upload IPA Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: AudiophilePlayer-Native-TrollStore
-          path: Yagami-Native-iOS/AudiophilePlayer-Native-TrollStore.ipa
+          name: AudiophilePlayer-Capacitor-TrollStore
+          path: ios/App/AudiophilePlayer-Capacitor-TrollStore.ipa

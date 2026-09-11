@@ -11,6 +11,7 @@ public class QobuzAudioPlugin: CAPPlugin {
     private var lastFftUpdate: TimeInterval = 0
     private var timeObserverToken: Any?
     
+    // Configuración FFT de alto rendimiento
     private let fftSize = 1024
     private lazy var log2n = vDSP_Length(log2(Float(fftSize)))
     private lazy var fftSetup = vDSP_create_fftsetup(log2n, FFTRadix(kFFTRadix2))
@@ -29,6 +30,7 @@ public class QobuzAudioPlugin: CAPPlugin {
         let asset = AVURLAsset(url: url)
         let playerItem = AVPlayerItem(asset: asset)
         
+        // Interceptar el audio antes de que suene para analizarlo
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
@@ -76,7 +78,7 @@ public class QobuzAudioPlugin: CAPPlugin {
     
     private func setupTimeObserver() {
         if let token = timeObserverToken { player?.removeTimeObserver(token); timeObserverToken = nil }
-        let interval = CMTime(seconds: 0.5, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
+        let interval = CMTime(seconds: 0.25, preferredTimescale: CMTimeScale(NSEC_PER_SEC))
         timeObserverToken = player?.addPeriodicTimeObserver(forInterval: interval, queue: .main) { [weak self] time in
             guard let self = self, let item = self.player?.currentItem else { return }
             let duration = item.duration.isNumeric ? item.duration.seconds : 0
@@ -84,6 +86,7 @@ public class QobuzAudioPlugin: CAPPlugin {
         }
     }
     
+    // Motor Matemático de Frecuencias
     func processAudioForFFT(bufferList: UnsafeMutablePointer<AudioBufferList>, frames: CMItemCount) {
         guard isPlaying else { return }
         
@@ -124,15 +127,19 @@ public class QobuzAudioPlugin: CAPPlugin {
         var multiplier: Float = 2.0 / Float(fftSize)
         vDSP_vsmul(magnitudes, 1, &multiplier, &normalized, 1, vDSP_Length(halfSize))
         
+        // Convertir a bytes (0-255) y enviar a React
         let result = Array(normalized.prefix(64)).map { val -> Int in
             let scaled = val * 5.0
             return Int(min(max(scaled * 255.0, 0), 255))
         }
         
         let now = Date().timeIntervalSince1970
+        // Enviar a 30fps para no saturar el puente JavaScript
         if now - lastFftUpdate > 0.033 {
             self.lastFftUpdate = now
-            DispatchQueue.main.async { self.notifyListeners("onFftData", data: ["data": result]) }
+            DispatchQueue.main.async {
+                self.notifyListeners("onFftData", data: ["data": result])
+            }
         }
     }
     
