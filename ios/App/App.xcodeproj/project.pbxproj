@@ -22,6 +22,7 @@
 		BA890C9BB85A4E499C155F0E /* LiquidTabBarPlugin_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */; };
 		71A3B2FC5DA64C25A7525081 /* QobuzAudioPlugin_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = 6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */; };
 		648A2C8D5A9243BD9A19E00F /* YagamiDownloadManager_Register.m in Sources */ = {isa = PBXBuildFile; fileRef = BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */; };
+		782DE7EA168A4B9B8565575F /* YagamiDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D9A235863E08450095B1986A /* YagamiDownloadManager.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +43,7 @@
 		CDF618FAEAB54D8584F995FF /* LiquidTabBarPlugin_Register.m */ = {isa = PBXFileReference; name = "LiquidTabBarPlugin_Register.m"; path = "LiquidTabBarPlugin_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
 		6371E0BD08554DA2AB20789D /* QobuzAudioPlugin_Register.m */ = {isa = PBXFileReference; name = "QobuzAudioPlugin_Register.m"; path = "QobuzAudioPlugin_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
 		BD4FA481347B409E90414BDE /* YagamiDownloadManager_Register.m */ = {isa = PBXFileReference; name = "YagamiDownloadManager_Register.m"; path = "YagamiDownloadManager_Register.m"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; explicitFileType = undefined; includeInIndex = 0; };
+		D9A235863E08450095B1986A /* YagamiDownloadManager.swift */ = {isa = PBXFileReference; name = "YagamiDownloadManager.swift"; path = "App/YagamiDownloadManager.swift"; sourceTree = "<group>"; fileEncoding = 4; lastKnownFileType = sourcecode.swift; explicitFileType = undefined; includeInIndex = 0; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,6 +186,7 @@
 				BA890C9BB85A4E499C155F0E /* LiquidTabBarPlugin_Register.m in Sources */,
 				71A3B2FC5DA64C25A7525081 /* QobuzAudioPlugin_Register.m in Sources */,
 				648A2C8D5A9243BD9A19E00F /* YagamiDownloadManager_Register.m in Sources */,
+				782DE7EA168A4B9B8565575F /* YagamiDownloadManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
