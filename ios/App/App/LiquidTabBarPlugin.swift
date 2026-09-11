@@ -206,7 +206,7 @@ public class LiquidTabBarPlugin: CAPPlugin, CAPBridgedPlugin {
             // Already installed — just resolve
             if self.hostVC != nil { call.resolve(); return }
 
-            guard let parentVC = self.bridge?.viewController else {
+            guard let parentVC = self.bridge?.viewController ?? UIApplication.shared.windows.first(where: { $0.isKeyWindow })?.rootViewController else {
                 call.reject("No root view controller")
                 return
             }

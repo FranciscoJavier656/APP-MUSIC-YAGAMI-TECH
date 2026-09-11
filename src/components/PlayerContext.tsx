@@ -60,6 +60,7 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
 
     // Escuchador de tiempo (Nativo o Web)
     let timeListener: any;
+    let fftListener: any;
     if (Capacitor.isNativePlatform()) {
       QobuzAudio.addListener("onTimeUpdate", (info) => {
         if (audioRef.current) {
@@ -67,17 +68,26 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
           setDuration(info.duration);
         }
       }).then(l => timeListener = l);
+      
+      QobuzAudio.addListener("onFftData", (info) => {
+        if (info && info.data) {
+          window.dispatchEvent(new CustomEvent('fft_data', { detail: { data: info.data } }));
+        }
+      }).then(l => fftListener = l);
     } else {
       audio.addEventListener('timeupdate', () => { if (audio.duration) setDuration(audio.duration); });
     }
     
-    return () => { if (timeListener) timeListener.remove(); };
+    return () => { 
+      if (timeListener) timeListener.remove(); 
+      if (fftListener) fftListener.remove();
+    };
   }, []);
 
   const playTrack = async (track: Track) => {
     setCurrentTrack(track);
     setDuration(track.duration || 0);
-    const streamUrl = track.streamUrl || "URL_DE_PRUEBA_AQUI"; // Asegúrate de tener una URL válida
+    const streamUrl = track.streamUrl || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; // Fallback to a valid MP3
     
     if (Capacitor.isNativePlatform()) {
       await QobuzAudio.play({ url: streamUrl });
