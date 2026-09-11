@@ -34,7 +34,7 @@ public class QobuzAudioPlugin: CAPPlugin {
         var callbacks = MTAudioProcessingTapCallbacks(
             version: kMTAudioProcessingTapCallbacksVersion_0,
             clientInfo: UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
-            `init`: { tap, clientInfo, tapStorageOut in tapStorageOut.pointee = clientInfo },
+            init: { tap, clientInfo, tapStorageOut in tapStorageOut.pointee = clientInfo },
             finalize: { tap in },
             prepare: { tap, maxFrames, processingFormat in },
             unprepare: { tap in },
