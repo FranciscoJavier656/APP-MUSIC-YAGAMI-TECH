@@ -29,12 +29,12 @@ private let kTabs: [TabItem] = [
     TabItem(id: "settings",  icon: "gearshape.fill",         label: "Ajustes"),
 ]
 
-// MARK: - iOS 26 Liquid Glass Tab Bar View
+// MARK: - iOS 15 Liquid Glass Tab Bar View
 
-/// Uses real Apple Liquid Glass APIs — only compiled on iOS 26+.
+/// Uses real Apple Liquid Glass APIs — only compiled on iOS 15+.
 /// GlassEffectContainer makes the bar and the active bubble
 /// merge into ONE liquid glass surface automatically.
-@available(iOS 26, *)
+@available(iOS 15, *)
 struct iOS26LiquidTabBar: View {
     @ObservedObject var state: LiquidTabBarState
     var onTabSelected: (String) -> Void
@@ -173,7 +173,7 @@ struct LiquidTabBarView: View {
     var body: some View {
         VStack(spacing: 0) {
             Spacer()
-            if #available(iOS 26, *) {
+            if #available(iOS 15, *) {
                 iOS26LiquidTabBar(state: state, onTabSelected: onTabSelected)
             } else {
                 FallbackTabBar(state: state, onTabSelected: onTabSelected)

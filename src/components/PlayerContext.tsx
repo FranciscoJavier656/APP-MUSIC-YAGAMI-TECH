@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useRef, useEffect, ReactNod
 import { Capacitor } from "@capacitor/core";
 import { QobuzAudio } from "../lib/QobuzAudioPlugin";
 
+import { getQobuzTrackUrl } from "../lib/qobuz";
+
 export interface Track {
   id: string; title: string; artist: string; image: string; streamUrl?: string; duration?: number;
 }
@@ -87,8 +89,21 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const playTrack = async (track: Track) => {
     setCurrentTrack(track);
     setDuration(track.duration || 0);
-    const streamUrl = track.streamUrl || "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; // Fallback to a valid MP3
     
+    let streamUrl = track.streamUrl;
+    if (!streamUrl && track.id) {
+      try {
+        console.log("Fetching stream URL for track:", track.id);
+        streamUrl = await getQobuzTrackUrl(track.id);
+      } catch (e) {
+        console.error("Failed to fetch stream URL", e);
+        // Fallback to valid MP3 if API fails (or if we hit a preview limit without premium)
+        streamUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3"; 
+      }
+    } else if (!streamUrl) {
+      streamUrl = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
+    }
+
     if (Capacitor.isNativePlatform()) {
       await QobuzAudio.play({ url: streamUrl });
       QobuzAudio.updateMetadata({ title: track.title, artist: track.artist, album: "Álbum", coverUrl: track.image, duration: track.duration || 0 });
