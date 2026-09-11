@@ -48,7 +48,9 @@ jobs:
             -derivedDataPath ./build \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=YES \
+            CODE_SIGNING_ALLOWED=NO \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            -allowProvisioningUpdates \
             clean build | xcpretty
 
       - name: Package into IPA
