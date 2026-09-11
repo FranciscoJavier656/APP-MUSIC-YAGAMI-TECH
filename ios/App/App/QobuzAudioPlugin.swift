@@ -41,16 +41,15 @@ public class QobuzAudioPlugin: CAPPlugin {
             process: { tap, numberFrames, flags, bufferListInOut, numberFramesOut, flagsOut in
                 let status = MTAudioProcessingTapGetSourceAudio(tap, numberFrames, bufferListInOut, flagsOut, nil, numberFramesOut)
                 if status == noErr {
-                    if let storage = MTAudioProcessingTapGetStorage(tap) {
-                        let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
-                        plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
-                    }
+                    let storage = MTAudioProcessingTapGetStorage(tap)
+                    let plugin = Unmanaged<QobuzAudioPlugin>.fromOpaque(storage).takeUnretainedValue()
+                    plugin.processAudioForFFT(bufferList: bufferListInOut, frames: numberFrames)
                 }
             }
         )
         
         var tap: MTAudioProcessingTap?
-        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, MTAudioProcessingTapCreationFlags.postEffects, &tap)
+        let status = MTAudioProcessingTapCreate(kCFAllocatorDefault, &callbacks, kMTAudioProcessingTapCreationFlag_PostEffects, &tap)
         
         asset.loadValuesAsynchronously(forKeys: ["tracks"]) {
             var error: NSError? = nil
