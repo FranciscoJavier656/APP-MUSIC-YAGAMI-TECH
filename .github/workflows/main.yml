@@ -39,31 +39,32 @@ jobs:
       - name: Fix Xcode Asset Catalog Bug for TrollStore
         working-directory: ./ios/App
         run: |
+          cat << 'EOF' > patch.sh
+          #!/bin/bash
           sed -i '' '/Assets.xcassets/d' App.xcodeproj/project.pbxproj
           sed -i '' 's/ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;//g' App.xcodeproj/project.pbxproj
           
-          # Force inject YagamiDownloadManager.swift into Xcode PBXBuildFile and PBXSourcesBuildPhase so it compiles
-          # First, find the UUID of the Sources build phase (isa = PBXSourcesBuildPhase)
           SOURCES_UUID=$(awk '/isa = PBXSourcesBuildPhase;/ {print $1}' App.xcodeproj/project.pbxproj | head -n 1)
-          
-          # Generate fake UUIDs for the file reference and build file
           FILE_REF_UUID="YAGAMI000000000000000001"
           BUILD_FILE_UUID="YAGAMI000000000000000002"
           
-          # Add the PBXFileReference
-          sed -i '' -e "/\/\* End PBXFileReference section \*\//i\\" -e "		$FILE_REF_UUID /* YagamiDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YagamiDownloadManager.swift; sourceTree = \"<group>\"; };" App.xcodeproj/project.pbxproj
-
-          # Add the PBXBuildFile
-          sed -i '' -e "/\/\* End PBXBuildFile section \*\//i\\" -e "		$BUILD_FILE_UUID /* YagamiDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = $FILE_REF_UUID /* YagamiDownloadManager.swift */; };" App.xcodeproj/project.pbxproj
-
-          # Add to the PBXGroup (App group) - finding the children array
+          sed -i '' "/\/\* End PBXFileReference section \*\//i\\
+          		$FILE_REF_UUID /* YagamiDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YagamiDownloadManager.swift; sourceTree = \"<group>\"; };\\
+          " App.xcodeproj/project.pbxproj
+          
+          sed -i '' "/\/\* End PBXBuildFile section \*\//i\\
+          		$BUILD_FILE_UUID /* YagamiDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = $FILE_REF_UUID /* YagamiDownloadManager.swift */; };\\
+          " App.xcodeproj/project.pbxproj
+          
           APP_GROUP_UUID=$(awk '/\/\* App \*\/ = {/ {print $1}' App.xcodeproj/project.pbxproj)
           sed -i '' "/$APP_GROUP_UUID \/\* App \*\/ = {/,/children = (/ s/children = (/children = (\\
-				$FILE_REF_UUID \/\* YagamiDownloadManager.swift \*\/,/" App.xcodeproj/project.pbxproj
-
-          # Add to the PBXSourcesBuildPhase
+          				$FILE_REF_UUID \/\* YagamiDownloadManager.swift \*\/,/" App.xcodeproj/project.pbxproj
+          
           sed -i '' "/$SOURCES_UUID \/\* Sources \*\/ = {/,/files = (/ s/files = (/files = (\\
-				$BUILD_FILE_UUID \/\* YagamiDownloadManager.swift in Sources \*\/,/" App.xcodeproj/project.pbxproj
+          				$BUILD_FILE_UUID \/\* YagamiDownloadManager.swift in Sources \*\/,/" App.xcodeproj/project.pbxproj
+          EOF
+          chmod +x patch.sh
+          ./patch.sh
           
       - name: Build App (No Code Signing for TrollStore)
         working-directory: ./ios/App
