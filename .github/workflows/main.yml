@@ -44,9 +44,11 @@ jobs:
             -scheme App \
             -configuration Release \
             -sdk iphoneos \
+            -destination "generic/platform=iOS" \
             -derivedDataPath ./build \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
+            ASSETCATALOG_COMPILER_APPICON_NAME="" \
             clean build | xcpretty
 
       - name: Package into IPA
