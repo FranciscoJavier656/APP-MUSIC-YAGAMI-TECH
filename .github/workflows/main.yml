@@ -51,14 +51,10 @@ jobs:
           BUILD_FILE_UUID="YAGAMI000000000000000002"
           
           # Add the PBXFileReference
-          sed -i '' "/\/\* End PBXFileReference section \*\//i\\
-		$FILE_REF_UUID /* YagamiDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YagamiDownloadManager.swift; sourceTree = \"<group>\"; };\\
-" App.xcodeproj/project.pbxproj
+          sed -i '' -e "/\/\* End PBXFileReference section \*\//i\\" -e "		$FILE_REF_UUID /* YagamiDownloadManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YagamiDownloadManager.swift; sourceTree = \"<group>\"; };" App.xcodeproj/project.pbxproj
 
           # Add the PBXBuildFile
-          sed -i '' "/\/\* End PBXBuildFile section \*\//i\\
-		$BUILD_FILE_UUID /* YagamiDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = $FILE_REF_UUID /* YagamiDownloadManager.swift */; };\\
-" App.xcodeproj/project.pbxproj
+          sed -i '' -e "/\/\* End PBXBuildFile section \*\//i\\" -e "		$BUILD_FILE_UUID /* YagamiDownloadManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = $FILE_REF_UUID /* YagamiDownloadManager.swift */; };" App.xcodeproj/project.pbxproj
 
           # Add to the PBXGroup (App group) - finding the children array
           APP_GROUP_UUID=$(awk '/\/\* App \*\/ = {/ {print $1}' App.xcodeproj/project.pbxproj)
