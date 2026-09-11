@@ -36,13 +36,6 @@ jobs:
       - name: Sync Capacitor iOS Project
         run: npx cap sync ios
 
-      - name: Fix Xcode Project Settings for TrollStore Build
-        working-directory: ./ios/App
-        run: |
-          # Elimina temporalmente la configuración de AppIcon para que no falle al compilar sin firmas
-          sed -i '' 's/ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;//g' App.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual;/g' App.xcodeproj/project.pbxproj
-
       - name: Build App (No Code Signing for TrollStore)
         working-directory: ./ios/App
         run: |
@@ -53,9 +46,9 @@ jobs:
             -sdk iphoneos \
             -destination "generic/platform=iOS" \
             -derivedDataPath ./build \
-            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
-            ASSETCATALOG_COMPILER_APPICON_NAME="" \
+            CODE_SIGNING_ALLOWED=YES \
             clean build | xcpretty
 
       - name: Package into IPA
